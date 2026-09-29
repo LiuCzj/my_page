@@ -2,6 +2,7 @@ import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import { ThemeProvider } from 'next-themes'
 import { I18nProvider } from '@/lib/i18n'
+import { TwinChatProvider } from '@/lib/twin-chat-context'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/footer'
 import PageTransition from '@/components/page-transition'
@@ -45,9 +46,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider attribute="class" defaultTheme={site.defaults.theme} disableTransitionOnChange>
           {/* I18nProvider 在 Navbar 之外，顶栏的语言按钮和导航文案才能同时读到字典 */}
           <I18nProvider>
-            <Navbar />
-            <PageTransition>{children}</PageTransition>
-            <Footer />
+            {/*
+              TwinChatProvider 必须放在这一层而不是 page.tsx：
+              顶栏的「问分身」也要能打开聊天窗，而 Navbar 渲染在 layout 里，
+              拿不到 page 内部的 Context —— 放低了就会在顶栏里抛 "必须在 Provider 内部使用"。
+            */}
+            <TwinChatProvider>
+              <Navbar />
+              <PageTransition>{children}</PageTransition>
+              <Footer />
+            </TwinChatProvider>
           </I18nProvider>
         </ThemeProvider>
       </body>

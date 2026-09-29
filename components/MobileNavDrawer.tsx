@@ -17,6 +17,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
+import { useTwinChat } from '@/lib/twin-chat-context';
 import { CsdnIcon, GitHubIcon, MailIcon, WechatIcon, ZhihuIcon } from './BrandIcons';
 import type { ContactModalVariant } from './ContactModal';
 
@@ -29,17 +30,17 @@ interface MobileNavDrawerProps {
 
 export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNavDrawerProps) {
   const { d, pick } = useI18n();
+  const { openChat } = useTwinChat();
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  /** 与桌面导航同一组页内锚点：单页站点没有子页面了 */
-  const navItems = [
+  /** 抽屉里的两项页内锚点；第三项「问分身」是按钮，单独渲染 */
+  const linkItems = [
     { href: '/', label: d.nav.home },
     { href: '/#info', label: d.nav.info },
-    { href: '/#ask-twin', label: d.nav.chat },
   ];
 
-  // 跳页后自动收起：否则点了「项目」到新页面，抽屉还盖在半屏上
+  // 跳页后自动收起：否则点了导航项到了新位置，抽屉还盖在半屏上
   useEffect(() => {
     onClose();
     // 只依赖 pathname，避免父组件重渲染时被反复关闭
@@ -100,7 +101,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={d.topbar.menu}
+        aria-label={d.topbar.drawerNav}
         className="absolute inset-x-0 top-0 max-h-[80vh] overflow-y-auto border-b border-border bg-card px-4 pb-6 pt-3 shadow-2xl"
       >
         <div className="flex items-center justify-between">
@@ -118,7 +119,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
         </div>
 
         <nav className="mt-2 flex flex-col">
-          {navItems.map((item) => {
+          {linkItems.map((item) => {
             const isActive = pathname === item.href;
             return (
               <Link
@@ -132,6 +133,19 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
               </Link>
             );
           })}
+
+          {/* 「问分身」是按钮不是锚点：聊天区只在面板打开时存在，页面上没有可跳的目标 */}
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openChat();
+            }}
+            aria-haspopup="dialog"
+            className="rounded-lg px-3 py-3 text-left text-base font-bold text-foreground transition hover:bg-secondary"
+          >
+            {d.nav.chat}
+          </button>
         </nav>
 
         <div className="mt-4 border-t border-border pt-3">

@@ -30,6 +30,7 @@ import SocialLinks from './SocialLinks';
 import ContactModal, { type ContactModalVariant } from './ContactModal';
 import MobileNavDrawer from './MobileNavDrawer';
 import { useI18n } from '@/lib/i18n';
+import { useTwinChat } from '@/lib/twin-chat-context';
 import { site } from '@/config/site';
 
 export default function Navbar() {
@@ -39,15 +40,23 @@ export default function Navbar() {
   const [modal, setModal] = useState<ContactModalVariant | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const { openChat } = useTwinChat();
+
   /**
-   * 导航是页内锚点：本站是单页（首页 / 关于我 / 问分身）。
-   * globals.css 里开了 scroll-behavior: smooth，点下去会平滑滚到对应区块。
+   * 导航三项里，只有「首页」和「关于我」是页内锚点。
+   *
+   * 「问分身」必须是按钮：聊天区已经从正文里移走、只在悬浮面板打开时才存在，
+   * 写成 <a href="#ask-twin"> 时页面上根本没有这个目标，点了自然没反应。
+   * 手机抽屉里同样处理。
    */
-  const navItems = [
+  const linkItems = [
     { href: '/', label: d.nav.home },
     { href: '/#info', label: d.nav.info },
-    { href: '/#ask-twin', label: d.nav.chat },
   ];
+
+  /** 导航项文字配色：当前页用 accent，其余用灰并在悬停时提亮 */
+  const navLabelClass = (active: boolean) =>
+    `transition-colors ${active ? 'text-accent' : 'text-muted-foreground hover:text-foreground'}`;
 
   const controlBtn =
     'inline-flex size-10 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
@@ -67,19 +76,14 @@ export default function Navbar() {
               <span className="text-accent">{site.identity.nameAccent}</span>
             </Link>
 
-            {/* 桌面导航：绝对居中改成顺序排列，避免窄屏时与右侧图标叠在一起 */}
+            {/* 桌面导航：顺序排列，避免窄屏时与右侧图标叠在一起 */}
             <ul className="hidden items-center gap-1 text-sm font-semibold lg:flex">
-              {navItems.map((item) => {
+              {linkItems.map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <li key={item.href} className="relative px-3 py-2">
                     <Link href={item.href} className="block no-underline">
-                      <motion.span
-                        whileHover={{ y: -2 }}
-                        className={`transition-colors ${
-                          isActive ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                      >
+                      <motion.span whileHover={{ y: -2 }} className={navLabelClass(isActive)}>
                         {item.label}
                       </motion.span>
                     </Link>
@@ -93,6 +97,19 @@ export default function Navbar() {
                   </li>
                 );
               })}
+
+              <li className="relative px-3 py-2">
+                <button
+                  type="button"
+                  onClick={openChat}
+                  aria-haspopup="dialog"
+                  className="block cursor-pointer bg-transparent p-0 font-semibold"
+                >
+                  <motion.span whileHover={{ y: -2 }} className={navLabelClass(false)}>
+                    {d.nav.chat}
+                  </motion.span>
+                </button>
+              </li>
             </ul>
 
             <div className="flex items-center gap-2">

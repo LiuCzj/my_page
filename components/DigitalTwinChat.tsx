@@ -22,8 +22,9 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Loader2, RotateCcw, Send, Trash2 } from 'lucide-react';
+import { Loader2, RotateCcw, Send, Trash2, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { useTwinChat } from '@/lib/twin-chat-context';
 import { site } from '@/config/site';
 
 /** 一条聊天消息 */
@@ -114,6 +115,8 @@ function loadHistory(): ChatMessage[] | null {
 
 export default function DigitalTwinChat() {
   const { d, pick, fill, lang } = useI18n();
+  /** 聊天窗现在是悬浮面板：开合由外部（首屏机器人、CTA、关于我入口）通过 Context 控制 */
+  const { open, closeChat } = useTwinChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending'>('idle');
@@ -135,6 +138,25 @@ export default function DigitalTwinChat() {
 
   // 卸载时收尾：留着半截的流会触发「在已卸载组件上 setState」告警
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  /**
+   * 面板展开时：Esc 关闭 + 把光标直接放进输入框（省掉一次点击）。
+   * 面板是「非模态」的 —— 不挡背景、不加遮罩，所以这里只做这两件事，
+   * 不做焦点圈禁，也不锁背景滚动，访客可以一边看页面一边聊。
+   */
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeChat();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    // 等一帧再聚焦，避免在面板尚未布局完成时 focus 失效
+    const timer = window.setTimeout(() => textareaRef.current?.focus(), 60);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      window.clearTimeout(timer);
+    };
+  }, [open, closeChat]);
 
   // 新内容进来就滚到底部。block:'nearest' 只在确实超出可视区时滚动，不会把页面拽走
   useEffect(() => {
@@ -365,33 +387,63 @@ export default function DigitalTwinChat() {
   const bubbleBase =
     'max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed';
 
-  return (
-    <section
-      id="ask-twin"
-      className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6"
-      aria-labelledby="ask-twin-title"
-    >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 id="ask-twin-title" className="text-lg font-bold text-card-foreground sm:text-xl">
-            {d.chat.title}
-          </h2>
-          <p className="mt-1 text-sm text-muted-foreground">{d.chat.subtitle}</p>
-        </div>
-        {messages.length > 0 && (
-          <button
-            type="button"
-            onClick={clearAll}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
-          >
-            <Trash2 size={14} aria-hidden="true" />
-            {d.chat.clear}
-          </button>
-        )}
-      </div>
+  /**
+   * 关闭时整块不渲染 —— 这是「消息多了网页不再变长」的前提之一：
+   * 面板不占文档流，页面高度与聊天内容彻底解耦。
+   */
+  if (!open) return null;
 
-      {/* 消息列表：欢迎语始终是第一颗气泡，由 config 现取，不进历史 */}
-      <div className="mt-5 flex flex-col gap-3">
+  return (
+    /*
+     * 悬浮面板定位。
+     * 手机端：贴在固定顶栏（实测 109px）下方，左右贴边撑到屏幕底部。
+     * ≥sm：收成右下角 400px 宽的窗口，但 top 仍从 120px 起 ——
+     *   面板层级 z-[80] 高于顶栏 z-50，若让它顶到视口上方就会盖住顶栏的语言/主题按钮。
+     * 高度一律用 top + bottom 夹出来，不用 100dvh 算，避免出现量到 96px 那种差一位数的错位。
+     */
+    <div
+      className="fixed inset-x-0 bottom-0 top-[112px] z-[80] sm:inset-x-auto sm:bottom-4 sm:left-auto sm:right-4 sm:top-[120px] sm:h-auto sm:max-h-[720px] sm:w-[400px]"
+      role="dialog"
+      aria-label={d.chat.title}
+    >
+      <section
+        id="ask-twin"
+        className="flex h-full flex-col overflow-hidden border border-border bg-card shadow-2xl sm:rounded-2xl"
+        aria-labelledby="ask-twin-title"
+      >
+        {/* 窗头：标题 + 清空 + 关闭。shrink-0 保证它不随消息滚动消失 */}
+        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 id="ask-twin-title" className="text-base font-bold text-card-foreground">
+              {d.chat.title}
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">{d.chat.subtitle}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              >
+                <Trash2 size={14} aria-hidden="true" />
+                {d.chat.clear}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={closeChat}
+              className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              aria-label={d.chat.close}
+              title={d.chat.close}
+            >
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+        </header>
+
+      {/* 消息区：唯一会滚动的部分。min-h-0 是 flex 子项能内部滚动的必要条件 */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
         <div className="flex gap-2">
           <span className="mt-1 shrink-0 text-[11px] font-bold text-muted-foreground">{d.chat.twin}</span>
           <div className={`${bubbleBase} border border-border bg-secondary text-secondary-foreground`}>
@@ -445,8 +497,10 @@ export default function DigitalTwinChat() {
         <div ref={endRef} />
       </div>
 
+      {/* 底部固定区：一键提问 + 输入框 + 免责说明。shrink-0 让它始终贴在面板底部 */}
+      <div className="shrink-0 border-t border-border px-4 py-3">
       {/* 一键提问：别人最常问你的三个问题 */}
-      <div className="mt-5">
+      <div>
         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           {d.chat.quickAsk}
         </p>
@@ -467,7 +521,7 @@ export default function DigitalTwinChat() {
 
       {/* 输入区：Enter 发送，Shift+Enter 换行 */}
       <form
-        className="mt-4 flex items-end gap-2"
+        className="mt-3 flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           send();
@@ -510,9 +564,11 @@ export default function DigitalTwinChat() {
         )}
       </form>
 
-      {notice && <p className="mt-2 text-xs font-semibold text-destructive">{notice}</p>}
+        {notice && <p className="mt-2 text-xs font-semibold text-destructive">{notice}</p>}
 
-      <p className="mt-3 text-[11px] text-muted-foreground">{d.chat.disclaimer}</p>
-    </section>
+        <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{d.chat.disclaimer}</p>
+      </div>
+      </section>
+    </div>
   );
 }

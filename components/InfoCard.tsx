@@ -8,12 +8,14 @@
  * 底部只留一个「往下滑去问分身」的页内锚点。
  */
 
-import { ArrowDown, Heart, Sparkles, User, Wrench } from 'lucide-react';
+import { Heart, MessageCircle, User, Wrench } from 'lucide-react';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
+import { useTwinChat } from '@/lib/twin-chat-context';
 
 export default function InfoCard() {
   const { d, pick } = useI18n();
+  const { openChat } = useTwinChat();
   const { identity } = site;
 
   return (
@@ -26,14 +28,7 @@ export default function InfoCard() {
         {d.info.title}
       </h2>
 
-      <p className="mt-4 flex items-start gap-2 text-sm font-semibold text-foreground">
-        <Sparkles size={16} className="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
-        <span>
-          {d.info.signature}：{pick(identity.signature)}
-        </span>
-      </p>
-
-      <dl className="mt-6 grid gap-6 sm:grid-cols-2">
+      <dl className="mt-2 grid gap-6 sm:grid-cols-2">
         <div>
           <dt className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <Wrench size={13} className="text-accent" aria-hidden="true" />
@@ -75,13 +70,14 @@ export default function InfoCard() {
         <span>{identity.interests.map((item) => pick(item)).join(' · ')}</span>
       </p>
 
-      <a
-        href="#ask-twin"
-        className="mt-7 inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground no-underline transition hover:border-accent hover:text-accent"
+      <button
+        type="button"
+        onClick={openChat}
+        className="mt-7 inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent"
       >
-        <ArrowDown size={15} aria-hidden="true" />
+        <MessageCircle size={15} aria-hidden="true" />
         {d.info.goChat}
-      </a>
+      </button>
     </section>
   );
 }

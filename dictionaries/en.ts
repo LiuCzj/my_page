@@ -44,13 +44,18 @@ const en: Dict = {
     notConfiguredAction: 'Got it',
     close: 'Close',
   },
+  hero: {
+    robotHintOpen: 'Click to open the AI twin',
+    robotHintClose: 'Click to close the AI twin',
+    robotAria: 'Toggle the digital twin chat window',
+    askTwin: 'Chat with my digital twin',
+  },
   info: {
     title: 'About me',
-    signature: 'How people remember me',
     interests: 'Interests',
     expertise: 'Focus / skills',
     recentWork: 'Recently working on',
-    goChat: 'Scroll down and ask the twin',
+    goChat: 'Ask my digital twin',
   },
   chat: {
     title: 'Digital twin · ask me anything',
@@ -59,6 +64,7 @@ const en: Dict = {
     send: 'Send',
     stop: 'Stop',
     clear: 'Clear chat',
+    close: 'Close the twin',
     retry: 'Retry',
     twin: 'Twin',
     quickAsk: 'Suggested',

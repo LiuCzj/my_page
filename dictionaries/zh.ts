@@ -42,13 +42,18 @@ const zh = {
     notConfiguredAction: '我知道了',
     close: '关闭',
   },
+  hero: {
+    robotHintOpen: '点我，开启数字分身',
+    robotHintClose: '点我，关闭数字分身',
+    robotAria: '数字分身聊天窗开关',
+    askTwin: '和我的数字分身聊聊',
+  },
   info: {
     title: '关于我',
-    signature: '别人怎么记住我',
     interests: '兴趣',
     expertise: '关心 / 擅长',
     recentWork: '最近在做',
-    goChat: '往下滑，直接问分身',
+    goChat: '问问我的数字分身',
   },
   chat: {
     title: '数字分身 · 直接问我',
@@ -57,6 +62,7 @@ const zh = {
     send: '发送',
     stop: '停止',
     clear: '清空对话',
+    close: '关闭数字分身',
     retry: '重试',
     twin: '分身',
     quickAsk: '猜你想问',
