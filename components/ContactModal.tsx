@@ -176,7 +176,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
         {variant === 'wechat' && (
           <div className="mt-4 flex flex-col items-center">
             {/*
-              二维码路径由 config 提供，可能为空（比如你还没上传自己的码）。
+              二维码路径由 config 提供，允许留空（换图或临时下架时不必改组件）。
               留空时显示提示文字，而不是让 <img> 破图挂在弹窗里。
             */}
             {qrcode ? (

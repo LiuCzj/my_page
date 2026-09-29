@@ -18,12 +18,15 @@
 - 移动端适配：顶栏两行、联系方式可横滑、导航折进抽屉，触控区 44px
 - 微信公众号点击弹二维码，邮箱点击弹可复制的地址（含键盘可达性：Esc 关闭、焦点圈禁与归还）
 - 聊天历史存本地，可清空、可重试、可中途停止
+- 页脚（一句话介绍、五个联系方式、版权行）与 404 页，文案均跟随中英切换
 
 ## 技术栈
 
-Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes
+Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes · lucide-react · framer-motion
 
-无 UI 组件库，图标为内联 SVG，字体使用系统字体栈 —— 页面不请求任何外部 CDN 资源。
+没有引入成体系的 UI 组件库。通用图标（菜单、关闭、聊天、深浅色切换等）取自 lucide-react；
+CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱图标沿用 lucide-react 的形状；
+页面切换与顶栏动效用 framer-motion。字体使用系统字体栈 —— 页面不请求任何外部 CDN 资源。
 
 ## 本地运行
 
@@ -60,6 +63,7 @@ lib/i18n.tsx                语言 Context + localStorage 持久化
 app/page.tsx                单页主体
 app/layout.tsx              主题与语言 Provider、metadata、viewport
 app/globals.css             颜色令牌与深浅色变体
+app/not-found.tsx           404 页（读语言字典，跟随中英切换）
 app/api/assistant/route.ts  模型代理（密钥只在这一层）+ 人设提示词
 components/
   Hero.tsx                  头像、名字、一句话介绍
@@ -72,6 +76,8 @@ components/
   ContactModal.tsx          二维码 / 邮箱弹窗
   LanguageToggle.tsx        语言切换
   theme-toggle.tsx          深浅色切换
+  footer.tsx                页脚（一句话介绍 + 联系方式 + 版权行）
+  page-transition.tsx       页面切换淡入动画
 ```
 
 ## 数字分身的人设
