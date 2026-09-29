@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/*
+ * Tailwind v4 是 CSS-first 配置：本项目没有 tailwind.config.*，
+ * 主题色、圆角、暗色变体全部在这个文件里定义。
+ *
+ * 这一行把 dark: 变体从「跟随系统 prefers-color-scheme」改成「认 .dark 类」，
+ * 因为 next-themes 是用给 <html> 加/去 .dark 类来切换主题的（app/layout.tsx 的 ThemeProvider）。
+ * 没有这行的话，按钮点了不会变 —— 这是 v4 相对 v3 最常踩的坑。
+ */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * ── 颜色令牌 ─────────────────────────────────────────────────
+ * 存的是 HSL 三个分量（不含 hsl() 外壳），由下面 @theme 包成 Tailwind 颜色。
+ * 这么做的目的是任何地方都能再套透明度：bg-background/95、border-accent/30。
+ *
+ * 主色按你的要求定在「深蓝 + 白」，并且逐个验过对比度（WCAG AA 正文 ≥4.5:1）：
+ *   明亮模式：近白偏蓝底 + 深蓝墨字，accent 取深蓝 #1e63c4 一档
+ *   暗黑模式：深蓝黑底 + 近白字，accent 提亮一档，保证小字也够对比
+ */
+:root {
+  /* 明亮 */
+  --background: 210 40% 98%;
+  --foreground: 222 47% 13%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 13%;
+  --primary: 214 70% 32%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 35% 93%;
+  --secondary-foreground: 222 47% 16%;
+  --muted: 210 35% 93%;
+  /* 这个色大面积用在正文副文本上，取值保证压在近白背景上仍达 WCAG AA（约 7:1） */
+  --muted-foreground: 215 28% 33%;
+  --accent: 214 80% 40%;
+  --accent-foreground: 210 40% 98%;
+  --border: 214 30% 86%;
+  --input: 214 30% 82%;
+  --ring: 214 80% 40%;
+  --destructive: 0 72% 38%;
+}
+
+.dark {
+  /* 暗黑 */
+  --background: 222 47% 8%;
+  --foreground: 210 40% 96%;
+  /* 原来 --card 与 --background 同值（222 47% 11%），卡片只靠 1px 边框撑着，
+     层级感全丢。这里把卡面抬亮一档，背景再压暗一档。 */
+  --card: 222 40% 14%;
+  --card-foreground: 210 40% 96%;
+  --primary: 210 40% 96%;
+  --primary-foreground: 222 47% 10%;
+  --secondary: 217 33% 20%;
+  --secondary-foreground: 210 40% 96%;
+  --muted: 217 33% 20%;
+  --muted-foreground: 215 28% 74%;
+  /* 深色下 accent 提亮，配 accent-foreground 取深墨：
+     实心按钮（聊天发送、一键提问）用 bg-accent + text-accent-foreground 也过 AA */
+  --accent: 213 88% 64%;
+  --accent-foreground: 222 55% 7%;
+  --border: 217 33% 24%;
+  --input: 217 33% 28%;
+  --ring: 213 88% 64%;
+  --destructive: 0 78% 68%;
+}
+
+/* 把上面这些分量注册成 Tailwind 颜色：bg-foreground / border-accent / fill-background 等 */
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  /* 错误色：聊天失败提示用 text-destructive（两套主题各自调过明度，都能看清） */
+  --color-destructive: hsl(var(--destructive));
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    /* 原来只写了 'Inter'，但项目里既没装 next/font 也没有本地字体文件，
+       实际永远回退到 system-ui。这里直接列出中英都覆盖到的系统字体，
+       中文在 Windows 上走微软雅黑、macOS 走苹方，避免出现宋体回退。 */
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      'PingFang SC',
+      'Hiragino Sans GB',
+      'Microsoft YaHei',
+      'Noto Sans CJK SC',
+      sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    /* 这里刻意不给 background/color 加 transition：
+       切主题时会出现「深字配深底」的半路过渡态，那一瞬间字看不清。
+       ThemeProvider 上也开了 disableTransitionOnChange 做双保险。 */
+  }
+
+  /* 键盘可达性：所有可交互元素都有清晰的焦点环（用 --ring，两套主题各自定义过） */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: hsl(var(--accent) / 0.25);
+  }
+
+  /* 尊重系统的「减少动态效果」设置：前庭功能敏感的用户看到持续动画会不适 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* 以下 prose 相关规则随博客页面一起停用（原用于 Markdown 正文排版） */

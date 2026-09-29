@@ -1,0 +1,8 @@
+# 安装口径示例：复制成 .npmrc 再按自己的机器情况改。
+#
+# legacy-peer-deps：本项目 react / react-dom 被 overrides 锁在 19.0.0，
+# 而部分依赖声明的对等版本仍是 18，不加这个开关安装会直接 ERESOLVE 失败。
+#
+# 如果想让 npm 缓存落在指定盘，再补一行（路径换成你自己的）：
+# cache=D:/your/npm-cache
+legacy-peer-deps=true
