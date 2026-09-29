@@ -3,13 +3,6 @@ import InfoCard from '@/components/InfoCard';
 import DigitalTwinChat from '@/components/DigitalTwinChat';
 import ChatInset from '@/components/ChatInset';
 import { site } from '@/config/site';
-import type { Metadata } from 'next';
-
-/** 短标题，「· 锦创AI」后缀由 app/layout.tsx 的 template 统一拼 */
-export const metadata: Metadata = {
-  title: '首页',
-  description: site.identity.tagline.zh,
-};
 
 /**
  * 单页主页，从上到下三块可见内容：

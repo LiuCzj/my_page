@@ -10,15 +10,17 @@ import { site } from '@/config/site'
 
 /**
  * 站点级 metadata。
- * 子页面用 `export const metadata = { title: '首页' }` 这种短标题，
- * 由下面的 template 统一拼成「首页 · 锦创AI」，避免各页面各自硬写后缀导致重复。
+ * 标题只放名字「锦创AI」—— 中英访客看这一段都一样，不会出现半中半英的拼接。
+ * 描述把中英文写进同一条：metadata 在服务端渲染时就定死了，而语言偏好存在访客浏览器的
+ * localStorage 里，服务器读不到，所以做不到「跟着访客的语言换标题」。
+ * template 留着给以后开子页面用；根 layout 自己的 default 标题不会被 template 加工。
  */
 export const metadata: Metadata = {
   title: {
-    default: `${site.identity.name} · ${site.identity.tagline.zh}`,
+    default: site.identity.name,
     template: `%s · ${site.identity.name}`,
   },
-  description: site.identity.tagline.zh,
+  description: `${site.identity.tagline.zh} · ${site.identity.tagline.en}`,
   icons: { icon: '/favicon.svg' },
 }
 
