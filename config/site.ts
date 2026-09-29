@@ -100,7 +100,7 @@ export const site: SiteConfig = {
   identity: {
     name: '锦创AI',
     nameAccent: 'AI',
-    avatar: '/images/avatar.png',
+    avatar: '/images/avatar.jpg',
     avatarAlt: { zh: '锦创AI 的头像', en: 'Avatar of 锦创AI' },
     tagline: {
       zh: '分享 AI 技术、项目的个人网页',
