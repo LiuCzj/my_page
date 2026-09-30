@@ -26,6 +26,19 @@ export interface LocalizedText {
   en: string;
 }
 
+/** 技术栈的一个分组：组名 + 组内条目 */
+export interface SkillGroup {
+  title: LocalizedText;
+  items: LocalizedText[];
+}
+
+/**
+ * public/tools/ 下实际存在的彩色品牌标（从参考项目拷进来的）。
+ * 这里刻意用联合类型而不是 string：填一个不存在的名字，typecheck 当场就报，
+ * 不会等到线上裂一个图。
+ */
+export type ToolGlyph = 'python' | 'git' | 'github' | 'sql' | 'vscode' | 'docker';
+
 /** 一个站外链接型联系方式。url 为空字符串表示「尚未配置」 */
 export interface SocialLink {
   /** 跳转地址；留空则点击后弹出「尚未配置」提示而不是跳转到错误网址 */
@@ -56,7 +69,43 @@ export interface SiteConfig {
     recentWork: LocalizedText[];
     /** 擅长或关心的方向（数字分身会引用） */
     expertise: LocalizedText[];
+    /** 籍贯：卡片上显示的全称 + 地球上的标记坐标 */
+    location: {
+      label: LocalizedText;
+      /** [纬度, 经度]，单位「度」，北纬/东经为正 */
+      coordinates: [number, number];
+    };
+    /**
+     * 目的地。为 null 时「籍贯」卡片不画箭头、也不出现第二个城市。
+     * 留 null 是因为你只给了邵阳一个地点，我不会替你编一个目的地出来。
+     */
+    destination: {
+      label: LocalizedText;
+    } | null;
   };
+  /**
+   * 技术栈：按他自己给的那段话分成三组，条目原样收录，没有添加他没写的东西。
+   * 这一组是「会什么」，和下面的 tools（用什么软件）分开，避免同一份清单出现两遍。
+   */
+  skills: SkillGroup[];
+  /** 工具条：icon 字段是 public/tools/ 下已有的彩色品牌标文件名；没有标的留空，走文字芯片 */
+  tools: { label: LocalizedText; icon?: ToolGlyph }[];
+  /** 最喜欢的工具。codex / qoder 没有公开品牌标，渲染成字母徽标 */
+  favoriteTools: {
+    kind: 'codex' | 'qoder' | 'github';
+    label: LocalizedText;
+  }[];
+  /**
+   * 项目列表。现在是空数组 —— 我没有你的任何项目数据，不会替你编。
+   * 空数组时「项目」区块显示一句诚实的空态；你往里填一条，空态立刻换成卡片列表。
+   */
+  projects: {
+    title: LocalizedText;
+    summary: LocalizedText;
+    url: string;
+    /** 用到的技术，显示成小标签 */
+    stack: string[];
+  }[];
   contact: {
     github: SocialLink;
     csdn: SocialLink;
@@ -116,7 +165,7 @@ export const site: SiteConfig = {
     },
     recentWork: [
       { zh: '搭建个人主页', en: 'Building this personal site' },
-      { zh: '学大模型开发', en: 'Learning LLM development' },
+      { zh: '大模型开发', en: 'Learning LLM development' },
       { zh: 'AI Agent', en: 'AI agents' },
     ],
     expertise: [
@@ -125,7 +174,94 @@ export const site: SiteConfig = {
       { zh: '大模型开发', en: 'LLM development' },
       { zh: 'Agent', en: 'Agents' },
     ],
+    location: {
+      label: { zh: '中国湖南省邵阳市', en: 'Shaoyang, Hunan, China' },
+      /**
+       * 东经 111.469230°、北纬 27.237842°，城市中心参考坐标（GCJ-02 系）。
+       * 与 WGS-84 差几十到上百米，在一颗装饰性地球上完全看不出来，不做换算。
+       */
+      coordinates: [27.2378, 111.4692],
+    },
+    destination: null,
   },
+
+  /**
+   * 以下三份清单逐条来自你本人给的那段话，我没有添加、也没有替换成更「好听」的说法。
+   * 英文一栏是同一含义的翻译，不是另一份内容。
+   */
+  skills: [
+    {
+      title: { zh: '深度学习 / 机器学习', en: 'Deep learning / ML' },
+      items: [
+        { zh: 'PyTorch 框架', en: 'PyTorch' },
+        {
+          zh: '表格数据专用深度学习模型（TabNet、FT-Transformer、TabTransformer 等）',
+          en: 'Tabular deep models (TabNet, FT-Transformer, TabTransformer)',
+        },
+        {
+          zh: '深度学习模型（MLP、CNN、RNN、Transformer、LSTM）',
+          en: 'Neural architectures (MLP, CNN, RNN, Transformer, LSTM)',
+        },
+        {
+          zh: '传统机器学习算法（XGBoost、LightGBM、随机森林等）',
+          en: 'Classical ML (XGBoost, LightGBM, random forest)',
+        },
+        { zh: '模型融合（Stacking / 加权平均）', en: 'Ensembling (stacking / weighted average)' },
+      ],
+    },
+    {
+      title: { zh: '数据处理与特征工程', en: 'Data & feature engineering' },
+      items: [
+        { zh: 'SQL', en: 'SQL' },
+        { zh: 'Python（Pandas / NumPy / Scikit-learn）', en: 'Python (Pandas / NumPy / Scikit-learn)' },
+        { zh: '数据清洗', en: 'Data cleaning' },
+        { zh: '特征构建', en: 'Feature construction' },
+      ],
+    },
+    {
+      title: { zh: '业务分析与可视化', en: 'Analytics & visualization' },
+      items: [
+        { zh: '漏斗分析', en: 'Funnel analysis' },
+        { zh: 'A/B 测试', en: 'A/B testing' },
+        { zh: '归因分析', en: 'Attribution analysis' },
+        { zh: 'Power BI / Tableau', en: 'Power BI / Tableau' },
+      ],
+    },
+  ],
+
+  /**
+   * 工具条 —— 他 2026-09-30 给的原话清单，一条没加一条没删。
+   * 其中 ReAct / Plan-and-Solve / Reflection / RAG 是方法不是软件，
+   * 他自己要求放在这里，所以照放；它们没有品牌标，渲染成文字芯片。
+   */
+  tools: [
+    { label: { zh: 'Python', en: 'Python' }, icon: 'python' },
+    { label: { zh: 'PyTorch', en: 'PyTorch' } },
+    { label: { zh: 'Pandas', en: 'Pandas' } },
+    { label: { zh: 'NumPy', en: 'NumPy' } },
+    { label: { zh: 'Scikit-learn', en: 'Scikit-learn' } },
+    { label: { zh: 'XGBoost', en: 'XGBoost' } },
+    { label: { zh: 'LightGBM', en: 'LightGBM' } },
+    { label: { zh: 'Power BI', en: 'Power BI' } },
+    { label: { zh: 'Tableau', en: 'Tableau' } },
+    { label: { zh: 'Jupyter', en: 'Jupyter' } },
+    { label: { zh: 'Git', en: 'Git' }, icon: 'git' },
+    { label: { zh: 'VSCode', en: 'VSCode' }, icon: 'vscode' },
+    { label: { zh: 'Docker', en: 'Docker' }, icon: 'docker' },
+    { label: { zh: 'ReAct', en: 'ReAct' } },
+    { label: { zh: 'Plan-and-Solve', en: 'Plan-and-Solve' } },
+    { label: { zh: 'Reflection', en: 'Reflection' } },
+    { label: { zh: 'LangGraph', en: 'LangGraph' } },
+    { label: { zh: 'RAG', en: 'RAG' } },
+  ],
+
+  favoriteTools: [
+    { kind: 'codex', label: { zh: 'Codex', en: 'Codex' } },
+    { kind: 'qoder', label: { zh: 'Qoder', en: 'Qoder' } },
+    { kind: 'github', label: { zh: 'GitHub', en: 'GitHub' } },
+  ],
+
+  projects: [],
 
   contact: {
     github: {

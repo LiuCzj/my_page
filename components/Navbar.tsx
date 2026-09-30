@@ -51,7 +51,7 @@ export default function Navbar() {
    */
   const linkItems = [
     { href: '/', label: d.nav.home },
-    { href: '/#info', label: d.nav.info },
+    { href: '/#projects', label: d.nav.projects },
   ];
 
   /** 导航项文字配色：当前页用 accent，其余用灰并在悬停时提亮 */

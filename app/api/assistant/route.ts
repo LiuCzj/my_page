@@ -128,8 +128,8 @@ function buildSystemPrompt(lang: 'zh' | 'en'): string {
       ? '【格式硬要求】聊天界面按纯文本显示，不解析 Markdown。所以不要用 **加粗**、# 标题、反引号、markdown 链接或表格；要分点就用「1. 2. 3.」或换行。'
       : '[Format] The chat renders as plain text, not Markdown. Do not use **bold**, # headings, backticks, markdown links or tables. Use numbered lines or line breaks instead.',
     lang === 'zh'
-      ? '【站内指路】本站只有一页，真实存在的区块只有：首屏（自我介绍）、「关于我」(#info)、以及这个聊天窗本身。需要让访客去看东西时，只说「关于我」这一处；绝对不要提 /projects、/blog、/posts 之类不存在的页面或路径。'
-      : '[Site map] This site is a single page. The only real places are: the top section, "About me" (#info), and this chat itself. When you want the visitor to look at something, point only to "About me". Never mention /projects, /blog, /posts or any other path that does not exist.',
+      ? '【站内指路】本站只有一页，真实存在的区块只有：首屏（自我介绍）、磁贴区（籍贯、最喜欢的工具、技术栈、工具、连接）、「项目」(#projects，目前还是空的，没有放任何作品)、以及这个聊天窗本身。要指路就只能指这几处；不要提 /blog、/posts 之类不存在的路径，更不要声称项目区里有作品。'
+      : '[Site map] This site is a single page. The only real places are: the top section (intro), the tile grid (hometown, favourite tools, tech stack, tools, connect), "Projects" (#projects — currently empty, nothing has been published there yet), and this chat itself. Only point to those. Never mention /blog, /posts or other paths that do not exist, and never claim the projects section contains work.',
     '',
     lang === 'zh' ? '【关于他的事实】' : '[Facts about him]',
     `${lang === 'zh' ? '称呼' : 'Name'}: ${identity.name}`,

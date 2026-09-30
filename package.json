@@ -1,6 +1,6 @@
 {
   "name": "jinchuang-homepage",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "cobe": "0.6.5",
     "framer-motion": "11.15.0",
     "lucide-react": "0.468.0",
     "next": "15.5.26",

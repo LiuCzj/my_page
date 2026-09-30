@@ -10,7 +10,7 @@ import type { Dict } from './zh';
 const en: Dict = {
   nav: {
     home: 'Home',
-    info: 'About',
+    projects: 'Projects',
     chat: 'Ask the twin',
   },
   topbar: {
@@ -45,17 +45,35 @@ const en: Dict = {
     close: 'Close',
   },
   hero: {
+    greeting: 'Hi, I’m',
+    bio: 'An engineer who likes figuring AI out.',
     robotHintOpen: 'Click to open the AI twin',
     robotHintClose: 'Click to close the AI twin',
     robotAria: 'Toggle the digital twin chat window',
     askTwin: 'Chat with my digital twin',
+    viewProjects: 'See my projects',
+    contactLabel: 'Elsewhere',
   },
-  info: {
-    title: 'About me',
-    interests: 'Interests',
-    expertise: 'Focus / skills',
-    recentWork: 'Recently working on',
-    goChat: 'Ask my digital twin',
+  location: {
+    /** 与 zh 侧对应：邵阳是籍贯（hometown），不是现居地 */
+    label: 'From',
+  },
+  favorite: {
+    title: 'Favourite tools',
+  },
+  skills: {
+    title: 'Tech stack',
+  },
+  tools: {
+    title: 'Tools',
+  },
+  connect: {
+    title: 'Connect',
+  },
+  projects: {
+    title: 'Projects',
+    empty: 'Nothing written up yet',
+    emptyHint: 'This is where my work will go. I am finishing the site and the digital twin first.',
   },
   chat: {
     title: 'Digital twin · ask me anything',

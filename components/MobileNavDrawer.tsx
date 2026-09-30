@@ -37,7 +37,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
   /** 抽屉里的两项页内锚点；第三项「问分身」是按钮，单独渲染 */
   const linkItems = [
     { href: '/', label: d.nav.home },
-    { href: '/#info', label: d.nav.info },
+    { href: '/#projects', label: d.nav.projects },
   ];
 
   // 跳页后自动收起：否则点了导航项到了新位置，抽屉还盖在半屏上

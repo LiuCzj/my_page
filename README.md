@@ -4,10 +4,17 @@
 
 ## 这一版做了什么
 
-单页站点，正文三块 + 一个悬浮聊天窗：
+单页站点，从上到下五块 + 一个悬浮聊天窗：
 
-- **首屏**：头像、名字、一句话介绍、个人特色标签，以及一个极简 AI 小机器人
-- **个人信息区**：兴趣、最近在做的事、擅长/关心的方向
+- **首屏**：整屏居中竖排 —— 彩色头像（悬停时放大侧转、外圈虚线环开始慢转）、
+  「你好，我是 锦创AI」（名字逐字入场、走系统衬线栈）、一句话、
+  数字分身机器人 + 两个入口、五个联系方式图标
+- **磁贴区**：籍贯（缓慢自转的点阵地球）、最喜欢的工具（Python / GitHub）、
+  技术栈（三行反向滚动，行首钉住组名）、工具（两行反向滚动）、连接。
+  五块尺寸各不相同；鼠标扫过时系统箭头换成对应表情（地球块是 ✈️）
+- **项目**：`config/site.ts` 的 `projects` 为空时显示一句诚实的空态
+- **关于我**：不规则便当盒网格 —— 「最近在做」占大块、「兴趣」是一枚实心 accent 小块、
+  「关心 / 擅长」用标签、入口占整条
 - **数字分身聊天窗**：接入大模型，流式逐字回答关于我的问题，内置三个一键提问
 - **固定顶栏**：名字、GitHub / CSDN / 知乎 / 微信公众号 / 邮箱五个入口、深浅色切换、中英文切换，滚动时不动
 
@@ -29,11 +36,14 @@
 
 ## 技术栈
 
-Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes · lucide-react · framer-motion
+Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes · lucide-react · framer-motion · cobe
 
 没有引入成体系的 UI 组件库。通用图标（菜单、关闭、聊天、深浅色切换等）取自 lucide-react；
 CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱图标沿用 lucide-react 的形状；
-页面切换与顶栏动效用 framer-motion。字体使用系统字体栈 —— 页面不请求任何外部 CDN 资源。
+页面切换与顶栏动效用 framer-motion；籍贯那颗点阵地球用 cobe（WebGL，纯客户端打包，不请求外部资源）。
+
+字体全部是系统字体栈：正文用无衬线，首屏名字用系统衬线栈（`--font-display`）——
+不下载任何字体文件，页面不请求任何外部 CDN 资源。
 
 ## 本地运行
 
@@ -68,14 +78,21 @@ config/site.ts              个人信息与功能开关
 dictionaries/{zh,en}.ts     界面文案（两份结构由类型系统强制一致）
 lib/i18n.tsx                语言 Context + localStorage 持久化
 lib/twin-chat-context.tsx   聊天窗的开合状态（多处入口控制同一个面板）
+lib/use-reveal.ts           滚动进入动画的属性包（减少动效时整包不挂）
 app/page.tsx                单页主体
 app/layout.tsx              主题、语言、聊天窗三个 Provider + metadata + viewport
-app/globals.css             颜色令牌与深浅色变体
+app/globals.css             颜色令牌、深浅色变体、背景光晕层、展示字体栈
 app/not-found.tsx           404 页（读语言字典，跟随中英切换）
 app/api/assistant/route.ts  模型代理（密钥只在这一层）+ 人设提示词
 components/
-  Hero.tsx                  首屏：头像、名字、介绍、特色标签、小机器人、问分身入口
-  InfoCard.tsx              个人信息展示区
+  Hero.tsx                  首屏：居中竖排的头像、逐字入场的问候行、机器人、两个入口、联系方式
+  Dashboard.tsx             磁贴区：籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接
+  Projects.tsx              项目区块（config 为空时是诚实空态）
+  DottedGlobe.tsx           点阵地球（cobe / WebGL，含拿不到 WebGL 时的静态降级）
+  Marquee.tsx               来回滚动的条（技术栈、工具共用）
+  CustomCursor.tsx          表情光标（地球块上方箭头变 ✈️），只在真鼠标设备生效
+  RobotMark.tsx             数字分身机器人（首屏全身投影像 / 小徽标只有头）
+  InfoCard.tsx              关于我：不规则便当盒网格
   DigitalTwinChat.tsx       悬浮聊天面板（流式渲染、重试、停止、内部滚动、历史）
   ChatInset.tsx             桌面端展开面板时让正文让位，避免被遮挡
   Navbar.tsx                固定顶栏

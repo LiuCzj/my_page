@@ -4,6 +4,7 @@ import { ThemeProvider } from 'next-themes'
 import { I18nProvider } from '@/lib/i18n'
 import { TwinChatProvider } from '@/lib/twin-chat-context'
 import Navbar from '@/components/Navbar'
+import CustomCursor from '@/components/CustomCursor'
 import Footer from '@/components/footer'
 import PageTransition from '@/components/page-transition'
 import { site } from '@/config/site'
@@ -57,6 +58,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Navbar />
               <PageTransition>{children}</PageTransition>
               <Footer />
+              {/* 表情光标：只在真鼠标设备上挂载，负责把带 data-cursor-emoji 的磁贴
+                  上方那枚系统箭头换成对应表情（地球块是 ✈️）。它自己会判断设备，
+                  触屏上整个组件不生效。 */}
+              <CustomCursor />
             </TwinChatProvider>
           </I18nProvider>
         </ThemeProvider>

@@ -8,7 +8,7 @@
 const zh = {
   nav: {
     home: '首页',
-    info: '关于我',
+    projects: '项目',
     chat: '问分身',
   },
   topbar: {
@@ -43,17 +43,39 @@ const zh = {
     close: '关闭',
   },
   hero: {
+    /** 问候行前半句，名字本身不翻译（署名不是可翻译词） */
+    greeting: '你好，我是',
+    /** 问候行下面那一句自我介绍 */
+    bio: '一位喜欢研究 AI 的工程师。',
     robotHintOpen: '点我，开启数字分身',
     robotHintClose: '点我，关闭数字分身',
     robotAria: '数字分身聊天窗开关',
-    askTwin: '和我的数字分身聊聊',
+    askTwin: '与数字分身聊聊',
+    viewProjects: '查看我的项目',
+    /** 首屏那排联系方式图标的读屏标签（图标本身没有文字） */
+    contactLabel: '联系方式',
   },
-  info: {
-    title: '关于我',
-    interests: '兴趣',
-    expertise: '关心 / 擅长',
-    recentWork: '最近在做',
-    goChat: '问问我的数字分身',
+  location: {
+    /** 邵阳是籍贯，不是现居地 —— 他 2026-09-30 明确说过，所以这里用「籍贯」 */
+    label: '籍贯',
+  },
+  favorite: {
+    title: '最喜欢的工具',
+  },
+  skills: {
+    title: '技术栈',
+  },
+  tools: {
+    title: '工具',
+  },
+  connect: {
+    title: '连接',
+  },
+  projects: {
+    title: '项目',
+    /** config/site.ts 的 projects 为空数组时显示这两句 */
+    empty: '还没有整理出来的项目',
+    emptyHint: '这里会放我做过的东西。我先把主页和数字分身做完，再把项目补进来。',
   },
   chat: {
     title: '数字分身 · 直接问我',
