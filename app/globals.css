@@ -11,6 +11,30 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
+ * 展示字体：思源宋体（Noto Serif SC）的**子集**，自托管在 public/fonts/ 下。
+ *
+ * 为什么不是整份字体：原字体 25 MB（可变字重、覆盖上万汉字）。
+ * 访客到服务器的单连接实测只有 10~30 KB/s，整份等于让首屏卡死。
+ * 所以用 subset-font（harfbuzz）裁成只剩页面真正用到的 39 个字形 → 23.1 KB，
+ * 授权是 SIL OFL 1.1，允许裁剪与自托管，授权文本一并放在 public/fonts/LICENSE-OFL.txt。
+ *
+ * 关键取舍：**故意不把拉丁字母裁进来**。这个子集里没有 A–Z 的字形，
+ * 所以「锦创AI」里的 AI 会自然往后落到 --font-display 栈里的 Georgia，
+ * 中文用思源宋体、拉丁用 Georgia —— 不需要两个 font-family 声明，也不会出现
+ * 「中文宋体 + 中文式等宽拉丁」那种拼贴感。
+ *
+ * 以后要新增用展示字体的中文文案，必须重新生成这个子集，
+ * 命令记在 DOWNLOADS.md 里；漏了不会报错，只会静默退回系统宋体。
+ */
+@font-face {
+  font-family: 'Noto Serif SC Display';
+  src: url('/fonts/noto-serif-sc-display.woff2') format('woff2');
+  font-weight: 200 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
  * ── 颜色令牌 ─────────────────────────────────────────────────
  * 存的是 HSL 三个分量（不含 hsl() 外壳），由下面 @theme 包成 Tailwind 颜色。
  * 这么做的目的是任何地方都能再套透明度：bg-background/95、border-accent/30。
@@ -136,6 +160,7 @@
    * 中文侧按 macOS(Songti SC / STSong) → Linux(Noto/Source Han Serif) → Windows(SimSun) 排。
    */
   --font-display:
+    'Noto Serif SC Display',
     Georgia,
     'Times New Roman',
     'Songti SC',

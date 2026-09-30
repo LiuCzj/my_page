@@ -27,7 +27,7 @@ import ToolIcon from '@/components/ToolIcon';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 /**
  * 一块磁贴。
@@ -56,17 +56,43 @@ function Tile({
   children: React.ReactNode;
 }) {
   const reveal = useReveal();
+  const glowRef = useRef<HTMLSpanElement>(null);
+
+  /**
+   * 鼠标邻近发光：把指针位置写进 --gx / --gy，让那团径向渐变跟着走。
+   * 直接改 DOM style 而不是 setState —— 每帧 setState 会让整棵 React 子树重渲染，
+   * 一个纯跟随效果不该付这个代价。
+   */
+  const onMove = (e: React.PointerEvent<HTMLLIElement>) => {
+    const glow = glowRef.current;
+    if (!glow) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    glow.style.setProperty('--gx', `${e.clientX - rect.left}px`);
+    glow.style.setProperty('--gy', `${e.clientY - rect.top}px`);
+  };
+
   return (
     <motion.li
       {...reveal(delay)}
       data-cursor-emoji={cursorEmoji}
-      className={`flex list-none flex-col rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] duration-200 ease-out hover:border-accent/50 hover:shadow-md sm:p-5 ${span}`}
+      onPointerMove={onMove}
+      className={`group/tile relative flex list-none flex-col overflow-hidden rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] duration-200 ease-out hover:border-accent/50 hover:shadow-md sm:p-5 ${span}`}
     >
-      <h3 className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+      {/* 发光层。accent 透明度定在 0.16：再高就会把上面那行 12px 的灰字压到看不清 */}
+      <span
+        ref={glowRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover/tile:opacity-100"
+        style={{
+          background:
+            'radial-gradient(200px circle at var(--gx, 50%) var(--gy, 50%), hsl(var(--accent) / 0.16), transparent 70%)',
+        }}
+      />
+      <h3 className="relative flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
         <span className="text-accent">{icon}</span>
         {title}
       </h3>
-      <div className="mt-3 flex min-w-0 flex-1 flex-col justify-center">{children}</div>
+      <div className="relative mt-3 flex min-w-0 flex-1 flex-col justify-center">{children}</div>
     </motion.li>
   );
 }

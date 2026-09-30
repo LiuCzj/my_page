@@ -8,9 +8,6 @@
  *   ④ 动作行：数字分身机器人（点击开合聊天窗）+ 查看我的项目 + 与数字分身聊聊
  *   ⑤ 五个联系方式图标
  *
- * 【头像为什么不再有灰度态】
- * 之前那版是「常驻黑白、悬停转彩色」，照搬了参考站。但黑白头像在中文语境里读起来像
- * 「这个人已经不在了」，所以这里改成：彩色常亮，悬停给的是动作而不是换色。
  *
  * 【逐字入场只作用在名字上】
  * 前缀「你好，我是」继续用站点的无衬线黑体，一屏里只有名字一处是衬线，对比才成立。
@@ -26,6 +23,7 @@ import { useState } from 'react';
 import ContactModal, { type ContactModalVariant } from './ContactModal';
 import RobotMark from './RobotMark';
 import SocialLinks from './SocialLinks';
+import StarField from './StarField';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
@@ -39,10 +37,18 @@ export default function Hero() {
   const [modal, setModal] = useState<ContactModalVariant | null>(null);
 
   return (
-    <section className="pt-6 pb-10 sm:pb-14">
-      <div className="mx-auto flex max-w-2xl flex-col items-center text-center">
-        {/* ① 头像 */}
+    <section className="relative pt-6 pb-10 sm:pb-14">
+      {/* 星点层：绝对定位铺满这一屏，pointer-events-none 所以不挡任何点击 */}
+      <StarField />
+
+      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
+        {/* ① 头像。后面那枚模糊圆是「光从头像后面透出来」的效果，
+            它比头像大一圈、被 blur 化掉边缘，所以不需要真的画一圈边框 */}
         <div className="group relative shrink-0">
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-[-14px] -z-10 rounded-full bg-accent/25 blur-2xl sm:inset-[-18px]"
+          />
           {/* 悬停才出现的慢转虚线环。不悬停时 opacity-0，所以平时是一张干净的圆头像 */}
           <svg
             viewBox="0 0 100 100"
