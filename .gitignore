@@ -55,6 +55,9 @@ logs/
 *.orig
 *.rej
 
+# 我（AI 助手）排查时留下的临时物：截图、抓下来的原料、调试脚本
+.dbg/
+
 # 编辑器与系统
 .DS_Store
 Thumbs.db

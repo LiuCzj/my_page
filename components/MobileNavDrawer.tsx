@@ -4,12 +4,14 @@
  * 移动端导航抽屉（小屏点汉堡后展开）。
  *
  * 【抽屉里放两样东西】
- * 1. 页内导航（首页 / 关于我 / 问分身）
+ * 1. 页内导航（首页 / 项目）+「问分身」按钮
  * 2. 带文字说明的联系方式清单
  * 第 2 点是有意的冗余：顶栏第二行的图标要横向滑动才看得全，
  * 抽屉里给出「GitHub · 用户名」这种带文字的完整列表，访客不用猜图标。
  *
  * 【行为】跳页后自动收起、Esc 关闭、打开期间锁背景滚动。
+ * 【触控】抽屉里每一行都是 min-h-[44px]：这一层只在手机上出现，
+ * 而 44px 是手指能稳定点中的下限。
  */
 
 import { useEffect, useRef } from 'react';
@@ -73,7 +75,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-foreground no-underline transition hover:bg-secondary"
+        className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-sm font-semibold text-foreground no-underline transition hover:bg-secondary"
       >
         <span className="text-muted-foreground">{icon}</span>
         {label}
@@ -82,7 +84,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
       <button
         type="button"
         onClick={() => onOpenModal('notice')}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary"
+        className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-muted-foreground transition hover:bg-secondary"
       >
         <span>{icon}</span>
         {label}
@@ -93,16 +95,23 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
     <div className="fixed inset-0 z-[90] lg:hidden" role="presentation">
       {/* 遮罩：点它关闭抽屉 */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="absolute inset-0 touch-none bg-black/50"
         aria-hidden="true"
         onClick={onClose}
       />
+      {/*
+        抽屉面板。两处和手机有关：
+        - max-h 用 dvh 不用 vh：vh 算的是「地址栏收起来之后的那个大视口」，
+          手机刚打开页面时地址栏是展开的，80vh 会比肉眼看到的屏幕还高，
+          底部几行就落到屏幕外面去了。dvh 是动态视口，跟着地址栏一起变。
+        - overscroll-contain：抽屉里翻到底不再拖着背后的页面一起滚。
+      */}
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label={d.topbar.drawerNav}
-        className="absolute inset-x-0 top-0 max-h-[80vh] overflow-y-auto border-b border-border bg-card px-4 pb-6 pt-3 shadow-2xl"
+        className="absolute inset-x-0 top-0 max-h-[80dvh] overscroll-contain overflow-y-auto border-b border-border bg-card px-4 pb-6 pt-3 shadow-2xl"
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -111,7 +120,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-3 py-1.5 text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 text-sm font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
             aria-label={d.topbar.closeMenu}
           >
             {d.contact.close}
@@ -158,7 +167,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           <button
             type="button"
             onClick={() => onOpenModal('wechat')}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
+            className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
           >
             <span className="text-muted-foreground"><WechatIcon size={18} /></span>
             {pick(wechat.label)}
@@ -166,7 +175,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           <button
             type="button"
             onClick={() => onOpenModal('email')}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
+            className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
           >
             <span className="text-muted-foreground"><MailIcon size={18} /></span>
             {pick(email.label)} · {email.address}

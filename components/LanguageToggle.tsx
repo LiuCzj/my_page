@@ -29,7 +29,7 @@ export default function LanguageToggle({ size = 18 }: { size?: number }) {
   useEffect(() => setMounted(true), []);
 
   const btnClass =
-    'inline-flex size-10 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+    'inline-flex size-11 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
   if (!mounted) {
     return <span className={`${btnClass}`} aria-hidden="true" />;

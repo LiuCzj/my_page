@@ -143,8 +143,11 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="presentation"
-      // 点遮罩关闭：只在点到自己（而不是冒泡自面板）时触发
-      onMouseDown={(e) => {
+      // 点遮罩关闭：只在点到自己（而不是冒泡自面板）时触发。
+      // 用 pointerdown 而不是 mousedown —— 触屏上 mousedown 要等整套
+      // 「touchstart → touchend → 合成 mouse」走完才来，点一下要慢半拍才关，
+      // 而且中途手指挪动一点就会被判定成滚动而根本不触发。
+      onPointerDown={(e) => {
         if (e.target === e.currentTarget) handleClose();
       }}
     >
@@ -166,7 +169,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
             ref={closeBtnRef}
             type="button"
             onClick={handleClose}
-            className="shrink-0 rounded-lg p-1 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
             aria-label={d.contact.close}
           >
             <X size={18} />
@@ -211,13 +214,13 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
                 readOnly
                 value={site.contact.email.address}
                 onFocus={(e) => e.target.select()}
-                className="min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring"
+                className="min-h-[44px] min-w-0 flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-ring"
                 aria-label={d.contact.emailTitle}
               />
               <button
                 type="button"
                 onClick={copyEmail}
-                className="shrink-0 rounded-lg border border-accent bg-accent/15 px-3 py-2 text-sm font-semibold text-accent transition hover:bg-accent/25"
+                className="inline-flex min-h-[44px] shrink-0 items-center rounded-lg border border-accent bg-accent/15 px-3 text-sm font-semibold text-accent transition hover:bg-accent/25"
               >
                 {copied === 'ok' ? d.contact.copied : d.contact.copy}
               </button>
@@ -227,7 +230,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
             </p>
             <a
               href={`mailto:${site.contact.email.address}`}
-              className="mt-4 inline-block text-sm font-semibold text-accent underline-offset-4 hover:underline"
+              className="mt-4 inline-flex min-h-[44px] items-center text-sm font-semibold text-accent underline-offset-4 hover:underline"
             >
               {d.contact.openMail}
             </a>
@@ -240,7 +243,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
             <button
               type="button"
               onClick={handleClose}
-              className="mt-4 w-full rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition hover:brightness-110"
+              className="mt-4 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition hover:brightness-110"
             >
               {d.contact.notConfiguredAction}
             </button>

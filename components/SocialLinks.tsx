@@ -33,9 +33,12 @@ export default function SocialLinks({
   const { pick } = useI18n();
   const { github, csdn, zhihu, wechat, email } = site.contact;
 
-  /** 外链基础样式：颜色走 token，hover 提到 accent，深浅模式都成立 */
+  /** 外链基础样式：颜色走 token，hover 提到 accent，深浅模式都成立。
+   *  visited: 那一条是必须的 —— Chrome 会把点过的链接换成它自己的 visited 颜色，
+   *  优先级高到能盖住作者甚至内联声明（实测过），不处理的话：
+   *  访客第二次进来时，他点过的 GitHub / CSDN / 知乎图标会变成几乎看不见的灰白块。 */
   const base =
-    'inline-flex items-center justify-center rounded-lg text-muted-foreground transition hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+    'inline-flex items-center justify-center rounded-lg text-muted-foreground transition hover:text-accent visited:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
   /** 一个带外链的图标按钮 */
   const linkItem = (href: string, label: string, icon: React.ReactNode) =>

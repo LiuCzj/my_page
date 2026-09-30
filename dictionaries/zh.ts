@@ -50,10 +50,7 @@ const zh = {
     robotHintOpen: '点我，开启数字分身',
     robotHintClose: '点我，关闭数字分身',
     robotAria: '数字分身聊天窗开关',
-    askTwin: '与数字分身聊聊',
     viewProjects: '查看我的项目',
-    /** 首屏那排联系方式图标的读屏标签（图标本身没有文字） */
-    contactLabel: '联系方式',
   },
   location: {
     /** 邵阳是籍贯，不是现居地 —— 他 2026-09-30 明确说过，所以这里用「籍贯」 */

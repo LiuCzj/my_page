@@ -34,10 +34,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  // 深色/明亮模式的主题色：手机浏览器地址栏跟着变，切模式时不会有突兀的白边
+  // 深色/明亮模式的主题色：手机浏览器地址栏跟着变，切模式时不会有突兀的白边。
+  // 这两个值必须等于 --background 的实际混色结果，改了令牌就要跟着改：
+  // 明亮 hsl(220 16% 98%) = #f9fafb、暗黑 hsl(222 14% 6%) = #0d0e11。
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f8f7f5' },
-    { media: '(prefers-color-scheme: dark)', color: '#0b1420' },
+    { media: '(prefers-color-scheme: light)', color: '#f9fafb' },
+    { media: '(prefers-color-scheme: dark)', color: '#0d0e11' },
   ],
 }
 

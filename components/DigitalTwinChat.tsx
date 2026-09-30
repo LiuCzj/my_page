@@ -388,6 +388,33 @@ export default function DigitalTwinChat() {
     'max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed';
 
   /**
+   * 软键盘把输入框埋了这件事。
+   * iOS Safari 弹键盘时**不缩小布局视口**，只是把可视区域往上盖一层 ——
+   * 这块面板是 position:fixed + bottom:0，它的底边仍按「整屏」算，
+   * 于是键盘正好压在输入框上，用户打字时看不见自己打了什么。
+   * 页面本身能滚，但 fixed 元素不跟着滚，所以系统那套「聚焦时滚到可见」也救不了它。
+   *
+   * 解法是盯着 visualViewport：它报的是「键盘之上还剩多少」，
+   * 布局高 − 可视高 − 可视区顶部偏移 就是被吃掉的高度，直接抬面板的 bottom。
+   * 键盘收起后这个数归 0，那时**不写内联 bottom**，交回 Tailwind 的 bottom-0 / sm:bottom-4，
+   * 否则桌面端右下角窗口的 16px 下边距会被顶成贴底。
+   */
+  const [kbInset, setKbInset] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const measure = () =>
+      setKbInset(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    measure();
+    vv.addEventListener('resize', measure);
+    vv.addEventListener('scroll', measure);
+    return () => {
+      vv.removeEventListener('resize', measure);
+      vv.removeEventListener('scroll', measure);
+    };
+  }, []);
+
+  /**
    * 关闭时整块不渲染 —— 这是「消息多了网页不再变长」的前提之一：
    * 面板不占文档流，页面高度与聊天内容彻底解耦。
    */
@@ -400,9 +427,11 @@ export default function DigitalTwinChat() {
      * ≥sm：收成右下角 400px 宽的窗口，但 top 仍从 120px 起 ——
      *   面板层级 z-[80] 高于顶栏 z-50，若让它顶到视口上方就会盖住顶栏的语言/主题按钮。
      * 高度一律用 top + bottom 夹出来，不用 100dvh 算，避免出现量到 96px 那种差一位数的错位。
+     * kbInset 见上面那段：键盘弹起时把底边抬到键盘上方，否则输入框被埋。
      */
     <div
       className="fixed inset-x-0 bottom-0 top-[112px] z-[80] sm:inset-x-auto sm:bottom-4 sm:left-auto sm:right-4 sm:top-[120px] sm:h-auto sm:max-h-[720px] sm:w-[400px]"
+      style={kbInset > 0 ? { bottom: kbInset } : undefined}
       role="dialog"
       aria-label={d.chat.title}
     >
@@ -424,7 +453,7 @@ export default function DigitalTwinChat() {
               <button
                 type="button"
                 onClick={clearAll}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-border px-3 text-xs font-semibold text-muted-foreground transition hover:bg-secondary hover:text-foreground"
               >
                 <Trash2 size={14} aria-hidden="true" />
                 {d.chat.clear}
@@ -433,7 +462,7 @@ export default function DigitalTwinChat() {
             <button
               type="button"
               onClick={closeChat}
-              className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              className="inline-flex size-11 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
               aria-label={d.chat.close}
               title={d.chat.close}
             >
@@ -443,7 +472,9 @@ export default function DigitalTwinChat() {
         </header>
 
       {/* 消息区：唯一会滚动的部分。min-h-0 是 flex 子项能内部滚动的必要条件 */}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4">
+      {/* overscroll-contain：消息列表滚到头时不再带着整页一起动。
+          手机上少了这一句，往上翻历史翻到顶会顺手把背后的页面也拖走，回来时位置就丢了 */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4">
         <div className="flex gap-2">
           <span className="mt-1 shrink-0 text-[11px] font-bold text-muted-foreground">{d.chat.twin}</span>
           <div className={`${bubbleBase} border border-border bg-secondary text-secondary-foreground`}>
@@ -484,7 +515,7 @@ export default function DigitalTwinChat() {
                   <button
                     type="button"
                     onClick={() => retry(m.id)}
-                    className="inline-flex items-center gap-1 rounded-md border border-accent px-2 py-1 font-semibold text-accent transition hover:bg-accent/15"
+                    className="inline-flex min-h-[44px] items-center gap-1 rounded-md border border-accent px-3 py-2 font-semibold text-accent transition hover:bg-accent/15"
                   >
                     <RotateCcw size={12} aria-hidden="true" />
                     {d.chat.retry}
@@ -511,7 +542,7 @@ export default function DigitalTwinChat() {
               type="button"
               disabled={busy}
               onClick={() => send(q[lang])}
-              className="rounded-full border border-border bg-background px-3 py-1.5 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-[44px] items-center rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold text-foreground transition hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pick(q)}
             </button>

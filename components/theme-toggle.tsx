@@ -36,7 +36,7 @@ export default function ThemeToggle({ size = 18 }: { size?: number }) {
   if (!mounted) {
     // 占位：尺寸与真实按钮一致，切换时不会引起顶栏布局跳动
     return (
-      <span className={`${btnClass} size-10`} aria-hidden="true" />
+      <span className={`${btnClass} size-11`} aria-hidden="true" />
     );
   }
 
@@ -46,7 +46,7 @@ export default function ThemeToggle({ size = 18 }: { size?: number }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={`${btnClass} size-10`}
+      className={`${btnClass} size-11`}
       aria-label={isDark ? d.theme.ariaToLight : d.theme.ariaToDark}
       title={isDark ? d.theme.ariaToLight : d.theme.ariaToDark}
     >

@@ -12,8 +12,8 @@ import { site } from '@/config/site';
  *   3   项目（config 里为空时显示诚实空态）                     → Projects
  *   4   数字分身聊天窗                                          → DigitalTwinChat（fixed 悬浮面板，不进文档流）
  *
- * 原来的「关于我」整块已经移出页面（2026-09-29 他定的）。它展示的那三份数据
- * （recentWork / expertise / interests）仍在 config 里，数字分身回答时还要用。
+ * config 里的 recentWork / expertise / interests 三份数据不在这一页上出现 ——
+ * 它们是数字分身回答时引用的资料，不是页面内容。
  *
  * 聊天窗的开关状态由 app/layout.tsx 的 TwinChatProvider 提供（顶栏也要用它）。
  * ChatInset 负责在桌面端展开面板时把正文让开，不让面板压在内容上。
@@ -22,7 +22,7 @@ export default function Home() {
   return (
     <>
       <ChatInset>
-        <div className="mx-auto max-w-3xl px-4 pt-10 pb-16 sm:pt-14">
+        <div className="mx-auto max-w-5xl px-4 pt-10 pb-16 sm:pt-14">
           <Hero />
 
           <Dashboard />

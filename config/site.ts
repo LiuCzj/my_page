@@ -33,11 +33,25 @@ export interface SkillGroup {
 }
 
 /**
- * public/tools/ 下实际存在的彩色品牌标（从参考项目拷进来的）。
- * 这里刻意用联合类型而不是 string：填一个不存在的名字，typecheck 当场就报，
- * 不会等到线上裂一个图。
+ * 工具品牌标的两种来路，分开列是因为渲染路径不同：
+ * - FileToolGlyph：public/tools/ 下的多色品牌文件（渐变、多路径），只能走 <img>
+ * - InlineToolGlyph：内联在 components/ToolGlyphs.tsx 里的单色剪影，走 <svg> + class 控色
+ *
+ * 刻意用联合类型而不是 string：填一个不存在的名字，typecheck 当场就报，
+ * 不会等到线上裂一个图。XGBoost / LightGBM / Power BI 以及 ReAct /
+ * Plan-and-Solve / Reflection / RAG 两边都没有，不给 icon，退化成字母徽标。
  */
-export type ToolGlyph = 'python' | 'git' | 'github' | 'sql' | 'vscode' | 'docker';
+export type FileToolGlyph = 'python' | 'git' | 'github' | 'vscode' | 'docker';
+export type InlineToolGlyph =
+  | 'pytorch'
+  | 'pandas'
+  | 'numpy'
+  | 'scikitlearn'
+  | 'tableau'
+  | 'jupyter'
+  | 'langgraph'
+  | 'openai';
+export type ToolGlyph = FileToolGlyph | InlineToolGlyph;
 
 /** 一个站外链接型联系方式。url 为空字符串表示「尚未配置」 */
 export interface SocialLink {
@@ -88,13 +102,10 @@ export interface SiteConfig {
    * 这一组是「会什么」，和下面的 tools（用什么软件）分开，避免同一份清单出现两遍。
    */
   skills: SkillGroup[];
-  /** 工具条：icon 字段是 public/tools/ 下已有的彩色品牌标文件名；没有标的留空，走文字芯片 */
+  /** 工具条：icon 是品牌标（见 ToolGlyph 的两种来路）；没标的留空，渲染成字母徽标 */
   tools: { label: LocalizedText; icon?: ToolGlyph }[];
-  /** 最喜欢的工具。codex / qoder 没有公开品牌标，渲染成字母徽标 */
-  favoriteTools: {
-    kind: 'codex' | 'qoder' | 'github';
-    label: LocalizedText;
-  }[];
+  /** 最喜欢的工具。同样是没标的留空走字母徽标 */
+  favoriteTools: { label: LocalizedText; icon?: ToolGlyph }[];
   /**
    * 项目列表。现在是空数组 —— 我没有你的任何项目数据，不会替你编。
    * 空数组时「项目」区块显示一句诚实的空态；你往里填一条，空态立刻换成卡片列表。
@@ -232,33 +243,35 @@ export const site: SiteConfig = {
   /**
    * 工具条 —— 他 2026-09-30 给的原话清单，一条没加一条没删。
    * 其中 ReAct / Plan-and-Solve / Reflection / RAG 是方法不是软件，
-   * 他自己要求放在这里，所以照放；它们没有品牌标，渲染成文字芯片。
+   * 他自己要求放在这里，所以照放；它们没有品牌标，渲染成字母徽标。
    */
   tools: [
     { label: { zh: 'Python', en: 'Python' }, icon: 'python' },
-    { label: { zh: 'PyTorch', en: 'PyTorch' } },
-    { label: { zh: 'Pandas', en: 'Pandas' } },
-    { label: { zh: 'NumPy', en: 'NumPy' } },
-    { label: { zh: 'Scikit-learn', en: 'Scikit-learn' } },
+    { label: { zh: 'PyTorch', en: 'PyTorch' }, icon: 'pytorch' },
+    { label: { zh: 'Pandas', en: 'Pandas' }, icon: 'pandas' },
+    { label: { zh: 'NumPy', en: 'NumPy' }, icon: 'numpy' },
+    { label: { zh: 'Scikit-learn', en: 'Scikit-learn' }, icon: 'scikitlearn' },
     { label: { zh: 'XGBoost', en: 'XGBoost' } },
     { label: { zh: 'LightGBM', en: 'LightGBM' } },
     { label: { zh: 'Power BI', en: 'Power BI' } },
-    { label: { zh: 'Tableau', en: 'Tableau' } },
-    { label: { zh: 'Jupyter', en: 'Jupyter' } },
+    { label: { zh: 'Tableau', en: 'Tableau' }, icon: 'tableau' },
+    { label: { zh: 'Jupyter', en: 'Jupyter' }, icon: 'jupyter' },
     { label: { zh: 'Git', en: 'Git' }, icon: 'git' },
     { label: { zh: 'VSCode', en: 'VSCode' }, icon: 'vscode' },
     { label: { zh: 'Docker', en: 'Docker' }, icon: 'docker' },
     { label: { zh: 'ReAct', en: 'ReAct' } },
     { label: { zh: 'Plan-and-Solve', en: 'Plan-and-Solve' } },
     { label: { zh: 'Reflection', en: 'Reflection' } },
-    { label: { zh: 'LangGraph', en: 'LangGraph' } },
+    { label: { zh: 'LangGraph', en: 'LangGraph' }, icon: 'langgraph' },
     { label: { zh: 'RAG', en: 'RAG' } },
   ],
 
   favoriteTools: [
-    { kind: 'codex', label: { zh: 'Codex', en: 'Codex' } },
-    { kind: 'qoder', label: { zh: 'Qoder', en: 'Qoder' } },
-    { kind: 'github', label: { zh: 'GitHub', en: 'GitHub' } },
+    /** Codex 是 OpenAI 的产品，它自己没有独立标，用 OpenAI 的标 */
+    { label: { zh: 'Codex', en: 'Codex' }, icon: 'openai' },
+    /** Qoder 官网给的是 73 KB 的 favIcon.svg，体积不合本站的带宽预算，也不适合裁成单色，留字母徽标 */
+    { label: { zh: 'Qoder', en: 'Qoder' } },
+    { label: { zh: 'GitHub', en: 'GitHub' }, icon: 'github' },
   ],
 
   projects: [],

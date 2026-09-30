@@ -50,9 +50,7 @@ const en: Dict = {
     robotHintOpen: 'Click to open the AI twin',
     robotHintClose: 'Click to close the AI twin',
     robotAria: 'Toggle the digital twin chat window',
-    askTwin: 'Chat with my digital twin',
     viewProjects: 'See my projects',
-    contactLabel: 'Elsewhere',
   },
   location: {
     /** 与 zh 侧对应：邵阳是籍贯（hometown），不是现居地 */

@@ -54,12 +54,13 @@ export default function Navbar() {
     { href: '/#projects', label: d.nav.projects },
   ];
 
-  /** 导航项文字配色：当前页用 accent，其余用灰并在悬停时提亮 */
+  /** 导航项文字配色：当前页用 accent，其余用灰并在悬停时提亮。
+   *  visited: 一条防止 Chrome 把点过的导航项换成它自己的访问色（详见 SocialLinks 同处注释） */
   const navLabelClass = (active: boolean) =>
-    `transition-colors ${active ? 'text-accent' : 'text-muted-foreground hover:text-foreground'}`;
+    `transition-colors ${active ? 'text-accent visited:text-accent' : 'text-muted-foreground visited:text-muted-foreground hover:text-foreground'}`;
 
   const controlBtn =
-    'inline-flex size-10 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+    'inline-flex size-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
   return (
     <>
@@ -69,7 +70,7 @@ export default function Navbar() {
           <div className="flex h-14 items-center justify-between gap-3">
             <Link
               href="/"
-              className="shrink-0 text-xl font-extrabold tracking-tight text-foreground no-underline sm:text-2xl"
+              className="inline-flex shrink-0 items-center self-stretch text-xl font-extrabold tracking-tight text-foreground no-underline sm:text-2xl"
               aria-label={d.topbar.siteName}
             >
               {site.identity.name.replace(site.identity.nameAccent, '')}
