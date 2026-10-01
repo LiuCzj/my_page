@@ -115,7 +115,7 @@ function loadHistory(): ChatMessage[] | null {
 
 export default function DigitalTwinChat() {
   const { d, pick, fill, lang } = useI18n();
-  /** 聊天窗现在是悬浮面板：开合由外部（首屏机器人、CTA、关于我入口）通过 Context 控制 */
+  /** 聊天窗是悬浮面板：开合由外部（首屏角色、顶栏「问分身」、移动端抽屉）通过 Context 控制 */
   const { open, closeChat } = useTwinChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');

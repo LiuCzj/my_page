@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 点阵地球（cobe / WebGL）+ 第二张 overlay canvas 画「站在邵阳跳舞的小人」。
+ * 点阵地球（cobe / WebGL）+ 第二张 overlay canvas 画「站在邵阳的小人」。
  *
  * 【为什么小人要自己画，不用 cobe 的 markers】
  * cobe 的 markers 在这套配置下画不出东西（给显式 color、mapSamples 提到 16000、
@@ -9,7 +9,8 @@
  * 标记画在**第二张 canvas** 上，按 cobe 自己的旋转矩阵投影：
  *   先绕 Y 轴转 phi，再绕 X 轴转 theta；屏幕上半径 = 半幅 × 0.8（cobe 的球占 0.64 的平方根）；
  *   z < 0 表示转到球背面了，小人必须不画，否则会「飘」在球前面穿帮。
- * 小人本身是一堆按总高比例给的线段，见 drawDancer。
+ * 小人本体是一张真空透明底的站姿人像贴图（public/images/avatar-stand.png，64×224、8 KB），
+ * 在 overlay 上按投影点贴图，脚底锚定，静止站立。
  *
  * 【参数】mapSamples 22000、diffuse 0.5、theta 0.4、每帧 phi += 0.005。
  * 深浅两档分别走「亮底暗陆」和「暗底亮点」，理由见下面 PALETTE 的注释 ——
@@ -123,116 +124,12 @@ function hasWebGL(): boolean {
 }
 
 /**
- * 一轮舞蹈多少毫秒。整套姿势的左右交替周期是它的一半（两条腿、两只手各差 π），
- * 所以 1200ms 实际是每 600ms 换一个动作 —— 约 100 BPM，合着拍子晃，不会抖成抽风。
+ * 站在邵阳那一点上的人像。
+ *
+ * 一张真空透明底的站姿贴图（public/images/avatar-stand.png），绘制时**脚底锚定在标记点**：
+ *   - 高度 h 就是整张贴图的总高（人物紧裁过，脚底≈贴图底部）；
+ *   - 静止站立，只随球旋转、转到背面隐藏、按深度缩放与淡出。
  */
-const DANCE_MS = 1200;
-
-/**
- * 站在邵阳那一点上跳舞的小人。
- *
- * 【轮廓为什么长这样】要的是年轻男性：肩比胯宽（SHO_HALF > HIP_HALF）、
- * 短发（头顶一个实心半帽 + 一圈描边，不画长发也不画裙摆），四肢是等长的两段线。
- * 用 canvas 现画而不是贴图：本站不请求任何外部资源，一张动图也得自己扛带宽。
- *
- * 【尺寸全按总高 h 的比例给】球裁多大、人多大，容器一变他不会脱离球面。
- * 关节角用「屏幕角」：0 = 指向右，π/2 = 正下，-π/2 = 正上（canvas 的 y 轴朝下）。
- *
- * 【为什么全是连续正弦】腿和手各带一个 π 的相位差，支撑与腾空的切换落在正弦过零点上，
- * 是连续变化的。写成「sin>0 画 A 姿势、否则画 B 姿势」会在每次切换的那一帧硬跳一下，
- * 看着像抽风而不是跳舞。
- */
-function drawDancer(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  /** 双脚踩的那一点（也就是标记本身的位置） */
-  feetY: number,
-  /** 全身高 */
-  h: number,
-  /** 0..1，一轮舞蹈的进度 */
-  phase: number,
-  color: string,
-) {
-  const w = phase * Math.PI * 2;
-  const at = (x: number, y: number, ang: number, len: number) => ({
-    x: x + Math.cos(ang) * len,
-    y: y + Math.sin(ang) * len,
-  });
-
-  /** bob 用 |sin|：一轮里落地两次，节奏才密 */
-  const bob = Math.abs(Math.sin(w)) * 0.05 * h;
-  const lean = Math.sin(w) * 0.055 * h;
-  const hip = { x: cx + lean, y: feetY - 0.46 * h + bob };
-  const sho = { x: cx - lean * 0.7, y: hip.y - 0.27 * h };
-  const headR = 0.09 * h;
-  // 脖子留 0.06h 的空隙：之前只留 0.035h，头几乎坐在肩上，
-  // 举起来的两条手臂正好从头两侧穿过，小尺寸下糊成一团星芒
-  const head = { x: sho.x + lean * 0.4, y: sho.y - headR - 0.06 * h };
-
-  const THIGH = 0.215 * h;
-  const SHIN = 0.215 * h;
-  const UPPER = 0.155 * h;
-  const FORE = 0.15 * h;
-  // 胯宽与站距一起放大：0.05h + 0.17rad 时两条腿在 35px 的高度上并成一根竖杠，
-  // 下半身看着像裙摆。现在腿是一个清楚的倒 V。
-  const HIP_HALF = 0.11 * h;
-  const SHO_HALF = 0.09 * h;
-
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.fillStyle = color;
-  // 线宽给到 h 的 7.5%：再细，这个尺寸下两条腿会并成一条杠，看着像个星号而不是人
-  ctx.lineWidth = Math.max(1.4, h * 0.075);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  const stroke = (...pts: { x: number; y: number }[]) => {
-    ctx.beginPath();
-    ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
-    ctx.stroke();
-  };
-
-  // 躯干 + 脖子
-  stroke(hip, sho);
-  stroke({ x: sho.x, y: sho.y }, { x: head.x, y: head.y + headR * 0.8 });
-
-  // 两条腿：相位差 π，一条摆到前面时另一条正好在后面撑地
-  for (const side of [-1, 1] as const) {
-    const s = side === -1 ? 0 : Math.PI;
-    const thigh = Math.PI / 2 + side * 0.45 + Math.sin(w + s) * 0.45;
-    const knee = at(hip.x + side * HIP_HALF, hip.y, thigh, THIGH);
-    // 膝盖往外顶（两侧镜像），弯曲度跟着摆动走
-    const shin = thigh + side * (0.25 + 0.5 * (0.5 + 0.5 * Math.sin(w + s + 1.4)));
-    const foot = at(knee.x, knee.y, shin, SHIN);
-    stroke(hip, knee, foot);
-  }
-
-  // 两只手轮流「举顶 / 摊开」：raise 到 1 时这条手臂几乎竖直向上、手肘外翻，
-  // 到 0 时整条手臂横着伸出去。两条手臂的 raise 差半个周期，
-  // 所以永远是一只举着一只摊着 —— 这个不对称才是「在跳舞」，
-  // 两只手对称举起只会读成做操或者投降。
-  for (const side of [-1, 1] as const) {
-    const s = side === -1 ? Math.PI : 0;
-    const raise = 0.5 + 0.5 * Math.sin(w + s);
-    const upper = -Math.PI / 2 + side * (0.25 + 1.0 * (1 - raise));
-    const elbow = at(sho.x + side * SHO_HALF, sho.y, upper, UPPER);
-    const fore = upper + side * (0.2 + 0.7 * raise);
-    const hand = at(elbow.x, elbow.y, fore, FORE);
-    stroke(sho, elbow, hand);
-  }
-
-  // 头：描边圆 + 上半个实心帽（短发）
-  ctx.beginPath();
-  ctx.arc(head.x, head.y, headR, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(head.x, head.y, headR * 1.04, Math.PI, Math.PI * 2);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
-}
 
 export default function DottedGlobe({ coordinates, className = '' }: DottedGlobeProps) {
   const globeRef = useRef<HTMLCanvasElement>(null);
@@ -299,11 +196,17 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       },
     });
 
-    /** 第二张画布：站在邵阳那一点上跳舞的小人。转到球背面时不画 */
-    const t0 = performance.now();
+    /** 第二张画布：站在邵阳那一点上的 3D 小人（静止站立）。转到球背面时不画 */
+    // 3D 站姿人像贴图（已离线抠成透明背景）。加载完成后 actorReady 置真，
+    // 每帧直接 drawImage 一张透明 PNG —— 不用再逐帧抠色。
+    const actor = new Image();
+    let actorReady = false;
+    actor.onload = () => {
+      actorReady = true;
+    };
+    actor.src = '/images/avatar-stand.png';
     const drawMark = () => {
       const ctx = markCanvas.getContext('2d');
-      const now = performance.now();
       if (ctx && width > 0) {
         const dpr = 2;
         if (markCanvas.width !== width * dpr) {
@@ -324,7 +227,6 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
           // 0.24 × 球半径 ≈ 44px：第一版给 0.115（21px），截图里他已经糊成一粒蓝点，
           // 分辨不出是人在动 —— 这个效果的全部意义就是看得清他在跳。
           const h = Math.max(24, radius * 0.24) * (0.85 + 0.15 * Math.min(1, pr.z));
-          const phase = reduceMotion ? 0.22 : ((now - t0) / DANCE_MS) % 1;
 
           // 脚下那圈扁光：圆点不画了，但「这里有一个被标出来的位置」这层意思
           // 得留下 —— 压成椭圆、透明度给低，读起来是他站着的一块地面影，
@@ -339,7 +241,12 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
           ctx.fill();
 
           ctx.globalAlpha = alpha;
-          drawDancer(ctx, sx, sy, h, phase, pal.dot);
+          // 站姿人像：脚底锚定在标记点，高度 h
+          if (actorReady) {
+            const aspect = actor.naturalWidth / actor.naturalHeight;
+            const dw = h * aspect;
+            ctx.drawImage(actor, sx - dw / 2, sy - h, dw, h);
+          }
           ctx.globalAlpha = 1;
         }
       }

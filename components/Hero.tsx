@@ -5,7 +5,7 @@
  *   ① 头像（常亮彩色；悬停时放大 + 轻微侧转 + 外圈虚线环开始慢转）
  *   ② 问候行「你好，我是 锦创AI」，名字逐字入场，走系统衬线栈
  *   ③ 一句话：一位喜欢研究 AI 的工程师。
- *   ④ 动作行：数字分身机器人（点击开合聊天窗）+ 查看我的项目
+ *   ④ 动作行：数字分身角色（点击开合聊天窗）+ 查看我的项目
  *
  * 首屏不放联系方式图标：磁贴区最后一块「连接」给的就是同一份入口，
  * 一处出现一次就够，两块一样的图标只会让人觉得页面在凑内容。
@@ -20,7 +20,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
-import RobotMark from './RobotMark';
+import HeroMascot from './HeroMascot';
 import StarField from './StarField';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
@@ -30,7 +30,7 @@ export default function Hero() {
   const { d, pick } = useI18n();
   const reduceMotion = useReducedMotion();
   const { identity } = site;
-  /** 聊天窗的开合状态：机器人负责切换（顶栏「问分身」是另一个入口） */
+  /** 聊天窗的开合状态：角色负责切换（顶栏「问分身」是另一个入口） */
   const { open, toggleChat } = useTwinChat();
 
   return (
@@ -94,22 +94,20 @@ export default function Hero() {
 
         {/* ④ 动作行 */}
         <div className="mt-8 flex w-full flex-wrap items-center justify-center gap-3 sm:gap-4">
-          {/* 数字分身机器人：点一下开聊天窗，再点一下关 */}
+          {/* 数字分身角色：点一下开聊天窗，再点一下关。就是一张角色图，
+              hover 时轻微放大，触屏点按开聊天 */}
           <div className="group relative flex shrink-0 flex-col items-center">
             <motion.button
               type="button"
               onClick={toggleChat}
               aria-label={d.hero.robotAria}
               aria-expanded={open}
-              whileHover={reduceMotion ? undefined : { scale: 1.05 }}
-              whileTap={reduceMotion ? undefined : { scale: 0.95 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 20 }}
-              className={`flex size-16 cursor-pointer items-end justify-center rounded-full border border-border pb-1 outline-offset-4 transition-colors hover:border-accent/60 hover:bg-accent/10 focus-visible:outline-2 focus-visible:outline-ring sm:size-20 ${
-                open ? 'border-accent/60 bg-accent/10' : ''
-              }`}
+              whileHover={reduceMotion ? undefined : { scale: 1.06 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+              className="cursor-pointer rounded-3xl outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
             >
-              {/* 机器人 viewBox 是 120×128，宽高按 15:16 给，别压扁 */}
-              <RobotMark blink className="h-11 w-[41px] sm:h-14 sm:w-[52px]" />
+              <HeroMascot className="pointer-events-none h-40 w-40 sm:h-52 sm:w-52" />
             </motion.button>
 
             {/* 悬停提示：文字跟着开合状态变，鼠标一停就知道这一下是开还是关 */}
@@ -121,8 +119,8 @@ export default function Hero() {
             </span>
             {/*
               触屏看不到上面那条 —— 它靠 :hover 才显形，而手机没有悬停，
-              结果就是这颗机器人「点了才知道会发生什么」。
-              所以 coarse 指针下把同一句话直接排在机器人下面常驻，
+              结果就是这颗角色「点了才知道会发生什么」。
+              所以 coarse 指针下把同一句话直接排在角色下面常驻，
               文案照样跟着开合状态换。这条在流里，父级因此改成竖排居中，
               否则按钮会被这行更宽的字顶到左边去。
             */}
