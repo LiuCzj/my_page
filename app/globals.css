@@ -116,15 +116,6 @@
   /* 错误色：聊天失败提示用 text-destructive（两套主题各自调过明度，都能看清） */
   --color-destructive: hsl(var(--destructive));
 
-  /*
-   * 来回滚动的两条动画（技术栈 / 工具）。用法见 components/Marquee.tsx。
-   *
-   * 位移量是 calc(-100% - var(--gap))：100% 是一条轨道自己的宽度，
-   * 多减一个 gap 是因为轨道之间也有间距，不减会在接缝处跳一下。
-   * 时长走 --duration 变量，外层可以按内容长短分别调（技术栈慢、工具快）。
-   */
-  --animate-marquee: marquee var(--duration, 40s) linear infinite;
-  --animate-marquee-reverse: marquee-reverse var(--duration, 40s) linear infinite;
   /* 头像外圈那枚虚线环：只在悬停时转，1 秒一圈太快，14 秒才像「亮起来在待机」 */
   --animate-spin-slow: spin 14s linear infinite;
   /*
@@ -155,24 +146,6 @@
     100% {
       opacity: 0;
       transform: translate(-50%, -88%) scale(0.95);
-    }
-  }
-
-  @keyframes marquee {
-    from {
-      transform: translateX(0);
-    }
-    to {
-      transform: translateX(calc(-100% - var(--gap, 1rem)));
-    }
-  }
-
-  @keyframes marquee-reverse {
-    from {
-      transform: translateX(calc(-100% - var(--gap, 1rem)));
-    }
-    to {
-      transform: translateX(0);
     }
   }
 

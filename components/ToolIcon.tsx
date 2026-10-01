@@ -4,14 +4,14 @@
  * 一枚工具标。三种情况，按「有没有标、标是几色」分流：
  *
  * 1. 单色品牌剪影 → components/ToolGlyphs.tsx 里的内联 SVG（PyTorch / pandas / NumPy /
- *    scikit-learn / Tableau / Jupyter / LangGraph / OpenAI）。颜色走 Tailwind class，
+ *    scikit-learn / Tableau / Jupyter / LangGraph / OpenAI / MySQL）。颜色走 Tailwind class，
  *    深浅两档各自给值，所以不需要 -dark 副本，也不受主题就绪时机影响，第一帧就是对的。
  * 2. 多色品牌文件 → public/tools/ 下的 <img>（Python 渐变、Docker 十片、VSCode 四色、
- *    Git、GitHub）。这类标一个文件里带好几个 fill / gradient，内联进 JS 会把
- *    <defs> 的 id 也复制进文档（同名 id 全站只能有一个生效），所以留在文件里。
- * 3. 根本没有公开标 → 字母徽标。XGBoost / LightGBM / Power BI 在 simple-icons 里查不到，
- *    ReAct / Plan-and-Solve / Reflection / RAG 是方法不是产品，Qoder 官网只给
- *    73 KB 的整图 favIcon。与其为了凑齐去抓来源不明的图，不如老实显示首字母。
+ *    Git、GitHub、Power BI 四片渐变、Qoder 自带浅底方块）。这类标一个文件里带好几个
+ *    fill / gradient，内联进 JS 会把 <defs> 的 id 也复制进文档
+ *    （同名 id 全站只能有一个生效），所以留在文件里。
+ * 3. 根本没有公开标 → 字母徽标。现在只剩 XGBoost / LightGBM 两个（官方就没有矢量标）。
+ *    与其为了凑齐去抓来源不明的图，不如老实显示首字母。
  *
  * 【为什么第 2 种要等 mounted】GitHub 那份文件是近黑的 #161614，深色底上必须换成
  * github-dark.svg。而主题只有 next-themes 在客户端才知道 —— 服务端渲染时

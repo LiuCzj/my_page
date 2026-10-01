@@ -16,9 +16,11 @@
  * 邮箱    → 信封描线（lucide-react Mail）
  *
  * 【配色取舍】CSDN 官方方块是红色、知乎官方方块是蓝色。本站主色是深蓝 + 白，
- * 所以方块统一用 accent（深蓝），不引入第三种品牌色。
- * 反白部分用 fill-background 而不是写死 white：明亮模式 background≈近白（深字配白底），
- * 暗黑模式 background≈深蓝黑（白字配蓝底），两边都能看清。
+ * 两个都不搬 —— 一个红一个蓝，和旁边三枚灰线图标并排就是两种颜色在抢视线。
+ * 现在五枚统一：底色用 currentColor，跟着按钮的 text-muted-foreground 走，
+ * hover 时整枚一起变 accent；方块里的字用 fill-background 挖空。
+ * 反白部分用 fill-background 而不是写死 white：明亮模式 background≈近白（深字配浅底块），
+ * 暗黑模式 background≈深蓝黑（浅灰块配深字），两边都能看清。
  */
 
 import { Github, Mail } from 'lucide-react';
@@ -43,12 +45,12 @@ export function MailIcon({ size = 18, className = '' }: BrandIconProps) {
 
 /**
  * CSDN：圆角方块里一个反白 C。
- * 方块 fill-accent、字母 fill-background，两者都随主题翻转，对比度由 token 保证。
+ * 方块 fill="currentColor"、字母 fill-background，两者都随主题与 hover 走。
  */
 export function CsdnIcon({ size = 18, className = '' }: BrandIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect x="1.5" y="3.5" width="21" height="17" rx="4" className="fill-accent" />
+      <rect x="1.5" y="3.5" width="21" height="17" rx="4" fill="currentColor" />
       <text
         x="12"
         y="16.6"
@@ -64,11 +66,11 @@ export function CsdnIcon({ size = 18, className = '' }: BrandIconProps) {
   );
 }
 
-/** 知乎：圆角方块里一个反白「知」 */
+/** 知乎：圆角方块里一个反白「知」，配色与 CSDN 那枚同一套处理 */
 export function ZhihuIcon({ size = 18, className = '' }: BrandIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
-      <rect x="1.5" y="3.5" width="21" height="17" rx="4" className="fill-accent" />
+      <rect x="1.5" y="3.5" width="21" height="17" rx="4" fill="currentColor" />
       <text
         x="12"
         y="17"

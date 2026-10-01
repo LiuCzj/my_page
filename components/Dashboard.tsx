@@ -69,6 +69,8 @@ function Tile({
   const [stamp, setStamp] = useState<{ x: number; y: number; id: number } | null>(null);
   const stampTimer = useRef(0);
   const stampSeq = useRef(0);
+  /** 按在地球上、还没抬手的那一点。按下的一刻还不知道这一下是点是拖，先存着 */
+  const pending = useRef<{ x: number; y: number; sx: number; sy: number; t: number } | null>(null);
 
   useEffect(() => () => window.clearTimeout(stampTimer.current), []);
 
@@ -85,26 +87,8 @@ function Tile({
     glow.style.setProperty('--gy', `${e.clientY - rect.top}px`);
   };
 
-  /**
-   * 触屏没有光标，所以桌面那套「箭头换成 ✈️ / ❤️ / 🔧」在手机上物理上不存在 ——
-   * 不是漏做了，是那块屏幕上根本没有一个可以替换的东西。
-   * 这里给它的等价物：手指点在哪，表情就在哪弹一下（动画见 globals.css 的 emoji-pop）。
-   *
-   * 三条避让：
-   * - 只认非鼠标。鼠标有 :hover，再弹一个印子只会挡住内容。
-   * - 点在 canvas / a / button 上不弹。地球要靠按住拖动、链接和按钮各有自己的动作，
-   *   抢它们的点击会既挡住内容又让人以为点错了。
-   * - 收尾用定时器而不是 animationend。全局那条 prefers-reduced-motion 会把
-   *   animation-duration 压成 0.001ms，事件立刻就来，印子等于没出现过。
-   */
-  const onDown = (e: React.PointerEvent<HTMLLIElement>) => {
-    if (e.pointerType === 'mouse') return;
-    if ((e.target as HTMLElement).closest('canvas, a, button')) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const gx = e.clientX - rect.left;
-    const gy = e.clientY - rect.top;
-    // 发光也一起跟到指尖：桌面上它跟着鼠标走，触屏没有鼠标可跟，
-    // 不补这一句的话点下去只有表情弹印亮、那块边缘的高亮还停在原位
+  /** 弹印 + 发光一起到位：桌面上这两样都跟着鼠标，触屏只补一个会显得亮了一半 */
+  const stampAt = (gx: number, gy: number) => {
     const glow = glowRef.current;
     if (glow) {
       glow.style.setProperty('--gx', `${gx}px`);
@@ -116,12 +100,62 @@ function Tile({
     stampTimer.current = window.setTimeout(() => setStamp(null), STAMP_MS);
   };
 
+  /**
+   * 触屏没有光标，所以桌面那套「箭头换成 ✈️ / ❤️ / 🔧」在手机上物理上不存在 ——
+   * 不是漏做了，是那块屏幕上根本没有一个可以替换的东西。
+   * 这里给它的等价物：手指点在哪，表情就在哪弹一下（动画见 globals.css 的 emoji-pop）。
+   *
+   * 三条避让：
+   * - 只认非鼠标。鼠标有 :hover，再弹一个印子只会挡住内容。
+   * - 点在 a / button 上不弹。链接和按钮各有自己的动作，抢它们的点击会既挡住内容
+   *   又让人以为点错了。
+   * - 收尾用定时器而不是 animationend。全局那条 prefers-reduced-motion 会把
+   *   animation-duration 压成 0.001ms，事件立刻就来，印子等于没出现过。
+   *
+   * 【地球为什么走「抬手才弹」这一支】那块球是要按住左右拖的，按下去的一刻
+   * 分不清这一下是点还是拖：立刻弹的话，每转一次球都掉出一架 ✈️。
+   * 所以地球上的点先存下来，抬手时确认没拖过、也没按太久，才当这是一下点击。
+   */
+  const onDown = (e: React.PointerEvent<HTMLLIElement>) => {
+    if (e.pointerType === 'mouse') return;
+    const target = e.target as HTMLElement;
+    if (target.closest('a, button')) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const gx = e.clientX - rect.left;
+    const gy = e.clientY - rect.top;
+    if (target.closest('canvas')) {
+      pending.current = { x: gx, y: gy, sx: e.clientX, sy: e.clientY, t: e.timeStamp };
+      const glow = glowRef.current;
+      if (glow) {
+        glow.style.setProperty('--gx', `${gx}px`);
+        glow.style.setProperty('--gy', `${gy}px`);
+      }
+      return;
+    }
+    pending.current = null;
+    stampAt(gx, gy);
+  };
+
+  const onUp = (e: React.PointerEvent<HTMLLIElement>) => {
+    const p = pending.current;
+    pending.current = null;
+    if (!p) return;
+    if (Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_SLOP) return;
+    if (e.timeStamp - p.t > TAP_MS) return;
+    stampAt(p.x, p.y);
+  };
+
   return (
     <motion.li
       {...reveal(delay)}
       data-cursor-emoji={cursorEmoji}
       onPointerMove={onMove}
       onPointerDown={onDown}
+      onPointerUp={onUp}
+      onPointerCancel={() => {
+        // 浏览器接管了纵向下滚（pointercancel）—— 这一下是划页面，不是在点球
+        pending.current = null;
+      }}
       className={`group/tile relative flex list-none flex-col overflow-hidden rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] duration-200 ease-out hover:border-accent/50 hover:shadow-md sm:p-5 ${span}`}
     >
       {/* 发光层。accent 透明度定在 0.16：再高就会把上面那行 12px 的灰字压到看不清。
@@ -172,8 +206,16 @@ const CHIP =
 const STAMP_MS = 1150;
 
 /**
- * 触屏下名字钉多久。2.8 秒不是随手取的：这一排里最长的「Plan-and-Solve」
- * 和中文的「模型融合（Stacking / 加权平均）」这种，扫读一遍就要两秒上下，
+ * 抬手时允许的位移上限（px）。比滚动条的 8px 宽一档：
+ * 按在球上手指难免漂一点，但把球转出十几像素已经不是「点一下」的意图了。
+ */
+const TAP_SLOP = 12;
+/** 按下到抬手超过这么久就不算点 —— 那是按住在看，不是想让它弹个表情 */
+const TAP_MS = 700;
+
+/**
+ * 触屏下名字钉多久。2.8 秒不是随手取的：这一排里最长的「Scikit-learn」
+ * 和相邻两枚挤在一起的读法，扫读一遍就要两秒上下，
  * 再短就成了「看清之前已经没了」。再长会让人觉得页面卡住 —— 手指已经移开了
  * 字还赖在那。同一条图标再点一次会重新计时。
  */
@@ -196,7 +238,7 @@ const PIN_MS = 2800;
  * 记的同样是**哪个 DOM 节点**而不是哪个名字，理由和上面一模一样。
  *
  * 【三条尺寸约束】
- * 1. 标签用绝对定位：不占宽度，「Plan-and-Solve」这种长名字不会把相邻图标撑开。
+ * 1. 标签用绝对定位：不占宽度，「Scikit-learn」这种长名字不会把相邻图标撑开。
  * 2. 列高 58px = 图标 36 + 4 + 标签 16 + 2 余量。滚动条是 overflow-hidden 的，
  *    标签必须整个待在这 58px 里，否则会被齐根裁掉 —— 这也是不走浮层 tooltip 的原因。
  * 3. 标签带 bg-card 底：不加它，浮出来的字会压在相邻图标上糊成一团。
@@ -218,6 +260,8 @@ function ToolRow({
   const pinned = useRef<{ el: HTMLElement | null; timer: number }>({ el: null, timer: 0 });
   /** 钉住期间让这一排停住，理由见 Marquee 的 paused 注释 */
   const [held, setHeld] = useState(false);
+  /** 手指落点，抬手时用来分辨「点这枚图标」和「横扫这一排」 */
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => () => window.clearTimeout(pinned.current.timer), []);
 
@@ -244,12 +288,17 @@ function ToolRow({
           <span
             key={i}
             onPointerDown={(e) => {
+              touchStart.current = { x: e.clientX, y: e.clientY };
               // 手指按下的位置也属于这块磁贴，不拦一下会连磁贴的表情弹印一起触发，
               // 一次点击同时冒出名字和 🔧，两个都是解释「这是什么」的，留一个就够
               if (e.pointerType !== 'mouse') e.stopPropagation();
             }}
             onPointerUp={(e) => {
+              const start = touchStart.current;
+              touchStart.current = null;
               if (e.pointerType === 'mouse') return;
+              // 拖这条带子时手指也会划过图标，那种「点」不算点，否则一拖就把名字钉住了
+              if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > TAP_SLOP) return;
               pin(e.currentTarget);
             }}
             className="group/tool relative flex h-[58px] w-9 shrink-0 flex-col items-center"

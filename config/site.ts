@@ -34,14 +34,21 @@ export interface SkillGroup {
 
 /**
  * 工具品牌标的两种来路，分开列是因为渲染路径不同：
- * - FileToolGlyph：public/tools/ 下的多色品牌文件（渐变、多路径），只能走 <img>
+ * - FileToolGlyph：public/tools/ 下的多色品牌文件（渐变、多路径、自带底色），只能走 <img>
  * - InlineToolGlyph：内联在 components/ToolGlyphs.tsx 里的单色剪影，走 <svg> + class 控色
  *
  * 刻意用联合类型而不是 string：填一个不存在的名字，typecheck 当场就报，
- * 不会等到线上裂一个图。XGBoost / LightGBM / Power BI 以及 ReAct /
- * Plan-and-Solve / Reflection / RAG 两边都没有，不给 icon，退化成字母徽标。
+ * 不会等到线上裂一个图。XGBoost / LightGBM 官方就没有矢量标，不给 icon，
+ * 退化成字母徽标。
  */
-export type FileToolGlyph = 'python' | 'git' | 'github' | 'vscode' | 'docker';
+export type FileToolGlyph =
+  | 'python'
+  | 'git'
+  | 'github'
+  | 'vscode'
+  | 'docker'
+  | 'powerbi'
+  | 'qoder';
 export type InlineToolGlyph =
   | 'pytorch'
   | 'pandas'
@@ -50,7 +57,8 @@ export type InlineToolGlyph =
   | 'tableau'
   | 'jupyter'
   | 'langgraph'
-  | 'openai';
+  | 'openai'
+  | 'mysql';
 export type ToolGlyph = FileToolGlyph | InlineToolGlyph;
 
 /** 一个站外链接型联系方式。url 为空字符串表示「尚未配置」 */
@@ -220,6 +228,36 @@ export const site: SiteConfig = {
         { zh: '模型融合（Stacking / 加权平均）', en: 'Ensembling (stacking / weighted average)' },
       ],
     },
+    /**
+     * 下面三组是 2026-10-01 他点名要加的。组名照他给的原话，
+     * 条目我先只用了站里已经出现过的东西（工具条、最喜欢的工具里那些），
+     * 没有替他新编任何一项技能 —— 要增删直接改这三段的 items 就行。
+     */
+    {
+      title: { zh: '大模型开发', en: 'LLM development' },
+      items: [
+        { zh: 'Prompt 工程（ReAct / Plan-and-Solve / Reflection）', en: 'Prompting (ReAct / Plan-and-Solve / Reflection)' },
+        { zh: 'RAG 检索增强', en: 'RAG' },
+        { zh: 'LangGraph 流程编排', en: 'LangGraph orchestration' },
+        { zh: 'OpenAI 等模型接入', en: 'Model APIs (OpenAI etc.)' },
+      ],
+    },
+    {
+      title: { zh: 'Vibe Coding', en: 'Vibe coding' },
+      items: [
+        { zh: 'Codex', en: 'Codex' },
+        { zh: 'Qoder', en: 'Qoder' },
+        { zh: 'GitHub 协作', en: 'GitHub workflow' },
+      ],
+    },
+    {
+      title: { zh: 'Agent', en: 'Agent' },
+      items: [
+        { zh: '工具调用（Function Calling）', en: 'Tool / function calling' },
+        { zh: '多轮任务编排', en: 'Multi-step task orchestration' },
+        { zh: '数字分身问答', en: 'Avatar Q&A agent' },
+      ],
+    },
     {
       title: { zh: '数据处理与特征工程', en: 'Data & feature engineering' },
       items: [
@@ -241,9 +279,10 @@ export const site: SiteConfig = {
   ],
 
   /**
-   * 工具条 —— 他 2026-09-30 给的原话清单，一条没加一条没删。
-   * 其中 ReAct / Plan-and-Solve / Reflection / RAG 是方法不是软件，
-   * 他自己要求放在这里，所以照放；它们没有品牌标，渲染成字母徽标。
+   * 工具条 —— 他 2026-09-30 给的原话清单，当时一条没加一条没删；
+   * 2026-10-01 他点名补了 MySQL，又点名删掉 ReAct / Plan-and-Solve / Reflection / RAG
+   * 那四条（理由是「不是产品就不该混在品牌标里」）。
+   * 这四个名字本身没消失，它们作为技能条目留在技术栈那一条带里。
    */
   tools: [
     { label: { zh: 'Python', en: 'Python' }, icon: 'python' },
@@ -253,24 +292,25 @@ export const site: SiteConfig = {
     { label: { zh: 'Scikit-learn', en: 'Scikit-learn' }, icon: 'scikitlearn' },
     { label: { zh: 'XGBoost', en: 'XGBoost' } },
     { label: { zh: 'LightGBM', en: 'LightGBM' } },
-    { label: { zh: 'Power BI', en: 'Power BI' } },
+    { label: { zh: 'Power BI', en: 'Power BI' }, icon: 'powerbi' },
     { label: { zh: 'Tableau', en: 'Tableau' }, icon: 'tableau' },
     { label: { zh: 'Jupyter', en: 'Jupyter' }, icon: 'jupyter' },
     { label: { zh: 'Git', en: 'Git' }, icon: 'git' },
     { label: { zh: 'VSCode', en: 'VSCode' }, icon: 'vscode' },
     { label: { zh: 'Docker', en: 'Docker' }, icon: 'docker' },
-    { label: { zh: 'ReAct', en: 'ReAct' } },
-    { label: { zh: 'Plan-and-Solve', en: 'Plan-and-Solve' } },
-    { label: { zh: 'Reflection', en: 'Reflection' } },
+    { label: { zh: 'MySQL', en: 'MySQL' }, icon: 'mysql' },
     { label: { zh: 'LangGraph', en: 'LangGraph' }, icon: 'langgraph' },
-    { label: { zh: 'RAG', en: 'RAG' } },
   ],
 
   favoriteTools: [
     /** Codex 是 OpenAI 的产品，它自己没有独立标，用 OpenAI 的标 */
     { label: { zh: 'Codex', en: 'Codex' }, icon: 'openai' },
-    /** Qoder 官网给的是 73 KB 的 favIcon.svg，体积不合本站的带宽预算，也不适合裁成单色，留字母徽标 */
-    { label: { zh: 'Qoder', en: 'Qoder' } },
+    /**
+     * Qoder 官方只给一张 73 KB 的 favIcon.svg（矢量但坐标极密），
+     * 按本站带宽预算不能直接用 —— svgo 压到精度 1 是 5.3 KB，自带浅灰底方块，
+     * 深浅两版主题都成立，所以走 public/tools/ 那份文件。
+     */
+    { label: { zh: 'Qoder', en: 'Qoder' }, icon: 'qoder' },
     { label: { zh: 'GitHub', en: 'GitHub' }, icon: 'github' },
   ],
 
