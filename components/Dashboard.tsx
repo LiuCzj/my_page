@@ -332,9 +332,14 @@ export default function Dashboard() {
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {/* ① 籍贯：地名就摆在标题行（左边），地球占满下面一块。
             地名一旦放到球的右侧，这块就读成了「一张图 + 一段说明」的两栏排版；
-            它要的是一行标题 + 一颗球。 */}
+            它要的是一行标题 + 一颗球。
+
+            【为什么占 2 列 2 行】右侧那一列要能同时放下「最喜欢的工具」和「连接」两块。
+            地球只占一行的话，右边那一格会被地球的高度拉成一条 400 多像素的空柱 ——
+            三行工具名飘在中间，上下各空一大片。
+            让地球跨两行、右侧两格各占一行，两边高度就对上了。 */}
         <Tile
-          span="sm:col-span-2"
+          span="sm:col-span-2 sm:row-span-2"
           icon={<MapPin size={13} />}
           title={d.location.label}
           heading={pick(location.label)}
@@ -355,8 +360,8 @@ export default function Dashboard() {
           </div>
         </Tile>
 
-        {/* ② 最喜欢的工具 */}
-        <Tile span="sm:col-span-1" icon={<Heart size={13} />} title={d.favorite.title} cursorEmoji="❤️" delay={0.06}>
+        {/* ② 最喜欢的工具：右侧上格 */}
+        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Heart size={13} />} title={d.favorite.title} cursorEmoji="❤️" delay={0.06}>
           <ul className="space-y-2">
             {favoriteTools.map((t) => (
               <li
@@ -372,40 +377,43 @@ export default function Dashboard() {
           </ul>
         </Tile>
 
-        {/* ③ 技术栈：三个组名钉在上方当图例，下面一条长带滚全部条目。
-            为什么不是"每组一条带"—— 条目少的组（业务分析只有 4 个短标签）比磁贴还窄，
-            一滚就必然同时露出两份一样的标签，这正是他指出的重复。
-            合成一条长带后单份宽度远超容器，滚动里任何时刻只有一份。 */}
-        <Tile span="sm:col-span-3" icon={<Brain size={13} />} title={d.skills.title} cursorEmoji="🧠" delay={0.12}>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            {skills.map((g, i) => (
-              <span key={i} className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {pick(g.title)}
-              </span>
-            ))}
-          </div>
-          <Marquee duration="64s" gap="0.5rem" className="mt-2.5">
-            {skills.flatMap((g, gi) =>
-              g.items.map((item, i) => (
-                <span key={`${gi}-${i}`} className={CHIP}>
-                  <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent/70" />
-                  {pick(item)}
-                </span>
-              )),
-            )}
-          </Marquee>
-        </Tile>
-
-        {/* ④ 工具：只摆图标，名字等鼠标停上去才出现（实现与取舍见上面 ToolRow） */}
-        <Tile span="sm:col-span-2" icon={<Wrench size={13} />} title={d.tools.title} cursorEmoji="🔧" delay={0.18}>
-          <ToolRow row={tools} duration="52s" pick={pick} />
-        </Tile>
-
-        {/* ⑤ 连接 */}
-        <Tile span="sm:col-span-1" icon={<Link2 size={13} />} title={d.connect.title} cursorEmoji="🔗" delay={0.24}>
+        {/* ③ 连接：右侧下格。和上一格同一列，两块各吃地球一半的高度，
+            这一列就不会出现空柱。 */}
+        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Link2 size={13} />} title={d.connect.title} cursorEmoji="🔗" delay={0.12}>
           <div className="flex flex-wrap items-center justify-center gap-1">
             <SocialLinks size={19} itemClassName="size-11" onOpenModal={setModal} />
           </div>
+        </Tile>
+
+        {/* ④ 技术栈：整条铺开，六个组各自一行，组名和它自己的条目钉在一起。
+            【为什么不用一条长带混滚】六个组的条目首尾相接一起滚，
+            滚起来之后完全看不出「SQL」属于哪一组、这一串到哪儿换组 ——
+            图例那行组名和带子里的内容对不上号，等于把六份信息搅成一份。
+            每组单独配一条滚动带也不行：条目少的组会同时露出两份一样的标签。
+            静态换行同时避开这两个问题。 */}
+        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Brain size={13} />} title={d.skills.title} cursorEmoji="🧠" delay={0.18}>
+          <div className="space-y-2">
+            {skills.map((g, gi) => (
+              <div key={gi} className="flex flex-col gap-1.5 border-t border-border/40 pt-2 first:border-t-0 first:pt-0">
+                <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                  {pick(g.title)}
+                </span>
+                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                  {g.items.map((item, i) => (
+                    <span key={i} className={CHIP}>
+                      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent/70" />
+                      {pick(item)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Tile>
+
+        {/* ⑤ 工具：整条铺开。只摆图标，名字等鼠标停上去才出现（实现与取舍见上面 ToolRow） */}
+        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Wrench size={13} />} title={d.tools.title} cursorEmoji="🔧" delay={0.24}>
+          <ToolRow row={tools} duration="52s" pick={pick} />
         </Tile>
       </ul>
 

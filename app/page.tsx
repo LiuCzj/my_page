@@ -1,4 +1,3 @@
-import HeroScene from '@/components/HeroScene';
 import Hero from '@/components/Hero';
 import Dashboard from '@/components/Dashboard';
 import Projects from '@/components/Projects';
@@ -7,12 +6,14 @@ import ChatInset from '@/components/ChatInset';
 import { site } from '@/config/site';
 
 /**
- * 单页主页，从上到下五块可见内容：
- *   1   首屏（西装男坐电脑前场景图 + 鼠标视差）            → HeroScene
- *   2   第二屏（头像、问候行、一句话、数字分身角色、两个入口） → Hero
- *   3   磁贴区（籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接） → Dashboard
- *   4   项目（config 里为空时显示诚实空态）                → Projects
- *   5   数字分身聊天窗                                      → DigitalTwinChat（fixed 悬浮面板，不进文档流）
+ * 单页主页，从上到下四块可见内容：
+ *   1   首屏（头像、问候行、一句话、数字分身角色、两个入口）  → Hero
+ *   2   磁贴区（籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接） → Dashboard
+ *   3   项目（config 里为空时显示诚实空态）                → Projects
+ *   4   数字分身聊天窗                                      → DigitalTwinChat（fixed 悬浮面板，不进文档流）
+ *
+ * 整页的底色和粒子网由 app/layout.tsx 那一层 fixed 画布负责，不属于这一页的内容，
+ * 所以这里的区块不需要各自再铺背景图。
  *
  * config 里的 recentWork / expertise / interests 三份数据不在这一页上出现 ——
  * 它们是数字分身回答时引用的资料，不是页面内容。
@@ -25,8 +26,6 @@ export default function Home() {
     <>
       <ChatInset>
         <div className="mx-auto max-w-5xl px-4 pt-10 pb-16 sm:pt-14">
-          <HeroScene />
-
           <Hero />
 
           <Dashboard />

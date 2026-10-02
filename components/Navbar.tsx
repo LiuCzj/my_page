@@ -5,12 +5,17 @@
  *
  * 【布局规则】
  * 名字、联系方式、语言切换、主题切换全部置于最顶部依次排开，页面滚动时不动。
- *   → header 用 sticky top-0 z-50：它在文档流里占位，滚动到任何位置都留在顶部。
+ *   → header 用 sticky top-0 z-50：它在文档流里占位，滚动到任何位置都照常留在顶部。
  *     （fixed 也能固定，但会把下面内容顶上去或压在下面，需要额外补偿 padding；
  *      sticky 不用补偿，也更不容易出「切语言后布局跳动」。）
  *   → 桌面端一行排开：名字 | 页内导航 | GitHub/CSDN/知乎/微信/邮箱 | 语言 | 主题。
- *   → 手机端两行都固定：第一行 名字 + 语言 + 主题 + 汉堡；第二行 五个联系方式（顺序不变）。
- *     8 项在 390px 一行放不下，拆两行是唯一能同时满足「全部置于顶部」和「依次排开」的做法。
+ *   → 窄屏只有这一行（名字 + 语言 + 主题 + 汉堡），联系方式收进抽屉。
+ *     联系方式在窄屏上另起一行横滑是行不通的：640~1023 这段宽度上它会左边挂五个图标、
+ *     右边空一大片，而且把顶栏撑成两行 —— 顶栏高度一改，凡是贴着它下沿定位的东西都要重对一次。
+ *     同一份入口在磁贴区的「连接」那块和页脚都有，顶栏不必再占一行。
+ *
+ * 【顶栏高度只有一个来源】内容行写的是 h-[var(--header-h)]（定义在 app/globals.css）。
+ *  聊天面板的顶边、锚点跳转的落点偏移都由那个变量算，不再各自写死一个像素数。
  *
  * 【几个刻意的取舍】
  * 1. 联系方式数据统一来自 config/site.ts，顶栏、抽屉、页脚复用同一份
@@ -66,8 +71,10 @@ export default function Navbar() {
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          {/* ── 第一行：名字 / 导航（桌面） / 联系方式（桌面） / 语言 / 主题 / 汉堡（手机） ── */}
-          <div className="flex h-14 items-center justify-between gap-3">
+          {/* ── 唯一一行：名字 / 导航（桌面） / 联系方式（桌面） / 语言 / 主题 / 汉堡（手机） ──
+              高度走 --header-h（定义在 app/globals.css），全站只有那一个来源：
+              聊天面板的顶边和锚点跳转的补偿都由它算出来。 */}
+          <div className="flex h-[var(--header-h)] items-center justify-between gap-3">
             <Link
               href="/"
               className="inline-flex shrink-0 items-center self-stretch text-xl font-extrabold tracking-tight text-foreground no-underline sm:text-2xl"
@@ -131,17 +138,6 @@ export default function Navbar() {
                 {menuOpen ? <X size={18} /> : <Menu size={18} />}
               </button>
             </div>
-          </div>
-
-          {/* ── 第二行（仅手机/窄屏）：五个联系方式，顺序与桌面端一致 ── */}
-          <div
-            className="flex items-center gap-1 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:hidden"
-            title={d.topbar.contactScrollHint}
-          >
-            {/* shrink-0 保证在 320px 这类极窄屏上是横向滑动而不是被压扁 */}
-            <span className="flex shrink-0 items-center gap-1">
-              <SocialLinks size={20} itemClassName="size-11 shrink-0" onOpenModal={setModal} />
-            </span>
           </div>
         </div>
       </header>

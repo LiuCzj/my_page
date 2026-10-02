@@ -3,16 +3,20 @@
 /**
  * 首屏：整屏居中竖排。自上而下 ——
  *   ① 头像（常亮彩色；悬停时放大 + 轻微侧转 + 外圈虚线环开始慢转）
- *   ② 问候行「你好，我是 锦创AI」，名字逐字入场，走系统衬线栈
- *   ③ 一句话：一位喜欢研究 AI 的工程师。
+ *   ② 问候行「你好，我是 锦创AI」，名字逐字入场；汉字走行楷，拉丁字母走衬线展示字
+ *   ③ 一句话：喜欢用人话讲解复杂问题。
  *   ④ 动作行：数字分身角色（点击开合聊天窗）+ 查看我的项目
  *
- * 首屏不放联系方式图标：磁贴区最后一块「连接」给的就是同一份入口，
+ * 背景那张粒子网不在这一屏里 —— 它是全站一层 fixed 画布，挂在 app/layout.tsx，
+ * 所以滚到磁贴区、项目区它也还在。这一屏自己不铺死黑底：
+ * 颜色全部走主题令牌，亮色档和暗色档都由令牌切，切到亮色时不会出现「白字配白底」。
+ *
+ * 首屏不放联系方式图标：磁贴区那块「连接」给的就是同一份入口，
  * 一处出现一次就够，两块一样的图标只会让人觉得页面在凑内容。
  *
  * 【逐字入场只作用在名字上】
- * 前缀「你好，我是」继续用站点的无衬线黑体，一屏里只有名字一处是衬线，对比才成立。
- * 名字不加 font-black：Windows 的宋体没有真黑体字重，浏览器只能用合成假粗，
+ * 前缀「你好，我是」继续用站点的无衬线黑体，一屏里只有名字一处是行楷，对比才成立。
+ * 名字不加 font-black：楷体系字体没有真黑体字重，浏览器只能用合成假粗，
  * 在这个字号下会糊成一团 —— 体量交给字号。
  * 拆成一个个 span 会破坏读屏与选中，所以动画层是 aria-hidden，
  * 真正给读屏的是旁边那枚 sr-only 的完整名字。
@@ -21,7 +25,6 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { ArrowRight } from 'lucide-react';
 import HeroMascot from './HeroMascot';
-import StarField from './StarField';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
@@ -35,9 +38,6 @@ export default function Hero() {
 
   return (
     <section className="relative pt-6 pb-10 sm:pb-14">
-      {/* 星点层：绝对定位铺满这一屏，pointer-events-none 所以不挡任何点击 */}
-      <StarField />
-
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
         {/* ① 头像。后面那枚模糊圆是「光从头像后面透出来」的效果，
             它比头像大一圈、被 blur 化掉边缘，所以不需要真的画一圈边框 */}
@@ -69,7 +69,7 @@ export default function Hero() {
             />
           </svg>
 
-          <div className="h-32 w-32 overflow-hidden rounded-full shadow-lg ring-1 ring-accent/30 transition duration-300 group-hover:-rotate-2 group-hover:scale-[1.05] group-hover:ring-accent/70 motion-reduce:transition-none sm:h-36 sm:w-36">
+          <div className="h-32 w-32 overflow-hidden rounded-full shadow-lg ring-1 ring-accent/40 transition duration-300 group-hover:-rotate-2 group-hover:scale-[1.05] group-hover:ring-accent/80 motion-reduce:transition-none sm:h-36 sm:w-36">
             <img
               src={identity.avatar}
               alt={pick(identity.avatarAlt)}
@@ -92,10 +92,13 @@ export default function Hero() {
           {d.hero.bio}
         </p>
 
-        {/* ④ 动作行 */}
-        <div className="mt-8 flex w-full flex-wrap items-center justify-center gap-3 sm:gap-4">
-          {/* 数字分身角色：点一下开聊天窗，再点一下关。就是一张角色图，
-              hover 时轻微放大，触屏点按开聊天 */}
+        {/* ④ 动作行
+            【为什么竖排不横排】角色图本身 160~208 高，按钮和它并排就会被垂直居中到
+            半空里 —— 手机上是「小人左边空一块、右边飘一个按钮」，桌面上也一样飘着。
+            改成上下排：先角色，再按钮，都在中轴线上，窄屏宽屏同一个读法。 */}
+        <div className="mt-8 flex w-full flex-col items-center justify-center gap-4">
+          {/* 数字分身角色：点一下开聊天窗，再点一下关。
+              要做成 Q 版比例，得换一张按 Q 版比例画的角色图，代码把现有图裁圆拼不出这个比例。 */}
           <div className="group relative flex shrink-0 flex-col items-center">
             <motion.button
               type="button"
@@ -153,30 +156,56 @@ export default function Hero() {
  * 内层 span 负责循环（整词按 90ms 间隔依次上浮 6px 再落下，一轮 1.1 秒，歇 4.2 秒再来）。
  * 拆两层是因为这两个动画都要写 transform —— 挂在一个元素上会互相覆盖。
  *
+ * 【逐字拆开还顺便解决了一个字体事故】
+ * 「锦创AI」是中文 + 拉丁混排。行楷那套字栈里的拉丁字母是中文字体自带的，
+ * 大写 I 长得很像数字 7，所以必须**按字符分派字体**：
+ *   汉字 → font-xingkai（行楷）
+ *   字母/数字 → font-display（这条栈第一位是 Georgia，拉丁字母本来就是它最拿手的）
+ * 两套字体都染强调紫，看不出接缝。
+ *
  * 幅度刻意压到 6px：这是"活着"的信号，不是杂技。周期 5 秒一轮，
  * 看第二眼才会注意到，不会一直骚扰正在读字的人。
  *
  * 拆成一个个 span 会破坏读屏与选中，所以动画层是 aria-hidden，
  * 真正给读屏的是旁边那枚 sr-only 的完整名字。
- * reduceMotion 为真时直接渲染普通 span：没有动画，视觉结果和播完一模一样。
+ * reduceMotion 为真时只去掉动画，字体分派照旧 —— 否则这一档下拉丁字母会落回行楷栈，
+ * 大写 I 看起来就是 7。
  */
 function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: boolean }) {
   const chars = Array.from(text);
+  /**
+   * 汉字走行楷，其余（拉丁字母、数字）走拉丁优先的那条栈。
+   * 按码位区间判断而不是写正则：正则里放字面汉字的话，区间边界长什么样肉眼根本检查不了，
+   * 编辑器或转码动一下就可能悄悄失效。
+   * 三段：CJK 扩展A（3400–4DBF）、CJK 统一表意文字（4E00–9FFF）、CJK 兼容表意文字（F900–FAFF）。
+   */
+  const fontFor = (c: string) => {
+    const code = c.codePointAt(0) ?? 0;
+    const isCJK =
+      (code >= 0x3400 && code <= 0x4dbf) ||
+      (code >= 0x4e00 && code <= 0x9fff) ||
+      (code >= 0xf900 && code <= 0xfaff);
+    return isCJK ? 'font-xingkai' : 'font-display';
+  };
 
   if (reduceMotion) {
     return (
-      <span aria-hidden="true" className="font-display font-semibold text-accent">
-        {text}
+      <span aria-hidden="true" className="font-semibold text-accent">
+        {chars.map((c, i) => (
+          <span key={`${c}-${i}`} className={fontFor(c)}>
+            {c}
+          </span>
+        ))}
       </span>
     );
   }
 
   return (
-    <span aria-hidden="true" className="inline-flex font-display font-semibold text-accent">
+    <span aria-hidden="true" className="inline-flex font-semibold text-accent">
       {chars.map((c, i) => (
         <motion.span
           key={`${c}-${i}`}
-          className="inline-block"
+          className={`inline-block ${fontFor(c)}`}
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}

@@ -7,7 +7,7 @@
  * 位移固定 8px —— 再大就会在低端手机上看到明显的推屏感。
  *
  * 系统开了「减少动态效果」时返回空对象：元素照常渲染，只是完全不参与动画。
- * 这条是「静态呈现」而不是「不渲染」，和 DottedGlobe、HeroMascot 的处理方式一致。
+ * 这条是「静态呈现」而不是「不渲染」，和 DottedGlobe 的处理方式一致。
  */
 
 import { useReducedMotion, type MotionProps } from 'framer-motion';

@@ -423,14 +423,18 @@ export default function DigitalTwinChat() {
   return (
     /*
      * 悬浮面板定位。
-     * 手机端：贴在固定顶栏（实测 109px）下方，左右贴边撑到屏幕底部。
-     * ≥sm：收成右下角 400px 宽的窗口，但 top 仍从 120px 起 ——
+     * 手机端：贴在固定顶栏下方，左右贴边撑到屏幕底部。
+     * ≥sm：收成右下角 400px 宽的窗口，但 top 仍从顶栏下方起 ——
      *   面板层级 z-[80] 高于顶栏 z-50，若让它顶到视口上方就会盖住顶栏的语言/主题按钮。
+     * 【top 为什么用 --panel-top 而不是写死像素】
+     * 面板只要顶边和顶栏高度对不上，真机上就会出现两种错：压住顶栏的语言/主题按钮，
+     * 或者浮在半空、和顶栏之间露出一条背景缝（看着像布局崩了）。
+     * 顶栏高度只有 globals.css 里 --header-h 一个来源，面板跟着它算，这两种错都不会发生。
      * 高度一律用 top + bottom 夹出来，不用 100dvh 算，避免出现量到 96px 那种差一位数的错位。
      * kbInset 见上面那段：键盘弹起时把底边抬到键盘上方，否则输入框被埋。
      */
     <div
-      className="fixed inset-x-0 bottom-0 top-[112px] z-[80] sm:inset-x-auto sm:bottom-4 sm:left-auto sm:right-4 sm:top-[120px] sm:h-auto sm:max-h-[720px] sm:w-[400px]"
+      className="fixed inset-x-0 bottom-0 top-[var(--panel-top)] z-[80] sm:inset-x-auto sm:bottom-4 sm:left-auto sm:right-4 sm:h-auto sm:max-h-[720px] sm:w-[400px]"
       style={kbInset > 0 ? { bottom: kbInset } : undefined}
       role="dialog"
       aria-label={d.chat.title}

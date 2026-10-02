@@ -22,7 +22,11 @@ export default function Projects() {
   const list = site.projects;
 
   return (
-    <section id="projects" className="scroll-mt-36 pb-2" aria-labelledby="projects-title">
+    <section
+      id="projects"
+      className="scroll-mt-[var(--anchor-offset)] pb-2"
+      aria-labelledby="projects-title"
+    >
       <motion.h2
         {...reveal(0)}
         id="projects-title"

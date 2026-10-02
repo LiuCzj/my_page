@@ -17,7 +17,6 @@ const zh = {
     siteName: '锦创AI 首页',
     drawerNav: '页面目录',
     drawerContact: '联系方式',
-    contactScrollHint: '左右滑动查看全部联系方式',
   },
   language: {
     switchTo: '切换到 English',
@@ -46,7 +45,7 @@ const zh = {
     /** 问候行前半句，名字本身不翻译（署名不是可翻译词） */
     greeting: '你好，我是',
     /** 问候行下面那一句自我介绍 */
-    bio: '一位喜欢研究 AI 的工程师。',
+    bio: '喜欢用人话讲解复杂问题。',
     robotHintOpen: '点我，开启数字分身',
     robotHintClose: '点我，关闭数字分身',
     robotAria: '数字分身聊天窗开关',
@@ -112,6 +111,12 @@ const zh = {
     },
   },
   footer: {
+    /** 页尾那颗「打个招呼」大字的文案，和它下面按钮的字（按钮是邮箱，不是聊天窗） */
+    greet: '打个招呼',
+    greetCta: '用邮箱联系我',
+    /** 两栏的小标题 */
+    navigate: '导航',
+    connect: '联系',
     rights: '© {year} 锦创AI',
   },
 };

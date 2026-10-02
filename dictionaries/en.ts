@@ -19,7 +19,6 @@ const en: Dict = {
     siteName: '锦创AI home page',
     drawerNav: 'Menu',
     drawerContact: 'Contact',
-    contactScrollHint: 'Swipe to see all contact links',
   },
   language: {
     switchTo: '切换中文',
@@ -46,7 +45,7 @@ const en: Dict = {
   },
   hero: {
     greeting: 'Hi, I’m',
-    bio: 'An engineer who likes figuring AI out.',
+    bio: 'I explain complicated things in plain language.',
     robotHintOpen: 'Click to open the AI twin',
     robotHintClose: 'Click to close the AI twin',
     robotAria: 'Toggle the digital twin chat window',
@@ -110,6 +109,10 @@ const en: Dict = {
     },
   },
   footer: {
+    greet: 'Say hello.',
+    greetCta: 'Email me',
+    navigate: 'Navigate',
+    connect: 'Connect',
     rights: '© {year} 锦创AI',
   },
 };
