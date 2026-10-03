@@ -113,6 +113,48 @@ const en: Dict = {
       network: 'Network request failed',
     },
   },
+  /** 与 zh 侧对应：首屏终端卡 */
+  terminal: {
+    title: 'Terminal',
+    hint: 'Click to try another command',
+    aria: 'Command-line introduction, click to switch command',
+  },
+  /** 与 zh 侧对应：快捷键面板 */
+  shortcuts: {
+    open: 'Keyboard shortcuts',
+    title: 'Keyboard shortcuts',
+    close: 'Close',
+    hint: 'Press ? anytime to open, Esc to close',
+    navGroup: 'Navigate',
+    actionGroup: 'Actions',
+    goHome: 'Go to home',
+    goProjects: 'Open the projects page',
+    goNotes: 'Open the notes page',
+    openSearch: 'Search this site',
+    openChat: 'Open the digital twin',
+    toggleTheme: 'Toggle dark / light',
+    toggleLang: 'Toggle Chinese / English',
+    showHelp: 'Open this panel',
+  },
+  /** 与 zh 侧对应：站内搜索 */
+  search: {
+    open: 'Search',
+    placeholder: 'Search projects, notes, skills…',
+    empty: 'Nothing matched',
+    emptyHint: 'Try a shorter keyword, or just ask the digital twin.',
+    hintSelect: 'to select',
+    hintOpen: 'to open',
+    hintClose: 'to close',
+    groupProjects: 'Projects',
+    groupNotes: 'Notes',
+    groupSkills: 'Tech stack',
+    groupTools: 'Tools',
+    groupPages: 'Pages',
+  },
+  /** 与 zh 侧对应：阅读进度 */
+  reading: {
+    aria: 'Reading progress',
+  },
   pages: {
     notFound: {
       title: 'Page not found',

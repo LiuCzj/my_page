@@ -42,7 +42,13 @@ export default function Home() {
   return (
     <>
       <ChatInset>
-        <div className="mx-auto max-w-5xl px-4 pt-10 pb-16 sm:pt-14">
+        {/*
+          手机端顶部留白从 pt-10 收到 pt-2。
+          原来手机上是 pt-10（40px）+ Hero 自己的 pt-6（24px）= 64px 空白，
+          在 667px 高的屏上顶栏到头像之间空掉一整条，看着像内容没加载出来。
+          桌面端保持 sm:pt-14 —— 大屏上这段留白是「呼吸」，不是「空」。
+        */}
+        <div className="mx-auto max-w-5xl px-4 pt-2 pb-16 sm:pt-14">
           <Hero />
 
           {/*

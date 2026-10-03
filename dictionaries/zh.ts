@@ -121,6 +121,48 @@ const zh = {
       network: '网络请求失败',
     },
   },
+  /** 首屏终端卡：一串可点击切换的假命令，用命令行讲「我是谁」 */
+  terminal: {
+    title: '终端',
+    hint: '点一下换个命令',
+    aria: '命令行自我介绍，点击切换命令',
+  },
+  /** 键盘快捷键说明面板（按 ? 打开） */
+  shortcuts: {
+    open: '键盘快捷键',
+    title: '键盘快捷键',
+    close: '关闭',
+    hint: '随时按 ? 打开，Esc 关闭',
+    navGroup: '跳转',
+    actionGroup: '操作',
+    goHome: '回到首页',
+    goProjects: '打开项目页',
+    goNotes: '打开笔记页',
+    openSearch: '搜索站内内容',
+    openChat: '打开数字分身',
+    toggleTheme: '切换深浅色',
+    toggleLang: '切换中英文',
+    showHelp: '打开这个面板',
+  },
+  /** 站内搜索（Cmd / Ctrl + K 唤起） */
+  search: {
+    open: '搜索',
+    placeholder: '搜索项目、笔记、技能…',
+    empty: '没找到相关内容',
+    emptyHint: '换个更短的关键词试试，或者直接问数字分身。',
+    hintSelect: '上下选择',
+    hintOpen: '打开',
+    hintClose: '关闭',
+    groupProjects: '项目',
+    groupNotes: '笔记',
+    groupSkills: '技术栈',
+    groupTools: '工具',
+    groupPages: '页面',
+  },
+  /** 笔记详情页顶部的阅读进度 */
+  reading: {
+    aria: '阅读进度',
+  },
   pages: {
     notFound: {
       title: '页面走丢了',

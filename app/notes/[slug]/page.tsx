@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getAllNotes, getNote } from '@/lib/notes';
 import { useMDXComponents } from '@/mdx-components';
 import NoteBackLink from '@/components/NoteBackLink';
+import ReadingProgress from '@/components/ReadingProgress';
 
 /**
  * 笔记详情页。
@@ -63,6 +64,12 @@ export default async function NotePage({ params }: NotePageProps) {
 
   return (
     <article className="mx-auto max-w-3xl px-4 pt-8 pb-16 sm:pt-12">
+      {/*
+        阅读进度条：fixed 定位、钉在固定顶栏的下沿，不进文档流 ——
+        所以放在 article 里任何位置都不影响这段排版，放开头只是为了就近说明它属于这一页。
+      */}
+      <ReadingProgress />
+
       <NoteBackLink />
 
       <header className="mt-2 border-b border-border pb-6">

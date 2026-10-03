@@ -9,7 +9,10 @@ import CursorFx from '@/components/CursorFx'
 import ParticleField from '@/components/ParticleField'
 import Footer from '@/components/footer'
 import PageTransition from '@/components/page-transition'
+import ShortcutLayer from '@/components/ShortcutLayer'
+import TwinEntry from '@/components/TwinEntry'
 import { site } from '@/config/site'
+import { getAllNotes } from '@/lib/notes'
 
 /**
  * 站点级 metadata。
@@ -46,6 +49,24 @@ export const viewport: Viewport = {
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  /**
+   * 站内搜索要用的笔记索引。
+   *
+   * 【为什么在这里读】lib/notes.ts 靠 node:fs 读 content/notes 目录 ——
+   * 客户端组件一旦 import 它，fs 会被打进浏览器包并直接构建失败。
+   * 所以读取留在这一层（服务端），把结果当纯数据往下传。
+   * 只取搜索用得到的四个字段，正文不参与；几十篇也只是一串小对象。
+   *
+   * 【开销】layout 对每个页面都执行一次，但整站是构建期预渲染的，
+   * 运行时不会为每次请求再读一遍磁盘。
+   */
+  const notes = getAllNotes().map((n) => ({
+    slug: n.slug,
+    title: n.title,
+    summary: n.summary,
+    tags: n.tags,
+  }));
+
   return (
     <html lang="zh" suppressHydrationWarning>
       <body className="antialiased">
@@ -84,6 +105,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   它自己会判断设备：触屏和开了「减少动效」的系统上整个不挂载。
                 */}
                 <CursorFx />
+                {/*
+                  全局键盘层：快捷键注册 + 快捷键说明面板 + 站内搜索面板。
+                  放在这个 z-10 的 wrapper 里，理由和 CursorFx 一样 ——
+                  它的浮层用 z-[100]，要和聊天面板 z-[80]、抽屉 z-[90]
+                  在同一个层叠上下文里比较才有意义。
+                */}
+                <ShortcutLayer notes={notes} />
+
+                {/*
+                  数字分身的常驻入口：右下角一颗浮动头像。
+                  2026-10-03 从首屏搬来的 —— 原来它挂在首屏末尾，既是第五个元素、
+                  又得滚回顶部才点得到。放在这一层是因为它要用 useTwinChat
+                  （开合状态住在 TwinChatProvider 里），而且要和聊天面板 z-[80]
+                  在同一个层叠上下文里比层级。
+                */}
+                <TwinEntry />
               </div>
               {/* 表情光标：只在真鼠标设备上挂载，负责把带 data-cursor-emoji 的磁贴
                   上方那枚系统箭头换成对应表情（地球块是 ✈️）。它自己会判断设备，

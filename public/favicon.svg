@@ -1,4 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#0b0f19"/>
-  <text x="16" y="22" text-anchor="middle" fill="#00d4ff" font-size="18" font-family="sans-serif">AI</text>
+  <!--
+    站点图标：同一套 Q 版形象的大头版，手绘 SVG（32x32 内位图会糊，矢量才立得住）。
+
+    【为什么改掉原来那版】原来是一块深色底 + 青色 "AI" 字样。青 #00d4ff 是全站唯一
+    一处非紫的色相 —— 而 globals.css 里定死的规矩是「全站只有一支强调色（紫）」，
+    一处例外就等于破例。所以这一版把底色换成紫族，字形也换成人物。
+
+    【与三张位图怎么保持一致】同一套画风规范，只是用形状而不是像素来表达：
+      · 大头小身：头直径 14.8 占 32 的 46%，头身比约 1:1.7，是 chibi 的比例
+      · 描边：只有头这一圈 1px 深紫黑描边，与位图「统一粗细深色描边」同一条
+      · 五官：圆点眼 + 一点白高光 + 弧线微笑嘴，不画鼻子 —— 和位图同一套简化法
+      · 配色：西装/头发 #1E1533（深紫黑，不是纯黑）、衬衫纯白、领带 #7F77DD（全站紫）
+      · 阴影：不做渐变，脖子比脸深一档就算一层阴影，和位图「单层扁平阴影」一致
+    位图那边的主色也是这四个值，只是位图多了抗锯齿带来的中间色。
+  -->
+  <rect width="32" height="32" rx="7" fill="#2C1F5C"/>
+  <rect x="14.6" y="17" width="2.8" height="8" fill="#E8BE96"/>
+  <path d="M6.5 32c0-4.6 4.3-8.5 9.5-8.5s9.5 3.9 9.5 8.5z" fill="#1E1533"/>
+  <path d="M13.6 24.4 16 26.2l2.4-1.8-1.2-1.2-1.2.9-1.2-.9z" fill="#FFFFFF"/>
+  <path d="M16 26 17.4 26.8l-.9 5.2h-1l-.9-5.2z" fill="#7F77DD"/>
+  <circle cx="16" cy="12.5" r="7.4" fill="#F6D5B8" stroke="#1E1533" stroke-width="1"/>
+  <path d="M8.6 12.5a7.4 7.4 0 0 1 14.8 0z" fill="#1E1533"/>
+  <circle cx="13.2" cy="14.6" r="1.2" fill="#1E1533"/>
+  <circle cx="18.8" cy="14.6" r="1.2" fill="#1E1533"/>
+  <circle cx="13.6" cy="14.2" r="0.4" fill="#FFFFFF"/>
+  <circle cx="19.2" cy="14.2" r="0.4" fill="#FFFFFF"/>
+  <path d="M14.3 17.6q1.7 1.5 3.4 0" fill="none" stroke="#1E1533" stroke-width="0.9" stroke-linecap="round"/>
 </svg>

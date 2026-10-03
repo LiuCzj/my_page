@@ -24,21 +24,23 @@
  */
 
 import { motion, useReducedMotion } from 'framer-motion';
-import { ArrowRight } from 'lucide-react';
-import HeroMascot from './HeroMascot';
+import TerminalCard from './TerminalCard';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
-import { useTwinChat } from '@/lib/twin-chat-context';
 
 export default function Hero() {
   const { d, pick } = useI18n();
   const reduceMotion = useReducedMotion();
   const { identity } = site;
-  /** 聊天窗的开合状态：角色负责切换（顶栏「问分身」是另一个入口） */
-  const { open, toggleChat } = useTwinChat();
 
+  /*
+   * 手机端顶部留白收到 pt-2：和 app/page.tsx 的 pt-2 合起来只有 16px。
+   * 原来这两处相加是 64px，在 667px 高的屏上顶栏到头像之间空掉一整条，
+   * 看着像内容没加载出来（用户 2026-10-03 截图指出）。
+   * 桌面端保留 pt-6 —— 大屏上这段留白是「呼吸」，不是「空」。
+   */
   return (
-    <section className="relative pt-6 pb-10 sm:pb-14">
+    <section className="relative pt-2 pb-10 sm:pt-6 sm:pb-14">
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
         {/* ① 头像。
             后面那枚模糊圆是「光从头像后面透出来」的效果，它比头像大一圈、
@@ -82,7 +84,13 @@ export default function Hero() {
         {/* ② 问候行
             mt-6 而不是 mt-8：手机上首屏是竖排一整条，这里省下的 8px 留给下面的角色。
             sm 以上回到 32px，标题和头像之间要有足够的呼吸。 */}
-        <h1 className="mt-6 text-4xl leading-[1.25] tracking-tight text-foreground sm:mt-8 sm:text-6xl sm:leading-[1.15]">
+        {/*
+          手机端字号从 text-4xl 收到 text-3xl：2026-10-03 用 390px 视口截图实测，
+          「你好，我是 锦创AI」在 36px 下约 396px 宽，超过视口减去左右内边距后的 358px，
+          名字最后一个字母被右边缘切掉。30px 下约 330px，放得下。
+          桌面端保持 text-6xl —— 那里有足够宽度。
+        */}
+        <h1 className="mt-6 text-3xl leading-[1.25] tracking-tight text-foreground sm:mt-8 sm:text-6xl sm:leading-[1.15]">
           {/* 前缀先落位（0.05s 起），名字随后逐字入场（0.14s 起）——
               前缀抢在名字前面 0.09 秒，读起来是「先听到招呼，再看见署名」，
               而不是两件事同时拍在脸上。 */}
@@ -103,61 +111,25 @@ export default function Hero() {
           {d.hero.bio}
         </p>
 
-        {/* ④ 动作行
-            【为什么竖排不横排】角色图本身 160~208 高，按钮和它并排就会被垂直居中到
-            半空里 —— 手机上是「小人左边空一块、右边飘一个按钮」，桌面上也一样飘着。
-            改成上下排：先角色，再按钮，都在中轴线上，窄屏宽屏同一个读法。 */}
-        <div className="mt-6 flex w-full flex-col items-center justify-center gap-4 sm:mt-8">
-          {/* 数字分身角色：点一下开聊天窗，再点一下关。
-              要做成 Q 版比例，得换一张按 Q 版比例画的角色图，代码把现有图裁圆拼不出这个比例。 */}
-          <div className="group relative flex shrink-0 flex-col items-center">
-            <motion.button
-              type="button"
-              onClick={toggleChat}
-              aria-label={d.hero.robotAria}
-              aria-expanded={open}
-              whileHover={reduceMotion ? undefined : { scale: 1.06 }}
-              whileTap={reduceMotion ? undefined : { scale: 0.96 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              className="cursor-pointer rounded-3xl outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              {/* 角色尺寸：手机上 144px、sm 以上 208px。
-                  这是 2026-10-02 定下的值 —— 中间有一版改成手绘 SVG（竖长比例）
-                  时放大过，现在形象换回正方形位图，尺寸一并恢复。 */}
-              <HeroMascot className="pointer-events-none h-36 w-36 sm:h-52 sm:w-52" />
-            </motion.button>
-
-            {/* 悬停提示：文字跟着开合状态变，鼠标一停就知道这一下是开还是关 */}
-            <span
-              role="tooltip"
-              className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold text-foreground opacity-0 shadow-lg transition duration-200 group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 pointer-coarse:hidden"
-            >
-              {open ? d.hero.robotHintClose : d.hero.robotHintOpen}
-            </span>
-            {/*
-              触屏看不到上面那条 —— 它靠 :hover 才显形，而手机没有悬停，
-              结果就是这颗角色「点了才知道会发生什么」。
-              所以 coarse 指针下把同一句话直接排在角色下面常驻，
-              文案照样跟着开合状态换。这条在流里，父级因此改成竖排居中，
-              否则按钮会被这行更宽的字顶到左边去。
-            */}
-            <p className="hidden whitespace-nowrap pt-2 text-xs font-semibold text-muted-foreground pointer-coarse:block">
-              {open ? d.hero.robotHintClose : d.hero.robotHintOpen}
-            </p>
-          </div>
-
-          {/* visited:text-foreground 不是多余的：Chrome 会把点过的链接换成它自己的
-              visited 颜色，优先级高到连内联 color 都盖得住（实测：写 rgb(0,0,255)
-              仍解析成 rgb(235,236,240)）。不写这条，第二次进来的访客会看到一行
-              几乎透明的按钮文字。 */}
-          <a
-            href="#projects"
-            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-accent hover:text-accent visited:border-border visited:text-foreground sm:px-5"
-          >
-            {d.hero.viewProjects}
-            <ArrowRight size={15} aria-hidden="true" />
-          </a>
+        {/*
+          ③.5 终端卡 —— 首屏的「在场感」。
+          夹在「一句话」和「动作行」中间：上面讲「我是谁」，下面给「你能做什么」，
+          中间这段补的是「我正在做什么」，首屏原来缺的就是这一层「这个人还活着」的证据。
+          宽度收到 max-w-md：首屏是居中竖排，卡铺满整幅会把它读成一个横向区块，
+          和上下两段居中的文字不成一路。
+        */}
+        <div className="mt-8 w-full max-w-md">
+          <TerminalCard />
         </div>
+
+        {/*
+          ④ 动作行已整块删除（2026-10-03）。原来这里是「数字分身角色 + 查看我的项目」，
+          两块都搬走了：
+          · 角色 → components/TwinEntry.tsx，改成右下角常驻的浮动头像。理由见那个文件：
+            它挂在首屏末尾时既是第五个元素、又要滚回顶部才点得到。
+          · 按钮 → 直接删。去项目的入口顶栏与页脚都有，那是全站级入口，不该在首屏重复一遍。
+          于是首屏现在只有四件东西：头像 / 名字 / 一句话 / 终端卡 —— 一条线读完。
+        */}
       </div>
     </section>
   );

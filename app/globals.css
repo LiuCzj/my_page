@@ -346,10 +346,14 @@
   /*
    * 名字入场后的扫光：一道高光从字的左侧扫到右侧。
    *
-   * 【为什么写成 8 秒一轮、扫光只占前 13%】
-   * 8 秒里只有约 1.05 秒在扫，剩下 7 秒高光停在 -80%（整个移出字形外，看不见）。
+   * 【为什么写成 12 秒一轮、扫光只占前 13%】
+   * 12 秒里只有约 1.56 秒在扫，剩下 10 秒多高光停在 -80%（整个移出字形外，看不见）。
    * 写成一条 infinite 而不是「播一次就停」，是为了让名字隔一会儿自己再亮一下，
    * 页面放着不动时也有呼吸；但它不位移、不抖动，正在读字的人不会被骚扰。
+   *
+   * 【2026-10-03：周期从 8 秒放宽到 12 秒】
+   * 8 秒时每读两段话名字就亮一次，已经接近「在催我看它」；
+   * 12 秒才是「偶尔自己亮一下」的稀有感。放宽周期是让它更少出现，不是让它更弱。
    *
    * 【animation-delay 1.05s】等逐字入场（约 1.1 秒）落位后再扫，
    * 否则扫过的是一堆还在飞的字。
@@ -360,7 +364,7 @@
    * 高光层是「把同一串字再渲染一遍、只显示渐变的字形部分」（background-clip:text），
    * 见 components/Hero.tsx —— 所以扫的是字本身，不是一块盖在上面的矩形光斑。
    */
-  --animate-name-shine: name-shine 8s linear 1.05s infinite both;
+  --animate-name-shine: name-shine 12s linear 1.05s infinite both;
 
   @keyframes name-shine {
     0% {
@@ -369,6 +373,41 @@
     13%,
     100% {
       background-position: -80% 50%;
+    }
+  }
+
+  /*
+   * 终端光标闪烁（首屏终端卡里那个方块光标）。
+   *
+   * 【为什么是 steps(1, end) 而不是缓动】终端光标要的是「硬闪」：亮一半时间、
+   * 灭一半时间，中间不许补间。用默认缓动会得到 1 → 0.5 → 1 的平滑淡入淡出，
+   * 读起来像呼吸、不像光标；steps(1, end) 把补间掐成跳变，才是方块状的硬闪。
+   *
+   * 【为什么 1.06 秒】终端里光标闪烁的常见节奏，比心跳慢、比呼吸快。
+   * 和站里其他周期（头像 3.6s、名字扫光 8s、地球 21s）拉开量级，
+   * 近处的快节奏与远处的慢节奏叠在一起，页面才有纵深。
+   *
+   * 【为什么定义在这里而不是组件内联 <style>】
+   * 全站所有 keyframes 都集中在这个 @theme 块里（avatar-breathe / mascot-breathe /
+   * mascot-shadow / orbit / emoji-pop / name-shine），新加一条也放这儿 ——
+   * 内联 <style> 会随组件重复注入，还把「全站动效一览」拆散到各组件里。
+   *
+   * reduce-motion 由 base 层那条全局规则处理：animation-duration 被压到 0.001ms，
+   * 动画瞬间跑完停在 100% 帧（opacity: 1），光标退化成静态实心块 —— 不动，但看得见。
+   */
+  --animate-terminal-caret: terminal-caret-blink 1.06s steps(1, end) infinite;
+
+  @keyframes terminal-caret-blink {
+    0%,
+    45% {
+      opacity: 1;
+    }
+    50%,
+    95% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
     }
   }
 
