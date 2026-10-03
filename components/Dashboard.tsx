@@ -28,6 +28,7 @@ import ToolIcon from '@/components/ToolIcon';
 import { site, type ToolGlyph } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
+import { useScrollFocus } from '@/lib/use-scroll-fx';
 import { useEffect, useRef, useState } from 'react';
 
 /**
@@ -40,12 +41,18 @@ import { useEffect, useRef, useState } from 'react';
  *
  * 刻意不做悬停位移：站里「抬一下」的语义留给真正可点的东西，
  * 这几块只是展示，给的是边缘高亮。
+ *
+ * 【第三条通道：焦点接力高光】
+ * 除了「鼠标指在哪、哪块亮」，还有一条跟着滚动走的：
+ * 哪块磁贴靠近视口中心，它就自己亮起来，离开时暗下去（见 lib/use-scroll-fx.ts）。
+ * 往下滚的时候，高光在几块磁贴之间依次传递 —— 视线被这条光带着往下走，
+ * 不需要箭头，也不需要编号。它只写覆盖层的 opacity，不碰 transform，
+ * 所以和上面两条通道都不冲突。
  */
 function Tile({
   span,
   icon,
   title,
-  heading,
   cursorEmoji,
   delay,
   children,
@@ -53,17 +60,13 @@ function Tile({
   span: string;
   icon: React.ReactNode;
   title: string;
-  /**
-   * 跟在眉标后面的一行正文级标题。只有「籍贯」用：
-   * 那块要读出来的是地名，12px 全大写带字距的眉标是给「技术栈」这种分类词用的，
-   * 拿它排「中国湖南省邵阳市」会把地名压成一条装饰线。
-   */
-  heading?: string;
   cursorEmoji: string;
   delay: number;
   children: React.ReactNode;
 }) {
   const reveal = useReveal();
+  /** 焦点接力：这块磁贴离视口中心越近，下面那层高光越亮 */
+  const { ref: focusRef, focus } = useScrollFocus<HTMLLIElement>();
   const glowRef = useRef<HTMLSpanElement>(null);
   /** 触屏弹印：手指点一下，这块的表情就在指尖位置弹出来 */
   const [stamp, setStamp] = useState<{ x: number; y: number; id: number } | null>(null);
@@ -147,6 +150,7 @@ function Tile({
 
   return (
     <motion.li
+      ref={focusRef}
       {...reveal(delay)}
       data-cursor-emoji={cursorEmoji}
       onPointerMove={onMove}
@@ -158,6 +162,22 @@ function Tile({
       }}
       className={`group/tile relative flex list-none flex-col overflow-hidden rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] duration-200 ease-out hover:border-accent/50 hover:shadow-md sm:p-5 ${span}`}
     >
+      {/*
+        焦点接力高光：一条 accent 内描边 + 一团很淡的外发光，opacity 由滚动位置驱动。
+        内描边（inset 1px）而不是改 border-color：改 border 会和 hover 那条
+        hover:border-accent/50 抢同一个属性，鼠标停在卡上时会看到边框跳一下。
+        外发光用负 spread（-12px）压住范围，否则这块卡的辉光会溢到隔壁卡上。
+      */}
+      <motion.span
+        aria-hidden="true"
+        style={{
+          opacity: focus,
+          boxShadow:
+            'inset 0 0 0 1px hsl(var(--accent) / 0.45), 0 0 30px -12px hsl(var(--accent) / 0.4)',
+        }}
+        className="pointer-events-none absolute inset-0 rounded-lg"
+      />
+
       {/* 发光层。accent 透明度定在 0.16：再高就会把上面那行 12px 的灰字压到看不清。
           触屏走 stamp 这一支：弹印还在的时候就把这层点亮，印子淡掉它跟着退回 0 */}
       <span
@@ -182,16 +202,16 @@ function Tile({
           {cursorEmoji}
         </span>
       )}
-      <h3 className="relative flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      {/*
+        眉标行。原先「籍贯」这块后面还挂了一行地名（heading），
+        现在地名改成绕地球转的那圈字了 —— 标题行再放一遍是同一个信息出现两次，删掉。
+        于是这行只剩下「图标 + 分类词」，flex-wrap 也不必留（只有一个子项，不会换行）。
+      */}
+      <h3 className="relative flex items-baseline gap-x-2">
         <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
           <span className="self-center text-accent">{icon}</span>
           {title}
         </span>
-        {heading && (
-          <span className="text-sm font-semibold tracking-tight text-foreground sm:text-base">
-            {heading}
-          </span>
-        )}
       </h3>
       <div className="relative mt-3 flex min-w-0 flex-1 flex-col justify-center">{children}</div>
     </motion.li>
@@ -342,7 +362,6 @@ export default function Dashboard() {
           span="sm:col-span-2 sm:row-span-2"
           icon={<MapPin size={13} />}
           title={d.location.label}
-          heading={pick(location.label)}
           cursorEmoji="✈️"
           delay={0}
         >
@@ -356,6 +375,56 @@ export default function Dashboard() {
           <div className="relative mt-1 h-[190px] overflow-hidden sm:h-[210px]">
             <div className="absolute left-1/2 top-[-26px] w-[460px] -translate-x-1/2">
               <DottedGlobe coordinates={location.coordinates} className="w-[460px]" />
+              {/*
+                地址文字环 —— 名字绕地球转一圈。
+                与地球 (DottedGlobe) 同一个 460px 绝对定位容器，圆心对齐到地球圆心 (230, 230)；
+                文字沿半径 210 的圆路径排列（比地球赤道再大一圈，不会被陆地挡住）。
+                整段用 animate-orbit 匀速自转 36 秒一圈，比地球自转（21 秒一圈）慢一档，
+                两层旋转叠在一起，「他在哪儿」（地球转）和「他是哪儿人」（地址转）各走各的节奏。
+                textPath 里把同一段 label 重复 5 次 + 分隔点，刚好把整圈铺满不留缺口。
+                pointer-events-none：不挡地球拖拽，也不被磁贴的弹印当成可点区域。
+              */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 animate-orbit motion-reduce:animate-none"
+              >
+                <svg viewBox="0 0 460 460" className="h-full w-full">
+                  <defs>
+                    <path
+                      id="location-orbit"
+                      d="M 230 230 m -210 0 a 210 210 0 1 1 420 0 a 210 210 0 1 1 -420 0"
+                      fill="none"
+                    />
+                  </defs>
+                  <text
+                    /*
+                      行楷 + 主文字色（不是 accent 紫）。
+                      【为什么换掉紫】这圈字是「说明文字」不是「强调」，
+                      染成 accent 紫会和首屏名字、按钮、粒子网那一整套紫抢注意力 ——
+                      一页上只剩一个紫才叫强调，处处紫等于没有强调。
+                      改成 fill-foreground（主文字色）后它退到「注释」这一层：
+                      亮色档是深蓝黑、暗色档是浅灰白，两套主题各自保证对比度。
+                      【字号为什么提到 20】行楷笔画细、带连笔，17px 下笔画会糊成一条。
+                      字距从 5 收到 4：行楷本身字身较宽，字距再大会把一圈撑爆。
+                      paint-order:stroke + stroke=hsl(background) 给文字描一圈底色边，
+                      转过陆地时不会糊在一堆点上、读不出字。
+                    */
+                    className="fill-foreground font-xingkai font-bold"
+                    fontSize="20"
+                    letterSpacing="4"
+                    style={{ paintOrder: 'stroke', stroke: 'hsl(var(--background))', strokeWidth: '3' }}
+                  >
+                    {/*
+                      5 段重复 + 分隔点：一圈路径周长约 2πr ≈ 1319px，
+                      「中国湖南省邵阳市 · 」13 个字符、字距 4、字号 20，约 280px，
+                      5 段刚好 ≈ 1400px，略挤但能铺满不留缺口。
+                    */}
+                    <textPath href="#location-orbit" startOffset="0">
+                      {`${pick(location.label)} · ${pick(location.label)} · ${pick(location.label)} · ${pick(location.label)} · ${pick(location.label)} · `}
+                    </textPath>
+                  </text>
+                </svg>
+              </div>
             </div>
           </div>
         </Tile>

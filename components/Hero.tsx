@@ -3,7 +3,8 @@
 /**
  * 首屏：整屏居中竖排。自上而下 ——
  *   ① 头像（常亮彩色；悬停时放大 + 轻微侧转 + 外圈虚线环开始慢转）
- *   ② 问候行「你好，我是 锦创AI」，名字逐字入场；汉字走行楷，拉丁字母走衬线展示字
+ *   ② 问候行「你好，我是 锦创AI」，名字逐字落笔入场；汉字走楷体，拉丁字母走同一套字的拉丁搭档，
+ *      两个字体都是自托管的子集，任何设备渲染一致（见 globals.css 的 @font-face）
  *   ③ 一句话：喜欢用人话讲解复杂问题。
  *   ④ 动作行：数字分身角色（点击开合聊天窗）+ 查看我的项目
  *
@@ -39,50 +40,60 @@ export default function Hero() {
   return (
     <section className="relative pt-6 pb-10 sm:pb-14">
       <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
-        {/* ① 头像。后面那枚模糊圆是「光从头像后面透出来」的效果，
-            它比头像大一圈、被 blur 化掉边缘，所以不需要真的画一圈边框 */}
+        {/* ① 头像。
+            后面那枚模糊圆是「光从头像后面透出来」的效果，它比头像大一圈、
+            被 blur 化掉边缘，所以不需要真的画一圈边框 —— 它是静态氛围，不参与任何动画。
+
+            【为什么把外圈那枚虚线环删掉了】
+            那圈线转起来只是「头像旁边有个东西在动」。眼睛会把「转的线」和
+            「被圈住的照片」分开读，结论是「照片还是死的，是线在动」——
+            这正是上一版被指出的问题。
+            现在改成**头像本体自己在动**：呼吸（纵向略大的缩放）+ 轻微晃动（±0.9°），
+            两个量写在同一条 keyframes 里（见 globals.css 的 avatar-breathe），
+            因为 transform 只有一个属性，分两条 keyframes 会互相覆盖。
+
+            【动画挂外层、hover 挂内层，也是同一个原因】
+            呼吸动画和悬停放大都写 transform。挂同一个元素上，
+            CSS transition 会去补间动画每帧写的值，呼吸会被悬停拖出残影。
+            分层之后：外层专心呼吸，内层专心做悬停反馈，互不干扰。 */}
         <div className="group relative shrink-0">
           <span
             aria-hidden="true"
             className="pointer-events-none absolute inset-[-14px] -z-10 rounded-full bg-accent/25 blur-2xl sm:inset-[-18px]"
           />
-          {/*
-            悬停才出现的慢转虚线环。不悬停时 opacity-0，所以平时是一张干净的圆头像。
-            触屏没有悬停这回事（手机浏览器把它模拟成「点住不放」，谁也不会去点自己的头像），
-            所以 coarse 指针下这圈直接常亮常转 —— 14 秒一圈慢到只是「活着」，不抢注意力。
-            它是纯装饰、绝对定位，多显示出来不会顶开任何内容。
-          */}
-          <svg
-            viewBox="0 0 100 100"
-            aria-hidden="true"
-            className="pointer-events-none absolute -inset-3 h-[calc(100%+1.5rem)] w-[calc(100%+1.5rem)] opacity-0 transition-opacity duration-300 group-hover:animate-spin-slow group-hover:opacity-100 pointer-coarse:animate-spin-slow pointer-coarse:opacity-100 motion-reduce:hidden"
-          >
-            <circle
-              cx="50"
-              cy="50"
-              r="48"
-              fill="none"
-              className="stroke-accent"
-              strokeWidth="0.9"
-              strokeDasharray="1.6 5"
-              strokeLinecap="round"
-            />
-          </svg>
 
-          <div className="h-32 w-32 overflow-hidden rounded-full shadow-lg ring-1 ring-accent/40 transition duration-300 group-hover:-rotate-2 group-hover:scale-[1.05] group-hover:ring-accent/80 motion-reduce:transition-none sm:h-36 sm:w-36">
-            <img
-              src={identity.avatar}
-              alt={pick(identity.avatarAlt)}
-              width={144}
-              height={144}
-              className="h-full w-full object-cover"
-            />
+          {/* 呼吸层：头像本体自己在呼吸 + 轻微晃动 */}
+          <div className="animate-avatar-breathe motion-reduce:animate-none">
+            {/* 头像尺寸：手机上 112px、sm 以上 144px。
+                手机上给小一档是因为首屏竖排一整条（头像→名字→一句话→角色→按钮），
+                在 667px 高的屏上，头像每多 16px 就要多滚一截才看得到下面的角色和按钮。 */}
+            <div className="h-28 w-28 overflow-hidden rounded-full shadow-lg ring-1 ring-accent/40 transition duration-300 group-hover:scale-[1.06] group-hover:ring-accent/80 motion-reduce:transition-none sm:h-36 sm:w-36">
+              <img
+                src={identity.avatar}
+                alt={pick(identity.avatarAlt)}
+                width={144}
+                height={144}
+                className="h-full w-full object-cover"
+              />
+            </div>
           </div>
         </div>
 
-        {/* ② 问候行 */}
-        <h1 className="mt-8 text-4xl leading-[1.25] tracking-tight text-foreground sm:text-6xl sm:leading-[1.15]">
-          <span className="font-black">{d.hero.greeting}</span>{' '}
+        {/* ② 问候行
+            mt-6 而不是 mt-8：手机上首屏是竖排一整条，这里省下的 8px 留给下面的角色。
+            sm 以上回到 32px，标题和头像之间要有足够的呼吸。 */}
+        <h1 className="mt-6 text-4xl leading-[1.25] tracking-tight text-foreground sm:mt-8 sm:text-6xl sm:leading-[1.15]">
+          {/* 前缀先落位（0.05s 起），名字随后逐字入场（0.14s 起）——
+              前缀抢在名字前面 0.09 秒，读起来是「先听到招呼，再看见署名」，
+              而不是两件事同时拍在脸上。 */}
+          <motion.span
+            className="inline-block font-black"
+            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {d.hero.greeting}
+          </motion.span>{' '}
           <span className="sr-only">{identity.name}</span>
           <AnimatedName text={identity.name} reduceMotion={!!reduceMotion} />
         </h1>
@@ -96,7 +107,7 @@ export default function Hero() {
             【为什么竖排不横排】角色图本身 160~208 高，按钮和它并排就会被垂直居中到
             半空里 —— 手机上是「小人左边空一块、右边飘一个按钮」，桌面上也一样飘着。
             改成上下排：先角色，再按钮，都在中轴线上，窄屏宽屏同一个读法。 */}
-        <div className="mt-8 flex w-full flex-col items-center justify-center gap-4">
+        <div className="mt-6 flex w-full flex-col items-center justify-center gap-4 sm:mt-8">
           {/* 数字分身角色：点一下开聊天窗，再点一下关。
               要做成 Q 版比例，得换一张按 Q 版比例画的角色图，代码把现有图裁圆拼不出这个比例。 */}
           <div className="group relative flex shrink-0 flex-col items-center">
@@ -110,7 +121,10 @@ export default function Hero() {
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
               className="cursor-pointer rounded-3xl outline-offset-4 focus-visible:outline-2 focus-visible:outline-ring"
             >
-              <HeroMascot className="pointer-events-none h-40 w-40 sm:h-52 sm:w-52" />
+              {/* 角色尺寸：手机上 144px、sm 以上 208px。
+                  这是 2026-10-02 定下的值 —— 中间有一版改成手绘 SVG（竖长比例）
+                  时放大过，现在形象换回正方形位图，尺寸一并恢复。 */}
+              <HeroMascot className="pointer-events-none h-36 w-36 sm:h-52 sm:w-52" />
             </motion.button>
 
             {/* 悬停提示：文字跟着开合状态变，鼠标一停就知道这一下是开还是关 */}
@@ -150,31 +164,39 @@ export default function Hero() {
 }
 
 /**
- * 名字的动效：**入场 + 之后每 5 秒一轮的逐字波动**。
+ * 名字的动效：**落笔**。
  *
- * 外层 span 负责入场（淡入 + 从下方 14px 升起，每字错开 70ms）；
- * 内层 span 负责循环（整词按 90ms 间隔依次上浮 6px 再落下，一轮 1.1 秒，歇 4.2 秒再来）。
- * 拆两层是因为这两个动画都要写 transform —— 挂在一个元素上会互相覆盖。
+ * 三步，依次发生，做完后就安静下来：
+ *   ① 逐字入场：每字从两侧（左右交替）带着模糊和旋转汇拢到中线上，错开 90ms。
+ *      「模糊 → 清晰」是关键 —— 笔画由虚到实，读起来像写的那一笔正在落墨；
+ *      没有这一层的话就只是「四个字飞进来摆好」，是位移不是落笔。
+ *   ② 落笔线：全部落位后，名字下方那条 accent 细线从中间向两端展开（0.55s）。
+ *      它是「写完了、收笔」的句号，也把这一行从「标题」锚成「署名」。
+ *   ③ 扫光：一道高光从字的左侧扫到右侧（见 globals.css 的 name-shine）。
+ *      之后每 8 秒自己再扫一次 —— 页面放着不动时名字仍有呼吸，
+ *      但它不位移、不抖动，正在读字的人不会被骚扰。
  *
- * 【逐字拆开还顺便解决了一个字体事故】
- * 「锦创AI」是中文 + 拉丁混排。行楷那套字栈里的拉丁字母是中文字体自带的，
- * 大写 I 长得很像数字 7，所以必须**按字符分派字体**：
- *   汉字 → font-xingkai（行楷）
- *   字母/数字 → font-display（这条栈第一位是 Georgia，拉丁字母本来就是它最拿手的）
- * 两套字体都染强调紫，看不出接缝。
+ * 【为什么不再做「每字轮流上下浮动」的循环】
+ * 上一版有一条例行的逐字波浪（每 5 秒整词抖一轮）。名字是页面唯一一处
+ * 持续运动的文字，它一动，视线就被从下面的简介和按钮上拽走一次 ——
+ * 抖动的收益是「页面像活的」，代价是「一直在抢注意力」，这笔账不划算。
+ * 改成每 8 秒一次扫光：同样活着，但只在字面上掠过，不改变一个字的位置。
  *
- * 幅度刻意压到 6px：这是"活着"的信号，不是杂技。周期 5 秒一轮，
- * 看第二眼才会注意到，不会一直骚扰正在读字的人。
+ * 【按字符分派字体】
+ * 「锦创AI」是中文 + 拉丁混排。汉字走楷体（font-xingkai），拉丁字母走 font-accent
+ * （同一套字里的拉丁搭档）。两档现在都指向自托管的霞鹜文楷子集
+ * （见 globals.css 的 @font-face），所以中英是同一种笔意写出来的，
+ * 而且任何设备上渲染一致 —— 不再有「安卓机没有楷体、退回宋体」这回事。
  *
  * 拆成一个个 span 会破坏读屏与选中，所以动画层是 aria-hidden，
  * 真正给读屏的是旁边那枚 sr-only 的完整名字。
- * reduceMotion 为真时只去掉动画，字体分派照旧 —— 否则这一档下拉丁字母会落回行楷栈，
- * 大写 I 看起来就是 7。
+ * reduceMotion 为真时只去掉动画，字体分派照旧 —— 否则这一档下拉丁字母会落回
+ * 系统默认字（多数情况下是 sans-serif），跟汉字连看都不像一路。
  */
 function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: boolean }) {
   const chars = Array.from(text);
   /**
-   * 汉字走行楷，其余（拉丁字母、数字）走拉丁优先的那条栈。
+   * 汉字走楷体，其余（拉丁字母、数字）走同一套字里的拉丁搭档。
    * 按码位区间判断而不是写正则：正则里放字面汉字的话，区间边界长什么样肉眼根本检查不了，
    * 编辑器或转码动一下就可能悄悄失效。
    * 三段：CJK 扩展A（3400–4DBF）、CJK 统一表意文字（4E00–9FFF）、CJK 兼容表意文字（F900–FAFF）。
@@ -185,8 +207,25 @@ function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: bool
       (code >= 0x3400 && code <= 0x4dbf) ||
       (code >= 0x4e00 && code <= 0x9fff) ||
       (code >= 0xf900 && code <= 0xfaff);
-    return isCJK ? 'font-xingkai' : 'font-display';
+    return isCJK ? 'font-xingkai' : 'font-accent';
   };
+
+  /**
+   * 入场的起始横移：左右交替，整段读起来是「从两侧汇拢到中线」，
+   * 而不是一排字被同一个力推着走。
+   * 幅度 16px 而不是几十像素：这是「落位」，不是「飞进来」。
+   */
+  const entryX = (i: number) => (i % 2 === 0 ? -16 : 16);
+
+  /**
+   * 入场的起始旋转：和横移同侧同号，字是「转着正过来」的。
+   * 9° 是能看出倾斜、又不会让人以为字歪了的上限。
+   */
+  const entryRotate = (i: number) => (i % 2 === 0 ? -9 : 9);
+
+  /** 第一个字的起步时刻，以及字与字之间错开的量 */
+  const BASE_DELAY = 0.14;
+  const STEP_DELAY = 0.09;
 
   if (reduceMotion) {
     return (
@@ -201,31 +240,89 @@ function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: bool
   }
 
   return (
-    <span aria-hidden="true" className="inline-flex font-semibold text-accent">
+    /*
+      外层是普通 span 而不是 motion 组件，也不挂 whileHover：
+      名字不是一个可点的东西，而站里「抬一下」的语义是留给真正可点的元素的
+      （同一条原则见 components/Dashboard.tsx 的 Tile：磁贴只给边缘高亮，不做悬停位移）。
+      给一个不可点的署名加悬停反馈，等于告诉别人「这里能点」。
+    */
+    <span aria-hidden="true" className="relative inline-flex font-semibold text-accent">
       {chars.map((c, i) => (
         <motion.span
           key={`${c}-${i}`}
-          className={`inline-block ${fontFor(c)}`}
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.15 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
+          className={`inline-block origin-bottom ${fontFor(c)}`}
+          style={{ willChange: 'transform, opacity, filter' }}
+          initial={{
+            opacity: 0,
+            x: entryX(i),
+            y: '0.4em',
+            scale: 0.74,
+            rotate: entryRotate(i),
+            filter: 'blur(9px)',
+          }}
+          animate={{
+            opacity: 1,
+            x: 0,
+            y: 0,
+            scale: 1,
+            rotate: 0,
+            filter: 'blur(0px)',
+          }}
+          transition={{
+            // 四条曲线分开写：位置/旋转走同一条「缓出」，透明度先到位
+            // （字先显形、再走完最后一段路），模糊收得最快 ——
+            // 笔画在对焦，不是整块字在飘。
+            default: { duration: 0.68, delay: BASE_DELAY + i * STEP_DELAY, ease: [0.22, 1, 0.36, 1] },
+            opacity: { duration: 0.4, delay: BASE_DELAY + i * STEP_DELAY, ease: 'easeOut' },
+            filter: { duration: 0.5, delay: BASE_DELAY + i * STEP_DELAY, ease: 'easeOut' },
+          }}
         >
-          <motion.span
-            className="inline-block"
-            animate={{ y: [0, -6, 0] }}
-            transition={{
-              duration: 1.1,
-              times: [0, 0.5, 1],
-              repeat: Infinity,
-              repeatDelay: 4.2,
-              delay: 1 + i * 0.09,
-              ease: 'easeInOut',
-            }}
-          >
-            {c}
-          </motion.span>
+          {c}
         </motion.span>
       ))}
+
+      {/*
+        扫光层：把同一串字再渲染一遍，用 background-clip:text 只显示渐变扫过字形的那一段，
+        所以亮起来的是笔画本身，而不是一块盖在字上面的矩形光斑。
+        【为什么逐字复制而不是整串一个 span】上面那层是每字一个 inline-block，
+        整串渲染的字距和它会差一两个像素，扫光时会看出两层字错位。
+        延迟到逐字入场结束之后才显示：入场途中字还在飞，那时的高光扫不出形状。
+      */}
+      <motion.span
+        aria-hidden="true"
+        className="animate-name-shine pointer-events-none absolute inset-0 select-none bg-[length:220%_100%] bg-clip-text text-transparent"
+        style={{
+          backgroundImage:
+            'linear-gradient(100deg, transparent 38%, hsl(0 0% 100% / 0.92) 50%, transparent 62%)',
+        }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.3, delay: BASE_DELAY + chars.length * STEP_DELAY }}
+      >
+        {chars.map((c, i) => (
+          <span key={`${c}-${i}`} className={`inline-block ${fontFor(c)}`}>
+            {c}
+          </span>
+        ))}
+      </motion.span>
+
+      {/*
+        落笔线：全部字落位后，从中间向两端展开。
+        origin-center + scaleX 0→1 是「从中间往两头写」，origin-left 会读成「从左往右划」，
+        后者和上面那道扫光撞成同一个方向。
+        宽度取 100% 而不是字宽之外再留白：它是这一行的下划线，不是分隔符。
+      */}
+      <motion.span
+        aria-hidden="true"
+        className="absolute -bottom-1 left-0 right-0 h-[3px] origin-center rounded-full bg-accent/45"
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ scaleX: 1, opacity: 1 }}
+        transition={{
+          duration: 0.55,
+          delay: BASE_DELAY + chars.length * STEP_DELAY + 0.12,
+          ease: [0.22, 1, 0.36, 1],
+        }}
+      />
     </span>
   );
 }

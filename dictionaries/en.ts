@@ -11,6 +11,7 @@ const en: Dict = {
   nav: {
     home: 'Home',
     projects: 'Projects',
+    notes: 'Notes',
     chat: 'Ask the twin',
   },
   topbar: {
@@ -69,8 +70,19 @@ const en: Dict = {
   },
   projects: {
     title: 'Projects',
+    lead: 'Things I have built and am building.',
     empty: 'Nothing written up yet',
     emptyHint: 'This is where my work will go. I am finishing the site and the digital twin first.',
+    viewAll: 'See all projects',
+  },
+  notes: {
+    title: 'Notes',
+    lead: 'Notes on what I am building — the snags I hit and the things I figured out.',
+    empty: 'No notes yet',
+    emptyHint: 'Technical notes will live here. I am setting up the layout first.',
+    viewAll: 'See all notes',
+    readTime: '{minutes} min read',
+    back: 'Back to notes',
   },
   chat: {
     title: 'Digital twin · ask me anything',

@@ -115,15 +115,29 @@ export interface SiteConfig {
   /** 最喜欢的工具。同样是没标的留空走字母徽标 */
   favoriteTools: { label: LocalizedText; icon?: ToolGlyph }[];
   /**
-   * 项目列表。现在是空数组 —— 我没有你的任何项目数据，不会替你编。
-   * 空数组时「项目」区块显示一句诚实的空态；你往里填一条，空态立刻换成卡片列表。
+   * 项目列表。
+   *
+   * 【为什么项目留在 config，而不像笔记那样进 content/】
+   * 项目是短结构化记录（标题 / 摘要 / 技术栈 / 链接），不是长文；
+   * 这个形状已经有两个消费方（首页摘要、/projects 页）在用，扩字段是零迁移成本。
+   * 而且它和数字分身引用的人设资料同源，放在一起改一处就全站生效。
+   * 真要给某个项目写长文，写一篇笔记让项目卡链过去即可，不必再开一套 MDX 管线。
+   *
+   * 【空数组会怎样】「项目」区块显示一句诚实的空态，不会留一个看起来坏掉的洞。
    */
   projects: {
+    /** 稳定标识：用作 React key，也是以后若要开项目详情页时的路径段 */
+    slug: string;
     title: LocalizedText;
     summary: LocalizedText;
+    /** 主链接：点整张卡去的地方（GitHub 仓库或在线演示） */
     url: string;
     /** 用到的技术，显示成小标签 */
     stack: string[];
+    /** 可选：'YYYY-MM'，用于排序与在卡片上显示时间 */
+    date?: string;
+    /** 可选：true 时优先出现在首页摘要里（摘要条数见 homePreview） */
+    featured?: boolean;
   }[];
   contact: {
     github: SocialLink;
@@ -314,7 +328,47 @@ export const site: SiteConfig = {
     { label: { zh: 'GitHub', en: 'GitHub' }, icon: 'github' },
   ],
 
-  projects: [],
+  /**
+   * 示例项目 —— 前两条是这个站自己真实用到的东西，第三条是明确标注的占位，
+   * 等你把真项目给我时直接替换。结构照抄即可，`slug` 不能重复。
+   */
+  projects: [
+    {
+      slug: 'this-homepage',
+      title: { zh: '锦创AI 个人主页', en: 'JinChuang AI homepage' },
+      summary: {
+        zh: '一个带数字分身的个人主页：粒子背景、点阵地球、中英切换、深浅色模式，全站只有一支强调色。',
+        en: 'A personal homepage with a digital twin: particle field, dotted globe, i18n and dark mode, all built around a single accent colour.',
+      },
+      url: 'https://github.com/LiuCzj',
+      stack: ['Next.js 15', 'React 19', 'Tailwind v4', 'framer-motion', 'cobe'],
+      date: '2026-10',
+      featured: true,
+    },
+    {
+      slug: 'digital-twin',
+      title: { zh: '数字分身问答', en: 'Digital twin Q&A' },
+      summary: {
+        zh: '站内流式问答：密钥只留在服务端，人设从站点配置注入，SSE 分块边界自己处理。',
+        en: 'Streaming in-site Q&A: the key stays server-side, the persona is injected from site config, and SSE chunk boundaries are handled by hand.',
+      },
+      url: 'https://github.com/LiuCzj',
+      stack: ['Route Handler', 'SSE', 'OpenAI 兼容接口'],
+      date: '2026-10',
+      featured: true,
+    },
+    {
+      slug: 'replace-me',
+      title: { zh: '示例项目（待替换）', en: 'Example project (replace me)' },
+      summary: {
+        zh: '占位示例：把这条换成你自己的项目，字段照抄上面两条即可。',
+        en: 'Placeholder: replace this with one of your own projects, copying the fields from the entries above.',
+      },
+      url: 'https://github.com/LiuCzj',
+      stack: ['Python', 'PyTorch'],
+      date: '2026-09',
+    },
+  ],
 
   contact: {
     github: {
@@ -370,3 +424,11 @@ export const site: SiteConfig = {
     contextTurns: 10,
   },
 };
+
+/**
+ * 首页各摘要区块展示多少条。
+ *
+ * 单独抽成常量而不是写死在组件里：首页的「项目」和「笔记」两块要保持同样的节奏
+ * （都是 3 条），数字写在一处，调整时不会只改了一块、另一块还是旧值。
+ */
+export const homePreview = { projects: 3, notes: 3 } as const;

@@ -36,10 +36,15 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  /** 抽屉里的两项页内锚点；第三项「问分身」是按钮，单独渲染 */
+  /**
+   * 抽屉里的页面链接；「问分身」是按钮，单独渲染在最后。
+   * 三项都和顶栏保持一致、指向真路由 —— 顶栏和抽屉写的是两份独立的列表，
+   * 改一处必须同时改另一处，否则手机和桌面会看到不同的导航。
+   */
   const linkItems = [
     { href: '/', label: d.nav.home },
-    { href: '/#projects', label: d.nav.projects },
+    { href: '/projects', label: d.nav.projects },
+    { href: '/notes', label: d.nav.notes },
   ];
 
   // 跳页后自动收起：否则点了导航项到了新位置，抽屉还盖在半屏上
@@ -105,6 +110,14 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           手机刚打开页面时地址栏是展开的，80vh 会比肉眼看到的屏幕还高，
           底部几行就落到屏幕外面去了。dvh 是动态视口，跟着地址栏一起变。
         - overscroll-contain：抽屉里翻到底不再拖着背后的页面一起滚。
+
+        【两列并排】
+        抽屉只在 lg 以下出现，那就是手机/平板。两列：
+          左列：页内导航（首页/项目/问分身）
+          右列：联系方式（GitHub/CSDN/知乎/微信/邮箱）
+        列之间用 gap-x 隔开；每一列内仍竖排，行间用 gap-y。
+        列宽太小时字会截断，但这里只放图标+短文字（GitHub、CSDN 这种），
+        iPhone SE 375px 视宽下两列各 175px 也够放下。
       */}
       <div
         ref={panelRef}
@@ -127,59 +140,63 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           </button>
         </div>
 
-        <nav className="mt-2 flex flex-col">
+        <div className="mt-2 grid grid-cols-2 gap-x-3">
+          {/* 左列：页内导航 + 「问分身」按钮 */}
+          <nav className="flex flex-col gap-1">
           {linkItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`rounded-lg px-3 py-3 text-base font-bold no-underline transition hover:bg-secondary ${
-                  isActive ? 'text-accent' : 'text-foreground'
-                }`}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+            /* 和顶栏同一套判断：首页精确匹配，其余按前缀 —— 详见 Navbar.tsx 的注释 */
+            const isActive =
+              item.href === '/'
+                ? pathname === '/'
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`rounded-lg px-3 py-3 text-base font-bold no-underline transition hover:bg-secondary ${
+                    isActive ? 'text-accent' : 'text-foreground'
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+            {/* 「问分身」是按钮不是锚点：聊天区只在面板打开时存在，页面上没有可跳的目标 */}
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                openChat();
+              }}
+              aria-haspopup="dialog"
+              className="rounded-lg px-3 py-3 text-left text-base font-bold text-foreground transition hover:bg-secondary"
+            >
+              {d.nav.chat}
+            </button>
+          </nav>
 
-          {/* 「问分身」是按钮不是锚点：聊天区只在面板打开时存在，页面上没有可跳的目标 */}
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              openChat();
-            }}
-            aria-haspopup="dialog"
-            className="rounded-lg px-3 py-3 text-left text-base font-bold text-foreground transition hover:bg-secondary"
-          >
-            {d.nav.chat}
-          </button>
-        </nav>
-
-        <div className="mt-4 border-t border-border pt-3">
-          <p className="px-3 pb-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            {d.topbar.drawerContact}
-          </p>
-          {contactRow(`GitHub${github.handle ? ` · ${github.handle}` : ''}`, <GitHubIcon size={18} />, github.url)}
-          {contactRow(pick(csdn.label), <CsdnIcon size={18} />, csdn.url)}
-          {contactRow(pick(zhihu.label), <ZhihuIcon size={18} />, zhihu.url)}
-          <button
-            type="button"
-            onClick={() => onOpenModal('wechat')}
-            className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
-          >
-            <span className="text-muted-foreground"><WechatIcon size={18} /></span>
-            {pick(wechat.label)}
-          </button>
-          <button
-            type="button"
-            onClick={() => onOpenModal('email')}
-            className="flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
-          >
-            <span className="text-muted-foreground"><MailIcon size={18} /></span>
-            {pick(email.label)} · {email.address}
-          </button>
+          {/* 右列：联系方式 */}
+          <div className="flex flex-col gap-1">
+            {contactRow(`GitHub${github.handle ? ` · ${github.handle}` : ''}`, <GitHubIcon size={18} />, github.url)}
+            {contactRow(pick(csdn.label), <CsdnIcon size={18} />, csdn.url)}
+            {contactRow(pick(zhihu.label), <ZhihuIcon size={18} />, zhihu.url)}
+            <button
+              type="button"
+              onClick={() => onOpenModal('wechat')}
+              className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
+            >
+              <span className="text-muted-foreground"><WechatIcon size={18} /></span>
+              {pick(wechat.label)}
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenModal('email')}
+              className="flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-left text-sm font-semibold text-foreground transition hover:bg-secondary"
+            >
+              <span className="text-muted-foreground"><MailIcon size={18} /></span>
+              {pick(email.label)}
+            </button>
+          </div>
         </div>
       </div>
     </div>

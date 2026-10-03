@@ -43,6 +43,7 @@ build/
 coverage/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+.next*/
 
 # 临时产物与日志
 temp/
@@ -57,6 +58,7 @@ logs/
 
 # 我（AI 助手）排查时留下的临时物：截图、抓下来的原料、调试脚本
 .dbg/
+.workbuddy-ai/
 
 # AI 出图的原始文件（单张 5 MB 上下，只作为做素材时的原料，不进仓库）
 Outbox/

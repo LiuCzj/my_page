@@ -127,9 +127,16 @@ function buildSystemPrompt(lang: 'zh' | 'en'): string {
     lang === 'zh'
       ? '【格式硬要求】聊天界面按纯文本显示，不解析 Markdown。所以不要用 **加粗**、# 标题、反引号、markdown 链接或表格；要分点就用「1. 2. 3.」或换行。'
       : '[Format] The chat renders as plain text, not Markdown. Do not use **bold**, # headings, backticks, markdown links or tables. Use numbered lines or line breaks instead.',
+    /*
+     * 【站内指路必须跟着站点结构走】
+     * 这段是硬编码在提示词里的站点地图。站点 2026-10-03 从单页扩成了三页，
+     * 这里就必须同步 —— 忘了改，分身会一本正经地告诉访客「本站只有一页」，
+     * 而页面上明明挂着「项目」「笔记」两个入口。
+     * 以后再加页面，回来改这一句即可。
+     */
     lang === 'zh'
-      ? '【站内指路】本站只有一页，真实存在的区块只有：首屏（自我介绍）、磁贴区（籍贯、最喜欢的工具、技术栈、工具、连接）、「项目」(#projects，目前还是空的，没有放任何作品)、以及这个聊天窗本身。要指路就只能指这几处；不要提 /blog、/posts 之类不存在的路径，更不要声称项目区里有作品。'
-      : '[Site map] This site is a single page. The only real places are: the top section (intro), the tile grid (hometown, favourite tools, tech stack, tools, connect), "Projects" (#projects — currently empty, nothing has been published there yet), and this chat itself. Only point to those. Never mention /blog, /posts or other paths that do not exist, and never claim the projects section contains work.',
+      ? '【站内指路】本站有三个页面：首页（自我介绍 + 磁贴区：籍贯、最喜欢的工具、技术栈、工具、连接）、项目页 /projects（我做过的项目，每张卡链到 GitHub）、笔记页 /notes（中文技术笔记，每篇的地址形如 /notes/加一个英文短名）。要指路就指这几处；不要提不存在的路径，也不要声称某一页里有它实际没有的内容。'
+      : '[Site map] The site has three pages: home (intro + tiles: hometown, favourite tools, tech stack, tools, connect), the projects page /projects (each card links to GitHub), and the notes page /notes (Chinese technical notes, each at /notes/<slug>). Only point to those; never mention paths that do not exist, and never claim a page contains something it does not.',
     '',
     lang === 'zh' ? '【关于他的事实】' : '[Facts about him]',
     `${lang === 'zh' ? '称呼' : 'Name'}: ${identity.name}`,

@@ -35,9 +35,23 @@ export default function Footer() {
    * 在手机上就是「要点很准才点得到」。全站可点元素最短边 ≥44px 这条规矩，
    * 页尾这两栏不能例外。
    */
+  /**
+   * 一栏里的一行：图标 + 名字。外链和按钮共用同一套排版。
+   *
+   * 【为什么必须有 w-full】原来只写了 inline-flex，宽度就等于文字本身的宽度 ——
+   * 手机上「首页」这两个字量出来只有 28px 宽，手指很难点中。
+   * 这是移动端审计实测出来的（不是凭直觉），加上 w-full 之后
+   * 整行都成为可点区域：高度 44px、宽度撑满整列。
+   * 行内文字链接可以窄，但页脚这几行是列表项，用户会当成整行可点。
+   */
   const row =
-    'inline-flex min-h-[44px] items-center gap-2.5 text-sm text-muted-foreground transition-colors hover:text-accent visited:text-muted-foreground';
-  const label = 'font-medium';
+    'inline-flex min-h-[44px] w-full items-center gap-2.5 text-sm text-muted-foreground transition-colors hover:text-accent visited:text-muted-foreground';
+  /**
+   * 行内文本加粗：原版 font-medium 在 16px 字号下读着像普通正文，
+   * 访客扫读时容易漏掉。提到 font-semibold 与导航项同级，
+   * 「左中右」三栏字重一致，整页的字体分级才稳。
+   */
+  const label = 'font-semibold';
 
   return (
     <>
@@ -52,8 +66,11 @@ export default function Footer() {
         />
 
         <div className="relative mx-auto max-w-5xl px-4">
-          {/* ──  打个招呼 ─────────────────────────────── */}
-          <div className="flex flex-col items-center py-14 text-center">
+          {/* ──  打个招呼 ───────────────────────────────
+              py-10 而不是 py-14：手机上这一屏只有一句标题加一颗按钮，
+              56px 的上下留白会把页尾撑到要多滚一屏才看得全。
+              sm 以上回到 56px，页尾才有收尾该有的呼吸感。 */}
+          <div className="flex flex-col items-center py-10 text-center sm:py-14">
             <p className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
               {d.footer.greet}
               <span aria-hidden="true" className="ml-2 inline-block align-middle">👋</span>
@@ -73,11 +90,18 @@ export default function Footer() {
             </button>
           </div>
 
-          {/* ── ② 三栏 ────────────────────────────────── */}
-          <div className="grid gap-10 border-t border-border py-12 sm:grid-cols-[1.35fr_0.8fr_1fr] sm:gap-8">
+          {/* ── ② 三栏 ──────────────────────────────────
+              【移动端改成两列】
+              sm 以下：`grid-cols-2`，「是谁」跨满两列占第一行，
+              「导航」和「联系」并排占第二行 —— 页尾这两块性质相同（都是一列链接），
+              在手机上竖着堆成两屏才滚得完，并排才是一屏能看完的密度。
+              sm 以上：回到原来的 1.35fr / 0.8fr / 1fr 三栏，
+              「是谁」那句 tagline 需要横向空间，三栏里它才有地方铺开。 */}
+          <div className="grid grid-cols-2 gap-x-4 gap-y-8 border-t border-border py-12 sm:grid-cols-[1.35fr_0.8fr_1fr] sm:gap-8">
             {/* 左：是谁。这里不放头像 —— 首屏已经有一枚圆头像，
-                同一张脸在页尾再出现一次只是重复。 */}
-            <div>
+                同一张脸在页尾再出现一次只是重复。
+                col-span-2：手机上它独占第一行，sm 以上回到占一列。 */}
+            <div className="col-span-2 sm:col-span-1">
               <p className="text-base font-bold tracking-tight text-foreground">
                 {site.identity.name.replace(site.identity.nameAccent, '')}
                 <span className="text-accent">{site.identity.nameAccent}</span>
@@ -89,7 +113,9 @@ export default function Footer() {
               </p>
             </div>
 
-            {/* 中：页内导航 */}
+            {/* 中：页面导航。站点从单页扩成三页后，项目改指真路由 /projects，
+                并补上笔记 /notes。这里用的是原生 <a> 而不是 next/link ——
+                现状如此，本次只同步 href，不动跳转方式以缩小改动面。 */}
             <nav aria-label={d.footer.navigate}>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-foreground">
                 {d.footer.navigate}
@@ -101,8 +127,13 @@ export default function Footer() {
                   </a>
                 </li>
                 <li>
-                  <a href="/#projects" className={`${row} visited:text-muted-foreground`}>
+                  <a href="/projects" className={`${row} visited:text-muted-foreground`}>
                     <span className={label}>{d.nav.projects}</span>
+                  </a>
+                </li>
+                <li>
+                  <a href="/notes" className={`${row} visited:text-muted-foreground`}>
+                    <span className={label}>{d.nav.notes}</span>
                   </a>
                 </li>
                 <li>

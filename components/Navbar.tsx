@@ -54,9 +54,18 @@ export default function Navbar() {
    * 写成 <a href="#ask-twin"> 时页面上根本没有这个目标，点了自然没反应。
    * 手机抽屉里同样处理。
    */
+  /**
+   * 导航项。
+   *
+   * 【为什么从 `/#projects` 改成了 `/projects`】
+   * 站点原本是单页，项目只是首页里的一个锚点区块。现在项目有了自己的页面
+   * （笔记同理），导航就该指向真路由 —— 否则从笔记详情页点「项目」，
+   * 会被带回首页再滚下去，路径是错的。
+   */
   const linkItems = [
     { href: '/', label: d.nav.home },
-    { href: '/#projects', label: d.nav.projects },
+    { href: '/projects', label: d.nav.projects },
+    { href: '/notes', label: d.nav.notes },
   ];
 
   /** 导航项文字配色：当前页用 accent，其余用灰并在悬停时提亮。
@@ -87,7 +96,18 @@ export default function Navbar() {
             {/* 桌面导航：顺序排列，避免窄屏时与右侧图标叠在一起 */}
             <ul className="hidden items-center gap-1 text-sm font-semibold lg:flex">
               {linkItems.map((item) => {
-                const isActive = pathname === item.href;
+                /**
+                 * 高亮判断。旧写法是 `pathname === item.href`，有两个 bug：
+                 *   ① 那时「项目」的 href 是 `'/#projects'`，而 pathname 不含 hash，
+                 *      这个等式永远不成立 —— 所以那个导航项从来不会亮；
+                 *   ② 精确匹配意味着 `/notes/某篇` 详情页不会点亮 `/notes`。
+                 * 现在：首页精确匹配（否则所有路径都以 `/` 开头，会全亮），
+                 * 其余按「等于自己 或 以自己 + / 开头」判断。
+                 */
+                const isActive =
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 return (
                   <li key={item.href} className="relative px-3 py-2">
                     <Link href={item.href} className="block no-underline">

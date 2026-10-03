@@ -1,0 +1,96 @@
+---
+title: 这个站点的内容是怎么组织的
+date: '2026-10-03'
+summary: 笔记为什么放在 content/ 而不是 app/，frontmatter 里都放些什么，以及中文站为什么用不了现成的阅读时长库。
+tags: [Next.js, MDX, 内容管理]
+draft: false
+---
+
+# 笔记为什么放在 content/ 而不是 app/
+
+Next.js 的 App Router 支持把 `.mdx` 直接当页面用：在 `app/` 下放一个 `page.mdx`，它就是一个路由。这很方便，但笔记不适合这么做。
+
+原因有两个。
+
+**第一，列表页拿不到元数据。** 如果每篇笔记是一个路由文件，列表页要展示「标题 + 日期 + 摘要」，就得把每篇的正文都编译一遍再从里面抠信息。而放在 `content/` 下用 `gray-matter` 读文件头那段 YAML，只切字符串、不跑编译管线，几十篇也是毫秒级。
+
+**第二，正文和路由耦合。** 笔记是内容，`app/` 是代码。把内容混进代码目录，改个标题也要动路由结构，以后想加个「草稿不发布」的开关会很难受。
+
+所以这个站的分工是：
+
+- `content/notes/*.mdx` 放正文，一篇一个文件
+- `lib/notes.ts` 负责读 frontmatter、算阅读时长、派生 slug
+- `app/notes/[slug]/page.tsx` 负责把它渲染出来
+
+# frontmatter 里放什么
+
+```yaml
+---
+title: 这个站点的内容是怎么组织的
+date: '2026-10-03'
+summary: 一句话摘要，列表页会显示它。
+tags: [Next.js, MDX]
+draft: false
+---
+```
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `title` | 是 | 中文标题，列表页和详情页都用它 |
+| `date` | 是 | `YYYY-MM-DD`，**建议加引号** |
+| `summary` | 是 | 一句话摘要，别超过 60 个字 |
+| `tags` | 否 | 数组，列表页渲染成小标签 |
+| `draft` | 否 | 为 `true` 时生产构建不收录 |
+
+有两个字段**刻意不放进 frontmatter**：
+
+- **`slug`** —— 由文件名派生。写进 frontmatter 就意味着有两处真相，早晚会出现文件名和 slug 对不上的情况。
+- **阅读时长** —— 由正文字数现算。手写进 frontmatter 的话，改完正文忘了改它，数字就是错的。
+
+# 日期为什么要加引号
+
+YAML 会把不加引号的 `2026-10-03` 解析成 Date 对象。Date 转字符串时带上时区，在 UTC+8 下可能显示成前一天。
+
+`lib/notes.ts` 里兜住了这种情况：
+
+```ts
+date: data.date instanceof Date ? data.date.toISOString().slice(0, 10) : String(data.date),
+```
+
+但更省事的做法是写的时候就加引号。
+
+# 中文站为什么用不了 reading-time
+
+社区里最常用的阅读时长库是 `reading-time`。它的算法是按空白字符切词：
+
+```js
+const words = text.split(/\s+/).length;
+```
+
+中文句子没有空格。一整段三百字的中文，在它眼里是「一个词」，于是任何一篇中文笔记的读数都是 **1 分钟**。这个数字不但没用，而且是错的。
+
+所以这里自己写了一个按字数估的版本：
+
+```ts
+function estimateReadingMinutes(body: string): number {
+  const cjkCount = (body.match(/[\u3400-\u9fff]/g) ?? []).length;
+  const latinWords = (body.replace(/[\u3400-\u9fff]/g, ' ').match(/[A-Za-z0-9]+/g) ?? []).length;
+  return Math.max(1, Math.round(cjkCount / 300 + latinWords / 200));
+}
+```
+
+先把汉字挖成空格再切拉丁词，中英混排的笔记也能算对。300 字/分钟和 200 词/分钟是常见的阅读速度经验值。
+
+# 新增一篇笔记要做什么
+
+只做一件事：在 `content/notes/` 下新建一个 `.mdx` 文件。
+
+详情页的路由由 `generateStaticParams` 在构建期枚举出来：
+
+```ts
+export function generateStaticParams() {
+  return getAllNotes().map((n) => ({ slug: n.slug }));
+}
+```
+
+配合同一个文件里的 `export const dynamicParams = false`，任何不在 `content/notes/` 里的 slug 会直接 404，而不是走运行时兜底渲染。这也是 slug 必须做正则校验的原因——它会被拼进动态 import 的路径里。

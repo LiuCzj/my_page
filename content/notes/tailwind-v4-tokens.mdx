@@ -1,0 +1,85 @@
+---
+title: Tailwind v4 没有配置文件，主题写在哪
+date: '2026-10-02'
+summary: v4 把主题搬进了 CSS。为什么颜色令牌存的是 HSL 三个分量而不是完整颜色值，以及这样做的收益。
+tags: [Tailwind, CSS, 设计系统]
+draft: false
+---
+
+# 升级到 v4 后第一件困惑的事
+
+Tailwind v3 的项目里有个 `tailwind.config.js`，所有主题色、圆角、断点都写在里面。v4 之后这个文件没了——项目根目录干干净净，什么都没有。
+
+主题被搬进了 CSS。整个配置就是一个 `@theme` 块：
+
+```css
+@theme {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-accent: hsl(var(--accent));
+  --radius: 0.5rem;
+}
+```
+
+`--color-*` 命名空间里的变量会自动变成颜色工具类：写了 `--color-accent`，就能用 `bg-accent`、`text-accent`、`border-accent`。`--font-*` 生成 `font-*`，`--animate-*` 生成 `animate-*`。不用注册，写了就有。
+
+# 为什么颜色存的是三个数字
+
+真正定义颜色的地方在 `:root` 里，存的不是完整颜色值，而是 HSL 的三个分量：
+
+```css
+:root {
+  /* 注意：这里没有 hsl() 外壳，只有三个数 */
+  --accent: 268 62% 46%;
+  --background: 220 16% 98%;
+  --border: 220 13% 87%;
+}
+```
+
+然后在 `@theme` 里补上外壳：
+
+```css
+--color-accent: hsl(var(--accent));
+```
+
+绕这一圈是为了**透明度的可用性**。存完整值的话，`hsl(268 62% 46%)` 是一个整体，想调透明度只能再定义一个变量。存分量的话，任何地方都能直接拆开用：
+
+```css
+background: hsl(var(--accent) / 0.16);
+border-color: hsl(var(--accent) / 0.5);
+```
+
+Tailwind 的斜杠语法也直接成立，`bg-accent/25`、`border-accent/30` 都能用。
+
+# 深浅两套主题怎么切
+
+v4 默认的 `dark:` 变体跟随系统的 `prefers-color-scheme`。但这个站是用 `next-themes` 切主题的，它靠给 `<html>` 加 `.dark` 类来工作。两者对不上，点按钮不会有反应。
+
+修法是加一行自定义变体：
+
+```css
+@custom-variant dark (&:is(.dark *));
+```
+
+这行的意思是：`dark:` 后面的样式，只在元素处于 `.dark` 子树里时生效。这是从 v3 迁到 v4 最容易踩的坑——不加这行，主题切换按钮点了没反应，而且不报任何错。
+
+# 几个刻意的取舍
+
+| 决定 | 原因 |
+| --- | --- |
+| 全站只有一个强调色（紫） | 两个强调色等于没有强调色 |
+| 底色和卡面的饱和度压到 13%~16% | 页面自己不带色相，紫色才有地位 |
+| 每个文字色都单独验对比度 | 正文要过 WCAG AA 的 4.5:1 |
+| 亮色档的 accent 压到 46% 亮度 | 当链接色时要压得住白底 |
+
+最后一条值得展开说。同一支紫，在深色底和浅色底上需要不同的明度：深色底上要提亮（72%）才看得清，浅色底上要压暗（46%）才压得住白底。所以 `--accent` 在两套主题里是两个值，不能共用。
+
+# 新增一个令牌要做什么
+
+三步，都在 `app/globals.css` 里：
+
+1. 在 `:root` 和 `.dark` 里各定义一次分量值
+2. 在 `@theme` 里加一行 `--color-xxx: hsl(var(--xxx));`
+3. 用的时候直接写 `bg-xxx` / `text-xxx`
+
+漏掉第 2 步不会报错，只是那个类不存在——写了也不生效，而且没有任何提示。这是 v4 里最容易浪费时间的失败模式。

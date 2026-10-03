@@ -35,6 +35,38 @@
 }
 
 /*
+ * 楷体：霞鹜文楷（LXGW WenKai）的**子集**，自托管在 public/fonts/ 下。
+ *
+ * 【为什么要加这一份】首屏名字「锦创AI」原来走 --font-xingkai 系统字体栈
+ * （华文行楷 / 楷体 / Kaiti SC …）。那只在一部分机器上成立：
+ * Windows 有楷体、macOS 有 Kaiti SC，而**多数安卓机一个楷体都没有** ——
+ * 栈一路落到底，名字被系统宋体渲染，和电脑上的行楷完全是两种字。
+ * 名字是全站最重要的一行字，不能听天由命，所以改成自托管：
+ * 不管访客装了什么，浏览器都下载这一份，渲染结果逐字一致。
+ *
+ * 【为什么是霞鹜文楷】硬笔楷书风格，基于 Klee One，SIL OFL 1.1 授权
+ * （授权文本在 public/fonts/LICENSE-OFL-LXGW.txt）。它自带拉丁字母，
+ * 所以「AI」也能一并统一 —— 原来那两个字母在 Windows 上落到 Comic Sans MS，
+ * 在手机上落到系统 cursive，同样是各看各的。
+ *
+ * 【同样是子集】原字体 24.4 MB，只裁页面真正用到的 78 个字形 → 15.1 KB。
+ * 重新生成命令见 DOWNLOADS.md。漏了不会报错，只会静默退回系统楷体。
+ *
+ * 【font-weight 写 400 700 而不是 400】子集只含 Regular 一个字重。
+ * 只声明 400 的话，名字上的 font-semibold / 地球文字环的 font-bold
+ * 会让浏览器**合成假粗** —— 楷体笔画带提按，合成粗在这个字号下会糊成一团。
+ * 声明成一个区间后，浏览器认为 400~700 已被这份字体覆盖，不再做合成，
+ * 代价是中粗/粗体渲染出来和常规一样粗（体量交给字号，这条本来就是本站的做法）。
+ */
+@font-face {
+  font-family: 'LXGW WenKai Kai';
+  src: url('/fonts/lxgw-wenkai-kai.woff2') format('woff2');
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
  * ── 颜色令牌 ─────────────────────────────────────────────────
  * 存的是 HSL 三个分量（不含 hsl() 外壳），由下面 @theme 包成 Tailwind 颜色。
  * 这么做的目的是任何地方都能再套透明度：bg-background/95、border-accent/30。
@@ -140,8 +172,146 @@
   /* 错误色：聊天失败提示用 text-destructive（两套主题各自调过明度，都能看清） */
   --color-destructive: hsl(var(--destructive));
 
-  /* 头像外圈那枚虚线环：只在悬停时转，1 秒一圈太快，14 秒才像「亮起来在待机」 */
-  --animate-spin-slow: spin 14s linear infinite;
+  /*
+   * ── 字体家族 ─────────────────────────────────────────
+   * --font-display ：展示字（思源宋体子集 + Georgia）。
+   * --font-xingkai ：楷体（首屏名字里的汉字、地球文字环）。
+   * --font-accent  ：首屏名字里英文字母的「搭档」。
+   *
+   *   【两档都以自托管的霞鹜文楷打头】见上面那份 @font-face 的说明：
+   *   名字这行字必须是「所有人看到的都一样」，所以楷体和它的拉丁搭档
+   *   都指向同一份自托管子集（15.1 KB）。
+   *   后面那些系统字体名**不是摆设**：字体还在下载、或子集缺字时按序回落，
+   *   落到的也是楷体族（华文行楷 / 楷体 / Kaiti SC），
+   *   不会掉进宋体或 sans-serif —— 那是这两个栈最后的保险。
+   */
+  --font-display:
+    'Noto Serif SC Display',
+    Georgia,
+    'Times New Roman',
+    'Songti SC',
+    'STSong',
+    'Noto Serif CJK SC',
+    'Source Han Serif SC',
+    SimSun,
+    'NSimSun',
+    serif;
+
+  --font-xingkai:
+    'LXGW WenKai Kai',
+    'STXingkai',
+    '华文行楷',
+    'Kaiti SC',
+    'KaiTi',
+    '楷体',
+    'DFKai-SB',
+    'AR PL KaitiM GB',
+    'Noto Serif SC Display',
+    'Songti SC',
+    serif;
+
+  /*
+   * 楷体搭档字体（名字里的拉丁字母用）。
+   * 第一位是自托管的霞鹜文楷 —— 它自带拉丁字母，和汉字同一个笔意，
+   * 所以「锦创AI」四个字是同一种字写出来的，不是两段拼起来的。
+   * 后面按「最接近手写笔意的排前面」兜底：
+   *   Apple Chancery（macOS 自带，行楷式斜体）→
+   *   Snell Roundhand（macOS 自带，草书）→
+   *   Lucida Handwriting（Windows 多版本自带）→
+   *   Comic Sans MS（最后兜底，会被嫌弃但确实到处有）→
+   *   退到楷体族，不会再变印刷字。
+   */
+  --font-accent:
+    'LXGW WenKai Kai',
+    'Apple Chancery',
+    'Snell Roundhand',
+    'Lucida Handwriting',
+    'Segoe Script',
+    'Comic Sans MS',
+    'Brush Script MT',
+    'STXingkai',
+    '华文行楷',
+    'Kaiti SC',
+    'KaiTi',
+    cursive;
+
+  /*
+   * ── 头像 / 角色「自己在动」的那组动画 ────────────────────
+   * 【设计前提】这里全部作用在**主体本身**（头像那张图、角色那张图），
+   * 不是在外面套一圈会转的线。外圈转动只是「旁边有个东西在动」，
+   * 眼睛会把它和被圈住的图分开读，看着就是「一张静止的照片 + 一圈动画」。
+   * 要让主体看起来活着，动的必须是主体自己：呼吸（缩放）、轻微晃动（旋转）。
+   *
+   * 【为什么呼吸是「纵向多一点 + 带一点旋转」而不是等比缩放】
+   * 等比缩放看起来像「镜头在推拉」，是相机在动；
+   * 纵向略大一点、再叠一点点旋转，看起来才像胸腔起伏 + 身体重心在微调，
+   * 是「人在呼吸」。这两个量的差值很小（1.04 vs 1.03），但读感完全不同。
+   *
+   * 【周期】3.6 秒一轮，比社交产品常见的 2 秒慢一档 —— 慢到只是「活着」，
+   * 不会让人以为页面上有个东西在催他点。
+   * reduce-motion 见 base 层那条全局规则（会把 animation-duration 压到 0.001ms）。
+   */
+  --animate-avatar-breathe: avatar-breathe 3.6s ease-in-out infinite;
+
+  @keyframes avatar-breathe {
+    0%, 100% {
+      transform: translateY(0) scale(1, 1) rotate(-0.9deg);
+    }
+    50% {
+      transform: translateY(-4px) scale(1.03, 1.045) rotate(0.9deg);
+    }
+  }
+
+  /*
+   * 角色（Q 版人物）的呼吸：幅度比头像大一档。
+   * 它本来就是「人偶」体量，动作太小在 208px 的尺寸上读不出来；
+   * 头像那组 3% 的缩放放到它身上会显得像贴纸，这里给到 4.5% + 6px 起伏。
+   */
+  --animate-mascot-breathe: mascot-breathe 4.2s ease-in-out infinite;
+
+  @keyframes mascot-breathe {
+    0%, 100% {
+      transform: translateY(0) scale(1, 1) rotate(-1.4deg);
+    }
+    50% {
+      transform: translateY(-6px) scale(1.035, 1.05) rotate(1.4deg);
+    }
+  }
+
+  /*
+   * 角色的脚下投影：跟人物同一条 4.2s 周期，方向相反 ——
+   * 人升到最高点时影子最小最淡，人落回地面时影子恢复。
+   * 【为什么平移要写进 keyframes】这个元素平时靠 -translate-x-1/2 居中，
+   * 而 keyframes 里的 transform 会整个覆盖那条类；不把 translateX(-50%) 带上的话，
+   * 影子会在动画一开始就跳到左边去。
+   * 只缩 scaleX（横向）而不是整体缩小：影子变扁读起来像「光源在正上方」，
+   * 整体缩小读起来像「影子被推远了」，是两种完全不同的物理。
+   */
+  --animate-mascot-shadow: mascot-shadow 4.2s ease-in-out infinite;
+
+  @keyframes mascot-shadow {
+    0%, 100% {
+      transform: translateX(-50%) scaleX(1);
+      opacity: 0.5;
+    }
+    50% {
+      transform: translateX(-50%) scaleX(0.82);
+      opacity: 0.26;
+    }
+  }
+
+  /*
+   * 地球地址文字环：绕地球圆心匀速旋转，36 秒一圈。
+   * 比地球自转（21 秒）慢一档 —— 两层旋转叠在一起，
+   * 地球是「他在哪儿」，地址是「他是哪儿人」，节奏不一样才对得上两层信息。
+   * reduce-motion 见 base 层那条全局规则。
+   */
+  @keyframes orbit {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  --animate-orbit: orbit 36s linear infinite;
   /*
    * 手机上点磁贴：表情在指尖位置弹出来、停一下、再淡掉。
    * 触屏没有光标，桌面那套「箭头换成表情」在这里物理上不存在，弹印是它的等价物。
@@ -173,57 +343,36 @@
     }
   }
 
-  --radius: 0.5rem;
   /*
-   * 展示字体（首屏名字里的拉丁字母、工具字母徽标）。Tailwind v4 里 --font-* 命名空间会自动生成 font-display 工具类。
+   * 名字入场后的扫光：一道高光从字的左侧扫到右侧。
    *
-   * 只有第一位是下载的：'Noto Serif SC Display' 是自托管的思源宋体子集（23 KB，见 public/fonts），
-   * 其余全部依赖系统已装的字体，不再有任何网络请求 ——
-   * 访客到服务器的单连接实测只有 10~30 KB/s，中文字体下载一个字重就能把首屏拖死。
+   * 【为什么写成 8 秒一轮、扫光只占前 13%】
+   * 8 秒里只有约 1.05 秒在扫，剩下 7 秒高光停在 -80%（整个移出字形外，看不见）。
+   * 写成一条 infinite 而不是「播一次就停」，是为了让名字隔一会儿自己再亮一下，
+   * 页面放着不动时也有呼吸；但它不位移、不抖动，正在读字的人不会被骚扰。
    *
-   * 顺序不是随便排的：浏览器是「逐字符」往后找有该字形的字体。
-   * 子集里刻意只放汉字和中文标点，所以 Georgia / Times New Roman 接手拉丁字母，
-   * 「AI」两个字母落在 Georgia —— 正好做出中英同框的展示字效果。
-   * 中文侧按 macOS(Songti SC / STSong) → Linux(Noto/Source Han Serif) → Windows(SimSun) 排。
+   * 【animation-delay 1.05s】等逐字入场（约 1.1 秒）落位后再扫，
+   * 否则扫过的是一堆还在飞的字。
+   *
+   * 【fill-mode both】delay 期间就按 0% 那帧（200%，在字形外）站位；
+   * 不写的话 delay 里 background-position 取初始值，字中间会先亮出一条。
+   *
+   * 高光层是「把同一串字再渲染一遍、只显示渐变的字形部分」（background-clip:text），
+   * 见 components/Hero.tsx —— 所以扫的是字本身，不是一块盖在上面的矩形光斑。
    */
-  --font-display:
-    'Noto Serif SC Display',
-    Georgia,
-    'Times New Roman',
-    'Songti SC',
-    'STSong',
-    'Noto Serif CJK SC',
-    'Source Han Serif SC',
-    SimSun,
-    'NSimSun',
-    serif;
+  --animate-name-shine: name-shine 8s linear 1.05s infinite both;
 
-  /*
-   * 行楷（自我介绍里那枚名字专用）。Tailwind v4 里 --font-* 会自动生成 font-xingkai 工具类。
-   *
-   * 【这是系统字体栈，一个字节都不下载】
-   * 行楷类字体单份普遍 8~12 MB，而访客到服务器的单连接实测只有 10~30 KB/s ——
-   * 自托管等于让首屏卡死，所以只能靠访客系统里已有的。
-   * 顺序按「最像行楷的排前面」：
-   *   华文行楷（Windows 装了 Office 就有）→ macOS 楷体 → Windows 自带楷体 →
-   *   台湾正体楷 → Linux 文鼎楷 → 最后落到宋体族。
-   *
-   * 【要清楚它的代价】没装华文行楷的机器会退到楷体 —— 楷体是「正楷」不是「行楷」，
-   * 笔画不连，看着会正经很多、也普通很多。要 100% 保证是所有访客都看到同一款行楷，
-   * 只有一条路：拿到一份可再分发的行楷授权 → 按页面用到的字裁子集 → 自托管。
-   * 裁子集这一套流程本站已经跑过一遍（思源宋体那份就是这么做掉的）。
-   */
-  --font-xingkai:
-    'STXingkai',
-    '华文行楷',
-    'Kaiti SC',
-    'KaiTi',
-    '楷体',
-    'DFKai-SB',
-    'AR PL KaitiM GB',
-    'Noto Serif SC Display',
-    'Songti SC',
-    serif;
+  @keyframes name-shine {
+    0% {
+      background-position: 200% 50%;
+    }
+    13%,
+    100% {
+      background-position: -80% 50%;
+    }
+  }
+
+  --radius: 0.5rem;
 }
 
 @layer base {
@@ -349,4 +498,170 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+/*
+ * ── 笔记正文排版 ─────────────────────────────────────────────
+ * 挂在 app/notes/[slug]/page.tsx 的正文容器上（.prose-site）。
+ *
+ * 【为什么不用 @tailwindcss/typography】
+ * 它自带 65ch 行宽和一整套独立的 --tw-prose-* 颜色变量，与本站
+ * 「语义令牌 + 全站唯一紫色」的体系冲突，要压到一致得逐个覆写它的变量，
+ * 那还不如直接写。正文需要的元素就那么些，手写反而更短、更好控制结构。
+ *
+ * 【字体】走 body 上定义的系统无衬线栈，**刻意不碰 --font-display**。
+ * 那份自托管思源宋体是子集，只含 39 个汉字，正文一旦用它就会大面积
+ * 静默退回系统宋体（不报错，但一半字是宋体一半不是，非常难看）。
+ *
+ * 【颜色】全部走令牌，所以深浅两套主题自动成立，不需要写 .dark 分支。
+ */
+.prose-site {
+  color: hsl(var(--foreground));
+  font-size: 1rem;
+  line-height: 1.8;
+  /* 兜底：任何子元素都不许把容器撑宽。真正的溢出在 pre / table 上各自内部滚动 */
+  overflow-wrap: break-word;
+}
+
+/* 用相邻兄弟选择器做段落间距，而不是给每个元素写 margin-bottom ——
+   这样最后一个元素不会留下多余的尾巴 */
+.prose-site > * + * {
+  margin-top: 1.1em;
+}
+
+.prose-site h1,
+.prose-site h2,
+.prose-site h3,
+.prose-site h4 {
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: hsl(var(--foreground));
+}
+
+.prose-site h1 {
+  font-size: 1.75rem;
+  margin-top: 2rem;
+}
+
+.prose-site h2 {
+  font-size: 1.4rem;
+  margin-top: 2rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.prose-site h3 {
+  font-size: 1.15rem;
+  margin-top: 1.6rem;
+}
+
+.prose-site h4 {
+  font-size: 1rem;
+  margin-top: 1.4rem;
+}
+
+.prose-site a {
+  color: hsl(var(--accent));
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose-site ul,
+.prose-site ol {
+  padding-left: 1.4em;
+}
+
+.prose-site ul {
+  list-style: disc;
+}
+
+.prose-site ol {
+  list-style: decimal;
+}
+
+.prose-site li + li {
+  margin-top: 0.35em;
+}
+
+.prose-site blockquote {
+  border-left: 3px solid hsl(var(--accent) / 0.5);
+  padding-left: 1rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.prose-site hr {
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+  margin: 2rem 0;
+}
+
+/* 行内代码：允许在长标识符处断行，否则一个长类名能把整行顶出去 */
+.prose-site code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  background: hsl(var(--secondary));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.35rem;
+  padding: 0.12em 0.4em;
+}
+
+/*
+ * 代码块：横向滚动放在 pre 自己身上，而不是让整页变宽。
+ *
+ * 【绝对不要给 pre 加 touch-pan-x】
+ * 那会禁掉在代码块上的纵向滑动 —— 手指恰好落在代码块上时页面滚不动，
+ * 在手机上表现为「滑到代码块就卡住」。浏览器默认的 touch-action
+ * 本来就会同时处理「竖划滚页面、横划滚代码块」，正是想要的行为。
+ *
+ * overscroll-behavior-x: contain 是防止横划到代码块尽头时，
+ * 把浏览器的「后退」手势一起触发（手机上会莫名其妙返回上一页）。
+ */
+.prose-site pre {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.5rem;
+  padding: 0.9rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+/* pre 里的 code 不要再套一层底色和边框，否则代码块里会出现一个内嵌的小方块 */
+.prose-site pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: inherit;
+}
+
+.prose-site img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+
+/*
+ * 表格：单元格不折行，让整个表格靠外层容器的横向滚动来浏览
+ * （外层容器由 mdx-components.tsx 的 table 映射包出来）。
+ * 如果让单元格折行，一张四列表格在 375px 下会挤成每格两个字，
+ * 反而更读不出来。
+ */
+.prose-site table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.prose-site th,
+.prose-site td {
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.prose-site th {
+  font-weight: 700;
+  background: hsl(var(--secondary) / 0.5);
 }
