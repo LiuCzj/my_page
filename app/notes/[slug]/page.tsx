@@ -4,6 +4,7 @@ import { getAllNotes, getNote } from '@/lib/notes';
 import { useMDXComponents } from '@/mdx-components';
 import NoteBackLink from '@/components/NoteBackLink';
 import ReadingProgress from '@/components/ReadingProgress';
+import CommentSection from '@/components/CommentSection';
 
 /**
  * 笔记详情页。
@@ -101,6 +102,15 @@ export default async function NotePage({ params }: NotePageProps) {
       <div className="prose-site mt-8">
         <MDXContent components={components} />
       </div>
+
+      {/*
+        评论区。放在正文之后、article 之内，理由：
+        · 视觉上它是这篇笔记的一部分（同一栏宽、同一条左边界），不该跳到全宽
+        · 语义上它是 article 的附属内容，放进 <article> 里对读屏和结构化数据都更正确
+        登录态与评论列表都在组件内部拉取，所以这个页面依然是纯静态的 ——
+        访客首屏不受影响，评论晚一步出现（见组件里的加载态）。
+      */}
+      <CommentSection slug={slug} />
     </article>
   );
 }

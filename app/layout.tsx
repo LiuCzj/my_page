@@ -11,6 +11,7 @@ import Footer from '@/components/footer'
 import PageTransition from '@/components/page-transition'
 import ShortcutLayer from '@/components/ShortcutLayer'
 import TwinEntry from '@/components/TwinEntry'
+import ResetPasswordPanel from '@/components/ResetPasswordPanel'
 import { site } from '@/config/site'
 import { getAllNotes } from '@/lib/notes'
 
@@ -121,6 +122,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   在同一个层叠上下文里比层级。
                 */}
                 <TwinEntry />
+
+                {/*
+                  重置密码浮层：接管邮件里 `?reset=<token>` 的链接。
+                  放在 layout 而不是某个页面，是因为那个链接的落点由 SITE_URL 决定 ——
+                  落到首页、笔记页、任何页面都应该能弹出重置框，而不是只有某一页才行。
+                */}
+                <ResetPasswordPanel />
               </div>
               {/* 表情光标：只在真鼠标设备上挂载，负责把带 data-cursor-emoji 的磁贴
                   上方那枚系统箭头换成对应表情（地球块是 ✈️）。它自己会判断设备，
