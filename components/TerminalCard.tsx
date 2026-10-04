@@ -27,8 +27,8 @@
  *
  * 【颜色】
  * 全部走语义令牌：bg-card / text-foreground / text-muted-foreground / border-border /
- * bg-secondary / text-accent。accent 是紫、全站唯一强调色，所以卡里**只有**提示符 `$`
- * 和光标两处是紫，其余都是中性色。绝不写死 #xxx —— 那样深浅两套主题必崩一套。
+ * bg-secondary / text-accent。accent 是蓝、全站唯一交互强调色，所以卡里**只有**提示符 `$`
+ * 和光标两处是蓝，其余都是中性色。绝不写死 #xxx —— 那样深浅两套主题必崩一套。
  *
  * 【文案 vs 命令】
  * 窗口标题、提示语、无障碍标签是**界面文案**，走字典（d.terminal.title / hint / aria）；
@@ -37,10 +37,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
 import { Terminal } from 'lucide-react';
 import { site, type LocalizedText } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
+import { useHydrationSafeReducedMotion } from '@/lib/use-reveal';
 
 /* ── 节奏常量 ─────────────────────────────────────────────────
  * 全部提到文件顶部：这几个数是这张卡的「手感」所在，
@@ -160,7 +160,14 @@ function Caret() {
  */
 export default function TerminalCard({ className }: { className?: string }) {
   const { d, pick } = useI18n();
-  const reduceMotion = useReducedMotion();
+  /**
+   * 【必须是 hydration-safe 版本】下面 visibleCmd / visibleOutput 直接用这个值决定
+   * 渲染多少字符。服务端只能拿到 null（→ 动画档，渲染 0 个字符），
+   * 而开了「减少动态效果」的手机首次渲染就是 true（→ 静态档，整条命令全渲染）——
+   * React 报的正是 "server rendered text didn't match the client"，指的就是这里
+   * （2026-10-04 用 CDP 抓错误栈确认）。改用挂载后再切换的版本，两端首轮一致。
+   */
+  const reduceMotion = useHydrationSafeReducedMotion();
 
   /**
    * 命令列表按当前语言重算：pick 的引用随语言变化，所以切语言时这里会重建，
@@ -248,7 +255,7 @@ export default function TerminalCard({ className }: { className?: string }) {
         <span className="flex items-center gap-2.5 border-b border-border bg-secondary/60 px-3.5 py-2.5">
           {/*
             三个圆点。刻意做成中性色，**不用**经典的红黄绿：
-            那三种色相一进来，全站「只有一支紫」的规矩当场就破了。
+            那三种色相一进来，全站「紫只给品牌标识」的规矩当场就破了。
             中性灰点在深浅两套主题里都成立，也不跟 accent 抢眼。
             aria-hidden：纯装饰，不给读屏添噪音。
           */}
@@ -282,7 +289,7 @@ export default function TerminalCard({ className }: { className?: string }) {
           6.5rem（104px）足够兜住绝大多数命令，只有最长的 `ls projects/` 会多长一行。
         */}
         <span className="block min-h-[6.5rem] px-3.5 py-3 font-mono text-[13px] leading-relaxed sm:text-sm">
-          {/* 命令行。提示符 $ 是卡里仅有的两处紫之一 */}
+          {/* 命令行。提示符 $ 是卡里仅有的两处蓝之一 */}
           <span className="block break-words text-foreground">
             <span className="text-accent">$</span> <span>{visibleCmd}</span>
             {/* 还在敲的时候，光标跟在这一行末尾 */}

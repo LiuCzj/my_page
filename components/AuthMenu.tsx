@@ -26,10 +26,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogIn, LogOut, ShieldCheck } from 'lucide-react';
+import { LogIn, LogOut, ShieldCheck, UserX } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth-context';
 import AuthPanel from './AuthPanel';
+import DeleteAccountPanel from './DeleteAccountPanel';
 
 export default function AuthMenu() {
   const { d } = useI18n();
@@ -37,6 +38,16 @@ export default function AuthMenu() {
   const { user, setUser } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  /**
+   * 注销账号浮层的开合。
+   *
+   * 【2026-10-04 补：这个入口原来根本不存在】
+   * DeleteAccountPanel（发码 → 填码 → 删除）和后端接口早就写好了，但没有任何地方渲染它 ——
+   * 全仓库唯一提到它的还是一句过时注释（CommentSection 里说「入口已搬到顶栏账号菜单」，
+   * 而那次搬运只改了注释、没真的接上）。结果就是「注销账号」这个功能用户点不到。
+   * 现在按注释里写的那样，接在账号菜单里。
+   */
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -87,7 +98,15 @@ export default function AuthMenu() {
     }
   };
 
+  /*
+    【为什么整块用 Fragment 包起来】注销浮层必须挂在菜单之外 ——
+    菜单本身是 `{menuOpen && ...}` 条件渲染的，点「注销账号」时菜单会收起，
+    浮层要是长在菜单里就会跟着一起消失。挂在根节点上，菜单关了它还在。
+    浮层自己走 EditorPanel 的 Portal（渲染到 document.body），
+    所以不受顶栏 backdrop-blur 造成的 fixed 包含块问题影响。
+  */
   return (
+    <>
     <div ref={rootRef} className="relative">
       <button
         type="button"
@@ -119,11 +138,32 @@ export default function AuthMenu() {
             )}
           </div>
 
+          {/*
+            注销账号。用 destructive 色而不是和「退出登录」同一种灰 ——
+            这两件事的风险等级差着一个量级，长得一样会让人点错。
+            【min-h 为什么是 44px 而不是原来退出按钮的 36px】
+            项目硬规矩：手机上可点元素最短边 ≥44px。下拉菜单在手机上就是纯触控目标，
+            原来那个 36px 的退出按钮本身就低于这条线，这里一并补上，两个条目高度也就齐了。
+          */}
+          <button
+            type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              setDeleteOpen(true);
+            }}
+            className="mt-1 inline-flex w-full min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+          >
+            <UserX size={14} aria-hidden="true" />
+            {d.comments.deleteAccount}
+          </button>
+
+          <span aria-hidden="true" className="my-1 block h-px bg-border" />
+
           <button
             type="button"
             onClick={doLogout}
             disabled={busy}
-            className="mt-1 inline-flex w-full min-h-[36px] cursor-pointer items-center gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
             <LogOut size={14} aria-hidden="true" />
             {d.auth.logout}
@@ -131,5 +171,8 @@ export default function AuthMenu() {
         </div>
       )}
     </div>
+
+    <DeleteAccountPanel open={deleteOpen} onClose={() => setDeleteOpen(false)} />
+    </>
   );
 }

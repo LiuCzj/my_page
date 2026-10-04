@@ -434,6 +434,7 @@ export default function DigitalTwinChat() {
      * kbInset 见上面那段：键盘弹起时把底边抬到键盘上方，否则输入框被埋。
      */
     <div
+      id="digital-twin-chat"
       className="fixed inset-x-0 bottom-0 top-[var(--panel-top)] z-[80] sm:inset-x-auto sm:bottom-4 sm:left-auto sm:right-4 sm:h-auto sm:max-h-[720px] sm:w-[400px]"
       style={kbInset > 0 ? { bottom: kbInset } : undefined}
       role="dialog"

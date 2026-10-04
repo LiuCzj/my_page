@@ -71,13 +71,13 @@
  * 存的是 HSL 三个分量（不含 hsl() 外壳），由下面 @theme 包成 Tailwind 颜色。
  * 这么做的目的是任何地方都能再套透明度：bg-background/95、border-accent/30。
  *
- * 强调色是紫，且只有紫色这一个强调色：
+ * 强调色是蓝（--accent），品牌色是紫（--brand）：
  * 两套主题的底色、卡面、边框都是低饱和中性色，页面自己不带色相。
  * 每个文字色都单独验过对比度（WCAG AA 正文 ≥4.5:1）。
  */
 :root {
   /* 明亮：底是「几乎不带色相的冷白」，不是浅蓝。
-     底色/边框饱和度压到 13~16%，整页不泛色，accent 的紫才有地位。 */
+     底色/边框饱和度压到 13~16%，整页不泛色，accent 的蓝才有地位。 */
   --background: 220 16% 98%;
   --foreground: 222 30% 12%;
   --card: 0 0% 100%;
@@ -144,19 +144,33 @@
   --radius-card: 0.75rem;
 
   /*
-   * ── 辅助色（2026-10-04 新增）：青绿 ─────────────────────────
-   * 用户已放宽「全站只有一支紫」这条旧约束（原话：我没说全局都只能用一个紫色）。
-   * 但辅助色**只做极小面积点缀** —— 目前唯一用途是首屏「可联系」那枚状态点：
-   * 青绿=可联系/在线是通用语义，比紫点更「像状态」。
-   * 亮色档压到 36% 亮度，压在近白底上才够对比。**不要大面积铺色**，一铺就廉价。
+   * ── 辅助色：青绿 ───────────────────────────────────────────
+   * 只表达成功 / 正向状态（例如操作成功提示）；不延伸到装饰或主要交互控件。
    */
   --accent-2: 172 64% 36%;
+  /* 暖珊瑚色：只作少量插画、章节编号和装饰光晕，不承担状态含义或正文强调。 */
+  --warm: 8 78% 42%;
+  /*
+   * ── 装饰色板（2026-10-04 用户要求「颜色更丰富但不花哨」后新增）──
+   * 用途**严格限定**为：卡片边缘流光、顶部发丝线、图标着色、极淡的背景晕染。
+   * 绝不允许用于正文文字、按钮主色或状态语义 ——
+   *   交互与结构强调仍归 --accent（蓝）
+   *   成功 / 正向状态仍归 --accent-2（青绿）
+   *   品牌标识仍归 --brand（紫）
+   * 也就是说这几个色是「画的」，不是「说的」：拿掉它们，页面语义完全不变。
+   * 明亮档统一压到 40%~60% 亮度，保证铺在浅色卡面上是「有颜色」而不是「糊成一片」。
+   */
+  --tint-sky: 205 86% 48%;
+  --tint-teal: 172 62% 38%;
+  --tint-violet: 268 58% 56%;
+  --tint-coral: 8 76% 52%;
+  --tint-amber: 36 88% 46%;
 }
 
 .dark {
   /* 暗黑：近黑、饱和度压到 10~14%，只剩一点冷意。
-     每一层表面都保持中性，页面才读得出「黑底 + 一支紫」而不是满屏都是色块；
-     accent 这一支紫是全页唯一的紫 —— 它才有强调的资格。 */
+     每一层表面都保持中性，页面才读得出「黑底 + 一支蓝」而不是满屏都是色块；
+     accent 这一支蓝是全页唯一的交互强调色 —— 它才有强调的资格。 */
   --background: 222 14% 6%;
   --foreground: 220 14% 93%;
   /* 卡面比背景抬亮一档，层级靠明度差而不是靠颜色差 */
@@ -187,6 +201,14 @@
   --radius-card: 0.75rem;
   /* 辅助色：暗色下青绿要提亮到 52% 才跳得出来 */
   --accent-2: 168 68% 52%;
+  /* 暗色背景上提高暖色明度，以装饰为主，避免小字号颜色过暗。 */
+  --warm: 10 84% 66%;
+  /* 装饰色板暗色档：统一提亮到 60%~72%，否则压在近黑卡面上会沉成脏色。 */
+  --tint-sky: 205 90% 64%;
+  --tint-teal: 170 66% 54%;
+  --tint-violet: 268 72% 70%;
+  --tint-coral: 8 84% 64%;
+  --tint-amber: 38 90% 62%;
 }
 
 /* 把上面这些分量注册成 Tailwind 颜色：bg-foreground / border-accent / fill-background 等 */
@@ -208,8 +230,16 @@
   --color-ring: hsl(var(--ring));
   /* 错误色：聊天失败提示用 text-destructive（两套主题各自调过明度，都能看清） */
   --color-destructive: hsl(var(--destructive));
-  /* 辅助色：青绿，只做极小面积点缀（目前是首屏「可联系」状态点），见 :root 的说明 */
+  /* 辅助色：青绿，仅表示成功 / 正向状态，见 :root 的说明 */
   --color-accent-2: hsl(var(--accent-2));
+  /* 暖色：仅供局部视觉装饰使用 */
+  --color-warm: hsl(var(--warm));
+  /* 装饰色板：只画不说的那一组，见 :root 里的用途限定 */
+  --color-tint-sky: hsl(var(--tint-sky));
+  --color-tint-teal: hsl(var(--tint-teal));
+  --color-tint-violet: hsl(var(--tint-violet));
+  --color-tint-coral: hsl(var(--tint-coral));
+  --color-tint-amber: hsl(var(--tint-amber));
   /* 品牌色：紫。只给 logo 的「AI」与首屏名字，见 :root 的「双色分工」说明 */
   --color-brand: hsl(var(--brand));
 
@@ -276,6 +306,57 @@
     'KaiTi',
     cursive;
 
+  /* 首屏装饰环缓慢转动；轨道和光点与文字分层，不会干扰信息阅读。 */
+  --animate-hero-orbit: hero-orbit 34s linear infinite;
+
+  @keyframes hero-orbit {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  /* 柔和暖色光斑轻浮，作为环境氛围而非需要追随的焦点。 */
+  --animate-hero-float: hero-float 7s ease-in-out infinite;
+
+  @keyframes hero-float {
+    0%, 100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(-6px, 8px, 0) scale(1.04);
+    }
+  }
+
+  /*
+   * ── 卡片左缘的纵向流光（2026-10-04 新增）────────────────────
+   * 【它是什么】每张卡片的左边线内侧有一条 2px 宽的多彩光带，
+   * 从卡片顶端外侧滑到底端外侧，循环往复 —— 读起来像有一束光沿卡片边缘走了一趟。
+   *
+   * 【为什么用 background-position 而不是 transform】
+   * 光带需要「只在卡片高度内出现」，一旦用 transform 位移，
+   * 元素本体就会跑出卡片外面，必须给 .card 加 overflow: hidden 才收得住 ——
+   * 而 .card 是全站共用的，加 overflow 会连带裁掉悬停抬升、光晕外溢这些已有表现。
+   * background-position 让**渐变在元素内部滑动**，元素本身始终等于卡片高度，
+   * 不需要任何裁剪。代价是每帧重绘，但重绘面积只有 2px × 卡片高度，可以忽略。
+   *
+   * 【为什么渐变色是「蓝→青→珊瑚」】
+   * 用户要求「颜色更丰富但不花哨」。一条 2px 的光带是能同时做到这两件事的载体：
+   * 三个色相依次过渡，远看仍是一道冷色微光，凑近才发现它是彩的。
+   * 三个色都取自 --tint-* 装饰色板，不占用 --accent 的交互语义。
+   */
+  --animate-card-beam: card-beam 5.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+
+  @keyframes card-beam {
+    /* -45% / 145% 而不是 0% / 100%：让光带完整地从卡片上方外面进来、下方外面出去，
+       否则它会在卡片顶端「凭空出现」，读起来是闪烁而不是流动 */
+    0% {
+      background-position: 0 -45%;
+    }
+    100% {
+      background-position: 0 145%;
+    }
+  }
+
   /*
    * ── 头像 / 角色「自己在动」的那组动画 ────────────────────
    * 【设计前提】这里全部作用在**主体本身**（头像那张图、角色那张图），
@@ -341,18 +422,6 @@
     }
   }
 
-  /*
-   * 地球地址文字环：绕地球圆心匀速旋转，36 秒一圈。
-   * 比地球自转（21 秒）慢一档 —— 两层旋转叠在一起，
-   * 地球是「他在哪儿」，地址是「他是哪儿人」，节奏不一样才对得上两层信息。
-   * reduce-motion 见 base 层那条全局规则。
-   */
-  @keyframes orbit {
-    to {
-      transform: rotate(360deg);
-    }
-  }
-  --animate-orbit: orbit 36s linear infinite;
   /*
    * 手机上点磁贴：表情在指尖位置弹出来、停一下、再淡掉。
    * 触屏没有光标，桌面那套「箭头换成表情」在这里物理上不存在，弹印是它的等价物。
@@ -628,6 +697,9 @@
  */
 @layer components {
   .card {
+    /* position 是给下面的 ::after 流光定位用的。绝大多数卡片本来就已经写了 relative，
+       这里再声明一次是为了让「只用 .card 没写 relative」的新卡片也自动带上流光。 */
+    position: relative;
     border-radius: var(--radius-card);
     border: 1px solid hsl(var(--border));
     background-color: hsl(var(--card));
@@ -635,6 +707,105 @@
       inset 0 1px 0 0 hsl(0 0% 100% / var(--card-hi)),
       0 1px 2px -1px hsl(220 45% 2% / var(--shadow-1)),
       0 10px 28px -14px hsl(220 45% 2% / var(--shadow-2));
+  }
+
+  /*
+   * ── 卡片左缘的纵向流光 ───────────────────────────────────────
+   * 一道 2px 宽的多彩光带，从卡片上方滑到下方，循环往复（keyframes 见 @theme 的 card-beam）。
+   *
+   * 【为什么挂在 .card 的伪元素上，而不是每个组件塞一个 <span>】
+   * 全站有十几处卡片（磁贴、项目卡、笔记卡、评论卡、终端卡）都用同一个 .card 类。
+   * 挂伪元素，改这一处就全部生效；塞真节点则要改十几个组件，
+   * 每个还得记得加 aria-hidden —— 漏一个就是读屏软件念出一段装饰。
+   *
+   * 【宽度 2px、贴在左内边缘】
+   * 卡片本身有 1px 边框，绝对定位的 left: 0 落在边框内侧，读起来就是「边缘在发光」，
+   * 而不是「卡片里多了一条竖线」。再宽就会和左侧的文字抢视觉。
+   *
+   * 【渐变的三个色相】
+   * 蓝 → 青 → 珊瑚，都取自 --tint-* 装饰色板。整条光带很细，
+   * 远看仍是一道冷色微光，近看才发现是彩的 —— 这就是「丰富但不花哨」的落点。
+   * 两端透明，让光带自然地淡入淡出，不会在边缘硬切。
+   */
+  .card::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    /*
+     * 宽度给到 14px 而不是 2px —— 这是 2026-10-04 实测后改的。
+     * 第一版写成 2px，用探针读计算样式确认「确实在渲染、确实在动」
+     * （playState: running、backgroundPosition 每帧变化），但截图里根本看不见：
+     * 2px 的光带在缩略图里不足一个像素，和上一轮「卡片动效看不出来」是同一个坑。
+     * 现在改成「14px 宽的元素 + 横向遮罩」：元素左缘 2px 是实心亮线，
+     * 往右逐渐透明，读起来是一束有宽度的光，而不是一条硬边竖线。
+     */
+    width: 14px;
+    pointer-events: none;
+    background-image: linear-gradient(
+      to bottom,
+      transparent 0%,
+      hsl(var(--tint-sky)) 28%,
+      hsl(var(--tint-teal)) 52%,
+      hsl(var(--tint-coral)) 76%,
+      transparent 100%
+    );
+    background-repeat: no-repeat;
+    /* 光带占卡片高度的 42%，剩下的行程靠 background-position 滑动补足 */
+    background-size: 100% 42%;
+    background-position: 0 -40%;
+    /*
+     * 横向遮罩：把上面那条竖直渐变「削」成一束贴着左边缘的光。
+     * 0%~14% 完全不透明（正好盖住元素最左边那 2px），之后线性淡出到 100%。
+     * 遮罩是静止的，只有背景在竖直方向滑动 —— 所以光带移动时，
+     * 它始终是「贴着左边、往右散开」这个形状，不会跟着跑偏。
+     */
+    -webkit-mask-image: linear-gradient(to right, #000 0%, #000 14%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 0%, #000 14%, transparent 100%);
+    animation: var(--animate-card-beam);
+  }
+
+  /*
+   * 错开各卡片的流光相位。
+   *
+   * 【为什么必须错开】所有卡片的 animation 都是「加载页面时同时开始」的，
+   * 不错开的话十几条光带会整齐划一地一起往下走 —— 那不是「环境里有光在流动」，
+   * 那是「页面在做一个集体动作」，反而更显机械。
+   *
+   * 【为什么用 animation-delay 的负值而不是 nth-child 换 duration】
+   * 负 delay 等于「这条动画已经跑了这么多秒」，只改相位、不改速度：
+   * 所有光带仍以同一速度走，只是出发时间不同，读起来才像随机的环境光。
+   * 换 duration 会让快的追慢的，出现几条光带速度不一的割裂感。
+   *
+   * 【为什么用 nth-child 而不是给每个组件传 prop】
+   * 卡片分散在四个组件里，逐个传相位要改十几个调用点，且新加的卡片一定会忘。
+   * 这里按 DOM 顺序取模分组，新卡片自动落进某一组，不需要任何配合。
+   */
+  .card:nth-child(2n)::after {
+    animation-delay: -1.1s;
+  }
+
+  .card:nth-child(3n)::after {
+    animation-delay: -2.3s;
+  }
+
+  .card:nth-child(5n)::after {
+    animation-delay: -3.7s;
+  }
+
+  .card:nth-child(7n)::after {
+    animation-delay: -4.6s;
+  }
+
+  /* 减少动态效果：不滑动了，但保留一道静态的左缘微光 ——
+     和 FlowLink 的处理口径一致（关系还在，动没了），而不是整条抹掉。 */
+  @media (prefers-reduced-motion: reduce) {
+    .card::after {
+      animation: none;
+      background-position: 0 -12%;
+      opacity: 0.55;
+    }
   }
 
   .card-hoverable {
@@ -699,7 +870,7 @@
  *
  * 【为什么不用 @tailwindcss/typography】
  * 它自带 65ch 行宽和一整套独立的 --tw-prose-* 颜色变量，与本站
- * 「语义令牌 + 全站唯一紫色」的体系冲突，要压到一致得逐个覆写它的变量，
+ * 「语义令牌 + 双色分工」的体系冲突，要压到一致得逐个覆写它的变量，
  * 那还不如直接写。正文需要的元素就那么些，手写反而更短、更好控制结构。
  *
  * 【字体】走 body 上定义的系统无衬线栈，**刻意不碰 --font-display**。

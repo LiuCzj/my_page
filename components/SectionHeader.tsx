@@ -47,10 +47,10 @@ export default function SectionHeader({ index, title, lead, id, as = 'h2' }: Sec
     <div>
       {index && (
         <motion.div {...reveal(0)} className="mb-3 flex items-center gap-3">
-          <span className="font-mono text-xs font-bold tracking-[0.22em] text-accent">{index}</span>
+          <span className="font-mono text-xs font-bold tracking-[0.22em] text-warm">{index}</span>
           <span
             aria-hidden="true"
-            className="h-px flex-1 bg-gradient-to-r from-accent/40 to-transparent"
+            className="h-px flex-1 bg-gradient-to-r from-warm/55 via-accent/35 to-transparent"
           />
         </motion.div>
       )}

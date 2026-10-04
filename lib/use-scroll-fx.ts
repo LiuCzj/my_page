@@ -21,12 +21,22 @@
 
 import { useRef } from 'react';
 import {
-  useReducedMotion,
   useScroll,
   useSpring,
   useTransform,
   type MotionValue,
 } from 'framer-motion';
+import { useHydrationSafeReducedMotion } from '@/lib/use-reveal';
+
+/*
+ * 【为什么这里也必须用 hydration-safe 版本】
+ * 裸的 useReducedMotion() 在服务端只能返回 null（→ false），浏览器首轮却可能是 true。
+ * 而下面 useScrollParallax / useScrollCard 的 y 初始值直接取决于它：
+ *   动画档 (0.5 - 0) * distance * 2 = distance（例如 8）
+ *   静态档 0
+ * 两者都会以 style={{ y }} 的形式进 DOM，于是服务端和客户端首轮就对不上。
+ * 2026-10-04 修 Hero / TerminalCard 那批 hydration 报错时一并改掉。
+ */
 
 /**
  * 元素「穿过视口」的进度：0 = 顶边刚碰到视口下沿，1 = 底边刚离开视口上沿。
@@ -68,7 +78,7 @@ function focusFromProgress(p: number, reduceMotion: boolean | null): number {
  * 离开的卡自己暗下去 —— 视线被这条光带着往下走，不需要任何箭头或序号。
  *
  * 曲线是三角波而不是线性：0.25~0.75 这段是「正在读」，两端快速收敛到 0，
- * 这样两张相邻卡片不会同时亮着（同时亮就没有「接力」，只剩一片紫）。
+ * 这样两张相邻卡片不会同时亮着（同时亮就没有「接力」，只剩一片蓝）。
  *
  * 返回值直接挂到覆盖层的 style={{ opacity: focus }} 上。
  * 刻意不改 transform：卡片上往往已经有一条入场动画在写 transform，
@@ -79,7 +89,7 @@ export function useScrollFocus<T extends HTMLElement>(): {
   focus: MotionValue<number>;
 } {
   const { ref, progress } = usePassThrough<T>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useHydrationSafeReducedMotion();
 
   const raw = useTransform(progress, (p: number) => focusFromProgress(p, reduceMotion));
 
@@ -111,7 +121,7 @@ export function useScrollParallax<T extends HTMLElement>(distance: number): {
   y: MotionValue<number>;
 } {
   const { ref, progress } = usePassThrough<T>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useHydrationSafeReducedMotion();
 
   const raw = useTransform(progress, (p: number) =>
     reduceMotion ? 0 : (0.5 - p) * distance * 2,
@@ -137,7 +147,7 @@ export function useScrollCard<T extends HTMLElement>(parallax = 0): {
   y: MotionValue<number>;
 } {
   const { ref, progress } = usePassThrough<T>();
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = useHydrationSafeReducedMotion();
 
   const rawFocus = useTransform(progress, (p: number) => focusFromProgress(p, reduceMotion));
   const rawY = useTransform(progress, (p: number) =>

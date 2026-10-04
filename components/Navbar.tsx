@@ -46,14 +46,13 @@ export default function Navbar() {
   const [modal, setModal] = useState<ContactModalVariant | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const { openChat } = useTwinChat();
+  const { open: chatOpen, toggleChat } = useTwinChat();
 
   /**
    * 导航三项里，只有「首页」和「关于我」是页内锚点。
    *
-   * 「问分身」必须是按钮：聊天区已经从正文里移走、只在悬浮面板打开时才存在，
-   * 写成 <a href="#ask-twin"> 时页面上根本没有这个目标，点了自然没反应。
-   * 手机抽屉里同样处理。
+   * 「AI 问答」必须是开关按钮：聊天区是悬浮面板，入口需要控制同一份开合状态，
+   * 不能依赖页面锚点。手机抽屉里使用同一个开关。
    */
   /**
    * 导航项。
@@ -130,12 +129,14 @@ export default function Navbar() {
               <li className="relative px-3 py-2">
                 <button
                   type="button"
-                  onClick={openChat}
+                  onClick={toggleChat}
                   aria-haspopup="dialog"
+                  aria-expanded={chatOpen}
+                  aria-label={chatOpen ? d.chat.close : d.nav.chat}
                   className="block cursor-pointer bg-transparent p-0 font-semibold"
                 >
                   <motion.span whileHover={{ y: -2 }} className={navLabelClass(false)}>
-                    {d.nav.chat}
+                    {chatOpen ? d.chat.close : d.nav.chat}
                   </motion.span>
                 </button>
               </li>

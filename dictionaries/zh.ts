@@ -55,8 +55,6 @@ const zh = {
     greeting: '你好，我是',
     /** 问候行下面那一句自我介绍 */
     bio: '喜欢用人话讲解复杂问题。',
-    /** 首屏状态徽章：青绿点 + 这行字，表示愿意接洽/回消息 */
-    status: '可联系',
     robotHintOpen: '点我，开启数字分身',
     robotHintClose: '点我，关闭数字分身',
     robotAria: '数字分身聊天窗开关',
@@ -65,6 +63,10 @@ const zh = {
   location: {
     /** 邵阳是籍贯，不是现居地 —— 他 2026-09-30 明确说过，所以这里用「籍贯」 */
     label: '籍贯',
+    zoom: '放大地球',
+    zoomTitle: '旋转查看家乡',
+    zoomHint: '拖动地球，查看不同方向',
+    closeZoom: '关闭放大地球',
   },
   favorite: {
     title: '最喜欢的工具',
@@ -106,7 +108,7 @@ const zh = {
     send: '发送',
     stop: '停止',
     clear: '清空对话',
-    close: '关闭数字分身',
+    close: '关闭 AI 问答',
     retry: '重试',
     twin: '分身',
     quickAsk: '猜你想问',

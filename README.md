@@ -7,28 +7,37 @@
 三个页面（首页 / 项目 / 笔记）+ 一个悬浮聊天窗，整页底下一张会动的粒子网。首页从上到下五块：
 
 - **粒子背景**：一层铺满视口的 canvas，点缓慢漂浮、互相靠近就连线；鼠标伸进去把附近的点推开，
-  被推开那片的连线变白，其余保持紫色，手一离开就自己恢复。真鼠标设备另外跟一条细短的拖尾和十字准线
-  （触屏和「减少动效」下这两样都不挂）
-- **首屏**：整屏居中竖排 ——
-  Q 版头像（背后一圈透出来的光；**本体自己在呼吸**：缩放 + 轻微晃动，悬停时放大）、
-  「你好，我是 锦创AI」（名字逐字旋转入场 + 循环亮度脉冲；汉字走行楷，拉丁字母走手写体栈）、一句话、
-  终端卡（逐字敲出 `whoami` / `cat skills.txt` 等命令并打印 config 里的真实资料，点一下换下一条）
+  被推开那片的连线换成高对比色（暗色档变白、亮色档压深），其余保持**冷蓝灰**
+  （2026-10-04 双色分工后从紫改蓝 —— 粒子网是铺满全屏的大面积层，它一紫整页就「一片紫」，
+  紫要留给品牌标识那两处），手一离开就自己恢复。
+  真鼠标设备另外跟一条细短的拖尾和十字准线（触屏和「减少动效」下这两样都不挂）
+- **首屏**：桌面双栏 / 手机单列 ——
+  左栏是问候行、「你好，我是 锦创AI」（名字**先解码再落定**：每个字先在随机字里跳变、从左到右逐个锁定，
+  锁定瞬间放大泛光；汉字走行楷、拉丁字母走同一套字的拉丁搭档）、一句话、两个入口按钮；
+  右栏是一张个人名片（Q 版头像，**本体自己在呼吸**：缩放 + 轻微晃动，悬停时放大）加一张终端卡
+  （逐字敲出 `whoami` / `cat skills.txt` 等命令并打印 config 里的真实资料，点一下换下一条）。
+  数字分身角色**不在首屏**，它是右下角常驻的浮动头像（见 `components/TwinEntry.tsx`）
 - **磁贴区**：籍贯（一颗只裁出上半条的点阵地球，缓慢自转、可以按住拖动，
-  邵阳那一点上站着一个 Q 版小人，静止站立、转到球背面就隐藏）、最喜欢的工具（Codex / Qoder / GitHub）、
+  邵阳那一点上站着一个 Q 版小人，静止站立、转到球背面就隐藏；标题行有「放大地球」按钮，
+  点开是一个完整的球，地名标签钉在卡片左下角）、最喜欢的工具（Codex / Qoder / GitHub）、
   技术栈（六个组各占一行，组名和自己的条目钉在一起）、
   工具（一排品牌标，鼠标停在哪个上就在它正下方显出名字）、连接。
-  五块尺寸各不相同；鼠标靠近时块内会跟着指针发光，扫过时系统箭头换成对应表情（地球块是 ✈️）。
+  五块尺寸各不相同，各有自己的装饰色相（蓝 / 珊瑚 / 青绿 / 紫 / 琥珀，只作用于图标与极淡晕染）；
+  鼠标靠近时块内会跟着指针发光，扫过时系统箭头换成对应表情（地球块是 ✈️）。
   两条滚动的带子既能自动走也能自己按住横向拖（松手有惯性，之后缓缓接回自动速度），
   手机上纵向照常划页面、横向才是拖带子。
   触屏上其他交互各有等价物：点磁贴在指尖弹一下对应表情，点工具图标把名字钉住 2.8 秒并让这一排暂时停下
 - **项目摘要**：只放前几条（条数见 `config/site.ts` 的 `homePreview`），多的去 `/projects` 页；
-  `projects` 为空时显示一句诚实的空态
+  项目数据存在数据库里（`config/site.ts` 的 `projects` 数组只是首次迁移的种子数据，见「配置」一节），
+  为空时显示一句诚实的空态
 - **笔记摘要**：最近三篇，每条是标题 / 日期 / 阅读时长 / 一句话摘要 / 标签，多的去 `/notes` 页。
-  笔记正文放在 `content/notes/*.mdx`，**只有中文**（见「配置」一节）
+  笔记存在数据库里（可以在网页上随时新增和修改），正文**只有中文**（见「配置」一节）
 - **数字分身聊天窗**：接入大模型，流式逐字回答关于我的问题，内置三个一键提问
-- **固定顶栏**：名字、GitHub / CSDN / 知乎 / 微信公众号 / 邮箱五个入口、深浅色切换、中英文切换，
-  桌面端一行排开，滚动时不动；窄屏同一行只留名字 + 语言 + 主题 + 汉堡，联系方式收进抽屉
+- **固定顶栏**：名字、GitHub / CSDN / 知乎 / 微信公众号 / 邮箱五个入口、账号入口、深浅色切换、中英文切换，
+  桌面端一行排开，滚动时不动；窄屏同一行只留名字 + 账号 + 语言 + 主题 + 汉堡，联系方式收进抽屉
 - **页脚**：「打个招呼 👋」加一颗邮箱联系按钮，下面三栏（是谁 / 页内导航 / 五个联系入口）和版权行
+- **区块之间**：一条随滚动「长出来」的流光连接线（`components/FlowLink.tsx`），
+  把「下面还有内容」这件事画出来；减少动效时退成一条静态细线
 
 聊天窗是**悬浮面板**而不是页面里的一段内容，这样对话再长也不会把网页越拉越长：
 
@@ -56,17 +65,34 @@
   用 framer 写会把那一页 First Load JS 从 113 kB 顶到 156 kB，为一条 2px 的线不值）
 - 404 页，文案跟随中英切换
 
+账号与内容管理（2026-10-04 补齐，这几块原来在 README 里完全没提）：
+
+- **账号体系**：邮箱验证码注册（一次性邮箱域名会被挡下）、登录、邮箱验证、找回密码、**注销账号**。
+  注销是「发验证码到本人邮箱 → 填 6 位码 → 删除」，账号连同全部评论一起没，不可恢复。
+  服务端只认**当前登录用户自己的邮箱**，不接受请求体里指定的邮箱 ——
+  否则任何登录用户都能让本站给任意邮箱发信。
+- **评论区**：挂在每篇笔记底部。读不需要登录，写才要；支持一层回复、删除自己的评论，
+  管理员可删任意评论。所有错误都走错误码 + 字典，加语言不用改后端。
+- **在线编辑**：站长登录后在 `/notes` 与 `/projects` 页面上直接新建 / 编辑 / 删除，
+  内容存数据库，改完即时生效、不需要重新构建。编辑器是「左边写右边实时出效果」，
+  还支持**上传一个 `.md` 文件**自动拆 frontmatter。
+- **Markdown 全语法**：表格、任务列表、行内与块级公式（KaTeX）、代码块、`==高亮==` 等。
+
 ## 技术栈
 
-Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes · lucide-react · framer-motion · cobe · MDX（@next/mdx）
+Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes · lucide-react · framer-motion ·
+cobe（WebGL 地球）· better-sqlite3（SQLite 存内容与账号）· unified + remark + rehype（运行时渲染 Markdown）·
+KaTeX（公式）· nodemailer（验证码邮件）
 
 没有引入成体系的 UI 组件库。通用图标（菜单、关闭、聊天、深浅色切换等）取自 lucide-react；
 CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱图标沿用 lucide-react 的形状；
 页面切换与顶栏动效用 framer-motion；籍贯那颗点阵地球用 cobe（WebGL，纯客户端打包，不请求外部资源）；
 背景的粒子网和鼠标拖尾是自己写的 2D canvas，没有再引第三方粒子/特效库。
 
-笔记内容走 MDX：`@next/mdx` + `remark-gfm`（表格、任务列表）+ `gray-matter`（列表页只读 frontmatter，
-**不编译正文**，几十篇也是毫秒级）。正文排版是手写的 `.prose-site`，没有引 `@tailwindcss/typography` ——
+**笔记走运行时渲染，不是构建期 MDX**（2026-10-04 改造）：笔记存在数据库里、可以在网页上随时新增和修改，
+所以 `@next/mdx` 这条路已经整个拆掉（连同 `@mdx-js/*`、`mdx-components.tsx` 一起移除了）。
+正文由 `lib/markdown.ts` 在**请求时**用 unified + remark-gfm（表格、任务列表）+ remark-math / rehype-katex（公式）
+渲染成 HTML。排版是手写的 `.prose-site`，没有引 `@tailwindcss/typography` ——
 它自带 65ch 行宽和一整套独立的 `--tw-prose-*` 颜色变量，与本站的语义令牌体系冲突，压到一致要逐个覆写。
 
 字体四条腿：**正文**是系统无衬线栈，一个字节都不下载；
@@ -75,7 +101,7 @@ CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱�
 这一条是 2026-10-03 改的：原来走系统楷体栈，而**多数安卓机一个楷体都没有**，
 名字会静默退回宋体，手机上和电脑上完全是两种字 —— 名字是全站最重要的一行，不能听天由命。
 霞鹜文楷自带拉丁字母，所以「锦创AI」是同一种笔意写出来的，不再有「汉字行楷 + AI 用 Comic Sans」的拼贴感；
-**展示字（地球地址环等）**是一条宋体展示栈，第一位是自托管的思源宋体子集 —— 原字体 25 MB，
+**展示字（区块标题、页脚大字等）**是一条宋体展示栈，第一位是自托管的思源宋体子集 —— 原字体 25 MB，
 按页面真正用到的 39 个汉字裁成 23 KB 的 woff2，放在 `public/fonts/` 下，授权 SIL OFL 1.1（授权文本同目录）。
 **笔记正文刻意不碰这两条展示栈**：子集只含几十个汉字，正文一旦用它就会大面积静默退回系统宋体。
 全站不请求任何外部 CDN —— 字体、图标、脚本全部由自己的服务器发出。
@@ -87,10 +113,10 @@ CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱�
 
 | 素材 | 位置 | 尺寸 | 用途 |
 |---|---|---|---|
-| 头像 | `public/images/avatar.jpg` | 640×640 JPEG | 首屏圆形头像（CSS 裁圆） |
-| 数字分身角色 | `public/images/mascot-q.png` | 512×512 PNG | 首屏角色，点它开聊天窗 |
+| 头像 | `public/images/avatar.jpg` | 640×640 JPEG | 首屏个人名片里的圆形头像（CSS 裁圆） |
+| 数字分身角色 | `public/images/mascot-q.png` | 512×512 PNG | **右下角常驻的浮动头像**（`components/TwinEntry.tsx`），点它开聊天窗 |
 | 地球小人 | `public/images/avatar-stand.png` | 64×224 PNG | 籍贯卡片地球上站在邵阳的那一点 |
-| 笔记配图 | `public/images/hero-scene.jpg` | 1024×1024 JPEG | 笔记正文配图 |
+| 笔记配图 | `public/images/hero-scene.jpg` | 1024×1024 JPEG | 笔记正文配图（由笔记内容引用，所以静态搜代码搜不到它） |
 | 站点图标 | `public/favicon.svg` | 32×32 SVG | 浏览器标签页 |
 
 尺寸、宽高比、透明通道、文件格式四项都是硬约束，动其中任何一项都会破坏现有布局
@@ -99,72 +125,141 @@ CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱�
 
 ## 本地运行
 
+**要求 Node ≥ 22**（写在 `package.json` 的 `engines` 里；`better-sqlite3` 13 的硬要求）。
+
 ```bash
-npm install
+npm install --ignore-scripts   # 必须带这个参数，原因见下方「关于 --ignore-scripts」
 cp .env.example .env    # 填入你的模型密钥
 npm run dev             # http://localhost:3000
 ```
 
 其他命令：`npm run build` 生产构建，`npm run start` 运行构建产物，`npm run typecheck` 类型检查。
 
+### 关于 `--ignore-scripts`
+
+**不加这个参数，在 Windows 上装依赖会失败**，报 `node-gyp rebuild` 找不到 Visual Studio。
+
+原因是 `better-sqlite3` 走 **prebuildify**：它的 `package.json` 里没有 `install` 脚本，
+但包内有 `binding.gyp`，而 npm 的老规矩是「有 `binding.gyp` 又没定义 `install` → 默认跑
+`node-gyp rebuild`」——于是它会去白白编译一遍。**而预编译二进制其实随包下好了**
+（`node_modules/better-sqlite3/prebuilds/` 里有 8 个平台各一份，含 `win32-x64.node`），
+加 `--ignore-scripts` 跳过那步编译即可，功能完全不受影响。
+
+**这跟 Node 版本无关**：Node 22 和 Node 24 都一样会失败。该模块基于 **Node-API**
+（二进制里全是 `napi_*` 符号、没有 V8 私有 API 符号，prebuilds 文件名也不带 ABI 号），
+所以同一份二进制跨 Node 大版本通用，升级 Node 不需要重新编译。
+
+**另一个连带症状**：`npm ci` / `npm install` 会在这步**中止**，导致后面的包没装完，
+构建时报 `Module not found: Can't resolve 'bail'`。**看到这个报错不要去追 `bail`** ——
+它只是「安装没跑完」的信号，带上 `--ignore-scripts` 重装一遍即可。
+
 ## 配置
 
 **个人信息**：全部集中在 `config/site.ts`，改这一个文件即可（名字、简介、头像、五个联系方式、
 公众号二维码、邮箱、数字分身要背的资料）。中英文两列都要填。
 
-**模型服务**：`.env` 三个变量，走 OpenAI 兼容格式，换任意厂商只改这两行不用动代码：
+**内容（项目 / 笔记）存在数据库里**，可以在网页上直接新增和修改，不需要改代码、不需要重新构建。
+`config/site.ts` 的 `projects` 数组和 `content/notes/*.mdx` 现在是**首次迁移用的种子数据** ——
+数据库还是空的时候由 `lib/seed.ts` 把它们灌进去（见 `lib/db.ts` 的调用点）；
+之后的内容以数据库为准。改种子数据不会影响已有内容。
+
+**环境变量**：完整清单和逐项说明在 `.env.example`（13 个），按用途分四组：
 
 ```
+# ① 数字分身（必需，否则聊天窗不可用）
 API_KEY=你的密钥
 BASE_URL=https://你的服务地址/compatible-mode/v1
 MODEL_ID=模型名
+
+# ② 验证码邮件（注册 / 找回密码 / 注销账号要用）
+SMTP_HOST= SMTP_PORT=465 SMTP_USER= SMTP_PASS= SMTP_FROM=
+
+# ③ 站点与数据
+SITE_URL=  DB_PATH=  DISPOSABLE_EMAIL_DOMAINS=
+
+# ④ 管理员与 Cookie
+ADMIN_EMAILS=            # 逗号分隔；改完必须重启服务，见下
+COOKIE_SECURE=           # 留空=按 x-forwarded-proto 自动判断；1=强制 Secure，0=强制关闭
 ```
 
 密钥只在服务端读取（`app/api/assistant/route.ts`），不会出现在浏览器里。
 `.env` 已被 `.gitignore` 排除，不要提交。
 
+**两个容易踩的坑**：
+- **改完 `.env` 必须重启服务**（`sudo systemctl restart my-page`）。Next.js 只在**进程启动时**读一次 `.env`，
+  不重启的话进程里还是旧值 —— 典型表现是「把某个邮箱从 `ADMIN_EMAILS` 删了，它居然还能删评论」。
+- **站点如果通过 HTTP 访问**（比如局域网 `http://192.168.x.x:3000`），`COOKIE_SECURE` **不要**强制开 ——
+  Secure cookie 在 HTTP 下浏览器根本不存，表现为「登录完一刷新就掉」。
+
 ## 目录结构
 
 ```
-content/notes/*.mdx         笔记正文（中文；frontmatter 驱动：title / date / summary / tags / draft）
-mdx-components.tsx          MDX 元素映射（表格包横向滚动容器、图片限宽、外链新开标签）
-config/site.ts              个人信息、项目数据与功能开关
+config/site.ts              个人信息、工具清单、种子项目与功能开关（homePreview 等）
 dictionaries/{zh,en}.ts     界面文案（两份结构由类型系统强制一致）
+content/notes/*.mdx         笔记的**种子数据**（数据库为空时由 lib/seed.ts 灌进去，之后以数据库为准）
+data/comments.db            SQLite 数据库：评论、账号、会话、验证码、项目、笔记（已 gitignore）
+.env.example                环境变量清单与逐项说明（13 个，分四组）
+
+lib/db.ts                   SQLite 数据层：建表、迁移、连接（评论 / 账号 / 内容都在这张库里）
+lib/content.ts              内容层：笔记与项目的读写
+lib/seed.ts                 内容迁移：把 config 与 content/notes 里的静态内容灌进数据库
+lib/markdown.ts             运行时 Markdown → HTML（unified + remark + rehype + KaTeX）
+lib/parse-md-file.ts        解析整篇 .md 文件：拆 frontmatter 与正文（给「上传 .md」用）
+lib/auth.ts                 认证层：密码哈希 + 会话管理（cookie 的 Secure 判定也在这）
+lib/auth-context.tsx        全站登录态（顶栏账号入口与评论区共用同一份）
+lib/admin-guard.ts          管理端接口的公共守卫与输入校验
+lib/codes.ts                邮箱验证码：注册与注销共用同一套
+lib/mailer.ts               邮件发送（验证码 / 重置密码 / 注销确认）
+lib/email-guard.ts          邮箱准入检查：把一次性邮箱挡在注册之外
+lib/disposable-domains.ts   一次性邮箱域名清单（数据文件，不要手改）
 lib/i18n.tsx                语言 Context + localStorage 持久化
-lib/notes.ts                笔记读取层（读 frontmatter、算阅读时长、派生 slug；仅服务端可引）
 lib/search-index.ts         站内搜索的索引构建与匹配（把站点数据拍平成可搜索条目）
 lib/twin-chat-context.tsx   聊天窗的开合状态（多处入口控制同一个面板）
 lib/use-hotkeys.ts          全局键盘快捷键（G 序列跳转、Cmd+K 搜索、Cmd+/ 切主题等）
-lib/use-reveal.ts           滚动进入动画的属性包（减少动效时整包不挂）
+lib/use-reveal.ts           滚动进入动画的属性包 + useHydrationSafeReducedMotion
+lib/use-scroll-fx.ts        滚动特效的两个原语：焦点接力高光、视差位移
+
 app/page.tsx                首页（首屏 + 磁贴区 + 项目摘要 + 笔记摘要）
-app/projects/page.tsx       项目页（服务端壳，只为导出 metadata）
-app/notes/page.tsx          笔记列表页（服务端读数据 → 交给客户端组件渲染）
-app/notes/[slug]/page.tsx   笔记详情页（构建期预渲染，dynamicParams = false）
-app/layout.tsx              主题、语言、聊天窗三个 Provider + metadata + viewport
-app/globals.css             颜色与几何令牌、深浅色变体、背景光晕层、字体栈、笔记正文排版
+app/layout.tsx              主题、语言、登录、聊天窗四个 Provider + 背景层 + 顶栏 / 页脚
+app/globals.css             颜色与几何令牌、深浅色变体、keyframes、字体栈、卡片表面、笔记正文排版
+app/projects/page.tsx       项目页（服务端壳：读数据 + 导出 metadata，渲染交给客户端体）
+app/notes/page.tsx          笔记列表页
+app/notes/[slug]/page.tsx   笔记详情页（force-dynamic，每次请求现读库 + 现渲染 Markdown）
 app/not-found.tsx           404 页（读语言字典，跟随中英切换）
 app/api/assistant/route.ts  模型代理（密钥只在这一层）+ 人设提示词
+app/api/auth/*              账号接口：register / login / logout / me / verify / send-code /
+                            forgot / reset / account（DELETE 注销）
+app/api/comments/*          评论的读写与删除
+app/api/admin/*             管理端接口：笔记与项目的增删改 + Markdown 预览渲染
+
 components/
   ParticleField.tsx         背景粒子网（2D canvas：漂浮、靠近连线、鼠标推开附近那片并把它染白）
-  CursorFx.tsx              鼠标拖尾 + 十字准线（2D canvas，只在真鼠标设备挂；亮色档另配一套深色值）
-  Hero.tsx                  首屏：居中竖排的头像、逐字入场的问候行、终端卡、数字分身角色、两个入口
+  CursorFx.tsx              鼠标拖尾 + 十字准线（2D canvas，只在真鼠标设备挂）
+  Hero.tsx                  首屏（桌面双栏 / 手机单列）：名字解码入场、简介、两个入口、个人名片、终端卡
   TerminalCard.tsx          首屏终端卡（逐字敲命令 + 打印输出，点一下换下一条）
-  Dashboard.tsx             磁贴区：籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接（鼠标邻近发光）
+  Dashboard.tsx             磁贴区：籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接 + 放大地球浮层
+  DottedGlobe.tsx           点阵地球（cobe / WebGL；邵阳那一点由第二张 canvas 投影贴一张站姿人像，可拖动）
+  FlowLink.tsx              区块之间的流光连接线（随滚动长出来）
+  SectionHeader.tsx         编辑式区块头（编号 + 大标题 + 副标题），新加区块统一走它
+  Marquee.tsx               滚动的条（工具那两排）：自动走 + 可用指针横向拖，松手带惯性
+  CustomCursor.tsx          表情光标（地球块上方箭头变 ✈️），只在真鼠标设备生效
+  ToolIcon.tsx              工具标：有官方彩色标的上图，没标的用字母徽标
+  ToolGlyphs.tsx            九枚单色品牌标的内联路径数据
   Projects.tsx              首页的项目摘要（前几条 + 查看全部）
   ProjectsGrid.tsx          项目卡片网格（首页摘要与 /projects 共用同一套卡片，避免样式漂移）
   ProjectsPageBody.tsx      项目页的内容体（客户端，读字典）
   NotesList.tsx             笔记列表（首页摘要与 /notes 共用；整项是一条链接）
-  NoteBackLink.tsx          笔记详情页的「返回笔记列表」（客户端，读字典）
-  DottedGlobe.tsx           点阵地球（cobe / WebGL，邵阳那一点由第二张 canvas 投影贴一张站姿人像，可拖动）
-  Marquee.tsx               滚动的条（工具那两排）：自动走 + 可用指针横向拖，松手带惯性
-  CustomCursor.tsx          表情光标（地球块上方箭头变 ✈️），只在真鼠标设备生效
-  HeroMascot.tsx            首屏的数字分身角色图（单张透明底 PNG；整体呼吸 + 脚下投影）
-  ToolIcon.tsx              工具标：有官方彩色标的上图，没标的用字母徽标
-  ToolGlyphs.tsx            九枚单色品牌标的内联路径数据
+  NoteBackLink.tsx          笔记详情页的「返回笔记列表」
+  CommentSection.tsx        笔记详情页底部的评论区（含未登录时的登录 / 注册 / 找回密码三视图）
   DigitalTwinChat.tsx       悬浮聊天面板（流式渲染、重试、停止、内部滚动、历史）
   ChatInset.tsx             桌面端展开面板时让正文让位，避免被遮挡
+  TwinEntry.tsx             数字分身常驻入口：右下角一颗浮动头像（点它开聊天窗）
   Navbar.tsx                固定顶栏（一行；窄屏收进抽屉）
   MobileNavDrawer.tsx       移动端导航抽屉
+  AuthMenu.tsx              顶栏账号入口：未登录显示「登录」，已登录是下拉（管理员徽章 / 注销账号 / 退出登录）
+  AuthPanel.tsx             登录 / 注册 / 找回密码浮层
+  DeleteAccountPanel.tsx    注销账号浮层（发码到本人邮箱 → 填 6 位码 → 删除）
+  ResetPasswordPanel.tsx    重置密码面板（接管邮件里 `?reset=<token>` 的链接）
   BrandIcons.tsx            五个平台图标
   SocialLinks.tsx           联系方式按钮
   ContactModal.tsx          二维码 / 邮箱弹窗
@@ -176,6 +271,12 @@ components/
   ShortcutLayer.tsx         全局键盘层的组装件（快捷键注册 + 说明面板 + 站内搜索 + 常驻入口）
   ShortcutHelp.tsx          快捷键说明面板（按 ? 或点左下角常驻按钮打开）
   SiteSearch.tsx            Cmd/Ctrl+K 唤起的站内搜索面板
+  admin/
+    EditorPanel.tsx         浮层外壳（遮罩 + 面板 + 标题 + 关闭）。全站弹层都用它，Portal 到 body
+    MarkdownEditor.tsx      Markdown 编辑器：左边写、右边实时出效果（窄屏上下叠）
+    MarkdownImport.tsx      「上传 Markdown 文件」按钮
+    NoteAdmin.tsx           笔记管理：新建 + 带编辑/删除的列表 + 编辑浮层
+    ProjectAdmin.tsx        项目管理：新建 + 带编辑/删除的卡片网格 + 编辑浮层
 ```
 
 ## 数字分身的人设
@@ -196,11 +297,18 @@ components/
 
 ## 部署
 
-本站有服务端路由 `app/api/assistant/route.ts`（代理模型密钥、转发流式响应），
-**必须跑在有 Node 进程的服务器上**，不能部署成纯静态站点 —— GitHub Pages / 纯静态托管
-会让聊天功能直接失效，只有页面壳能打开。
+**必须跑在有 Node 进程的服务器上**，不能部署成纯静态站点。原因不止一条：
+`app/api/assistant/route.ts` 要代理模型密钥并转发流式响应；账号、评论、内容都存在 SQLite 里，
+要读要写；`/notes/[slug]` 是 `force-dynamic`，每次请求现读数据库。
+GitHub Pages / 纯静态托管只会打开一个页面壳，聊天、登录、评论、笔记详情全部失效。
 
-密钥从环境变量读（`API_KEY` / `BASE_URL` / `MODEL_ID`），不放代码里、不进仓库。
+**服务器要求 Node ≥ 22**（`better-sqlite3` 13 的硬要求，见「本地运行」一节）。
+装依赖同样要带 `--ignore-scripts`。
+
+所有配置从环境变量读，不放代码里、不进仓库 —— 完整清单见 `.env.example`（13 个，分四组）。
+上线前至少要配：模型三件套（`API_KEY` / `BASE_URL` / `MODEL_ID`）、
+邮件（`SMTP_*`，注册与找回密码要用）、`SITE_URL`、`DB_PATH`、`ADMIN_EMAILS`。
+
 `npm run build` 需要的内存比开发模式大不少，1~2 GB 的机器先加 swap 再构建。
 
 ## 授权说明

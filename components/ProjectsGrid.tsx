@@ -30,7 +30,7 @@
 import { motion } from 'framer-motion';
 import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
-import { useReveal } from '@/lib/use-reveal';
+import { useReveal, CARD_REVEAL, CARD_STAGGER } from '@/lib/use-reveal';
 import { useScrollCard } from '@/lib/use-scroll-fx';
 import type { ProjectRecord } from '@/lib/content';
 
@@ -52,7 +52,7 @@ function ProjectCard({
   onDelete?: (p: ProjectRecord) => void;
 }) {
   const { pick } = useI18n();
-  const reveal = useReveal();
+  const reveal = useReveal(CARD_REVEAL);
   const { ref, focus, y } = useScrollCard<HTMLLIElement>(8);
 
   return (
@@ -70,6 +70,10 @@ function ProjectCard({
         style={{ y }}
         className="card card-hoverable group relative flex flex-1 flex-col p-4 sm:p-5"
       >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-4 top-0 h-px bg-gradient-to-r from-warm via-accent/70 to-transparent opacity-65 transition-opacity duration-300 group-hover:opacity-100 sm:inset-x-5"
+        />
         {/* 焦点接力高光：这张卡离视口中心越近越亮，见 lib/use-scroll-fx.ts */}
         <motion.span
           aria-hidden="true"
@@ -83,7 +87,8 @@ function ProjectCard({
 
         {/* 顶部一行：编号（左）+ 外链箭头（右） */}
         <span className="mb-2 flex items-center justify-between">
-          <span className="font-mono text-xs font-bold tracking-[0.2em] text-muted-foreground/60">
+          <span className="inline-flex items-center gap-2 font-mono text-xs font-bold tracking-[0.2em] text-warm">
+            <span aria-hidden="true" className="size-1.5 rounded-full bg-warm shadow-[0_0_10px_hsl(var(--warm)/0.5)]" />
             {String(index + 1).padStart(2, '0')}
           </span>
           <ArrowUpRight
@@ -159,7 +164,7 @@ export default function ProjectsGrid({
         <ProjectCard
           key={p.slug}
           project={p}
-          delay={0.06 * (i + 1)}
+          delay={CARD_STAGGER * (i + 1)}
           index={i}
           onEdit={onEdit}
           onDelete={onDelete}

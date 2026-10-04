@@ -48,7 +48,6 @@ const en: Dict = {
   hero: {
     greeting: 'Hi, I’m',
     bio: 'I explain complicated things in plain language.',
-    status: 'Available for contact',
     robotHintOpen: 'Click to open the AI twin',
     robotHintClose: 'Click to close the AI twin',
     robotAria: 'Toggle the digital twin chat window',
@@ -57,6 +56,10 @@ const en: Dict = {
   location: {
     /** 与 zh 侧对应：邵阳是籍贯（hometown），不是现居地 */
     label: 'From',
+    zoom: 'Enlarge globe',
+    zoomTitle: 'Explore your hometown',
+    zoomHint: 'Drag the globe to see other sides',
+    closeZoom: 'Close enlarged globe',
   },
   favorite: {
     title: 'Favourite tools',
@@ -93,7 +96,7 @@ const en: Dict = {
     send: 'Send',
     stop: 'Stop',
     clear: 'Clear chat',
-    close: 'Close the twin',
+    close: 'Close AI chat',
     retry: 'Retry',
     twin: 'Twin',
     quickAsk: 'Suggested',

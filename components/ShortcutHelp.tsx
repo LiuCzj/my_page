@@ -289,7 +289,7 @@ export default function ShortcutHelp({
                 id="shortcut-help-title"
                 className="flex items-center gap-2 text-base font-bold text-foreground"
               >
-                {/* 全站唯一的强调色：给标题一枚紫色键盘图标，别处不再加色 */}
+                {/* 全站唯一的交互强调色：给标题一枚蓝色键盘图标，别处不再加色 */}
                 <Keyboard size={18} className="text-accent" aria-hidden="true" />
                 {d.shortcuts.title}
               </h2>

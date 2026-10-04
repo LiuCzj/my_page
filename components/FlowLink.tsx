@@ -23,10 +23,17 @@
  */
 
 import { useRef } from 'react';
-import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'framer-motion';
+import { motion, useScroll, useSpring, useTransform } from 'framer-motion';
+import { useHydrationSafeReducedMotion } from '@/lib/use-reveal';
 
 export default function FlowLink({ className = '' }: { className?: string }) {
-  const reduceMotion = useReducedMotion();
+  /**
+   * 必须是 hydration-safe 版本：下面那条 `if (reduceMotion) return <div/>` 返回的是
+   * **结构不同**的节点（静态档只有一根线，动画档是「轨道 + 光迹 + 光点」三个子节点）。
+   * 服务端拿到 null → 渲染动画档，开了减少动态效果的手机首次渲染 → 静态档，
+   * React 会判定整棵子树对不上（2026-10-04 与 Hero / TerminalCard 同一批修复）。
+   */
+  const reduceMotion = useHydrationSafeReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
 
   /**

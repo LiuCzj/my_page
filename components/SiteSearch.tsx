@@ -25,8 +25,8 @@
  *
  * 【颜色只用语义令牌】
  * bg-card / bg-background / text-foreground / text-muted-foreground / border-border /
- * bg-secondary / text-accent。accent 是紫色，全站唯一强调色 —— 这里只给「选中项的小图标」
- * 上紫，其余一律中性色，深浅两套主题都成立。
+ * bg-secondary / text-accent。accent 是蓝色，全站唯一交互强调色 —— 这里只给「选中项的小图标」
+ * 上蓝，其余一律中性色，深浅两套主题都成立。
  *
  * 【无障碍取舍：combobox + listbox，选项是真实链接】
  * 输入框用 role="combobox" + aria-activedescendant，列表用 role="listbox"，

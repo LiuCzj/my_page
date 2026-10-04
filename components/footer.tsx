@@ -6,7 +6,7 @@
  *   ② 中间三栏：左边是谁 + 一句话 / 中间是页内导航（含打开数字分身）/ 右边是五个联系入口
  *   ③ 底下版权行
  *
- * 【底部那团柔光】页面收尾的一点温度。用 --accent（紫）
+ * 【底部那团柔光】页面收尾的一点温度。用 --accent（蓝）
  * 压到 0.14 的一层径向渐变，pointer-events-none，不挡下面任何点击。
  *
  * 【右栏为什么不用现成的 SocialLinks】SocialLinks 是「一排纯图标」，
@@ -25,7 +25,7 @@ import { useTwinChat } from '@/lib/twin-chat-context';
 export default function Footer() {
   const { d, pick, fill } = useI18n();
   const [modal, setModal] = useState<ContactModalVariant | null>(null);
-  const { openChat } = useTwinChat();
+  const { open, toggleChat } = useTwinChat();
   const currentYear = new Date().getFullYear();
   const { github, csdn, zhihu, wechat, email } = site.contact;
 
@@ -139,11 +139,13 @@ export default function Footer() {
                 <li>
                   <button
                     type="button"
-                    onClick={openChat}
+                    onClick={toggleChat}
                     aria-haspopup="dialog"
+                    aria-expanded={open}
+                    aria-label={open ? d.chat.close : d.nav.chat}
                     className={`${row} cursor-pointer bg-transparent p-0 text-left`}
                   >
-                    <span className={label}>{d.nav.chat}</span>
+                    <span className={label}>{open ? d.chat.close : d.nav.chat}</span>
                   </button>
                 </li>
               </ul>

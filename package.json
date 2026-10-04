@@ -1,7 +1,10 @@
 {
   "name": "jinchuang-homepage",
-  "version": "0.13.0",
+  "version": "0.15.0",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -35,8 +38,6 @@
     "@types/node": "22.10.2",
     "@types/react": "19.0.1",
     "@types/react-dom": "19.0.1",
-    "eslint": "9.16.0",
-    "eslint-config-next": "15.5.26",
     "postcss": "8.5.28",
     "subset-font": "2.9.0",
     "tailwindcss": "4.1.10",

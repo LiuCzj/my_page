@@ -12,9 +12,41 @@
  * 小人本体是一张真空透明底的站姿人像贴图（public/images/avatar-stand.png，64×224、8 KB），
  * 在 overlay 上按投影点贴图，脚底锚定，静止站立。
  *
- * 【参数】mapSamples 22000、diffuse 0.5、theta 0.4、每帧 phi += 0.005。
- * 深浅两档分别走「亮底暗陆」和「暗底亮点」，理由见下面 PALETTE 的注释 ——
- * 这一颗球在浅色页上必须先能看清。
+ * 【2026-10-04 重做：为什么上一版是一颗纯蓝球】
+ * 用户反馈「地球做的全是蓝色，真实地球是这样吗」。
+ * 用 CDP 单独截 canvas 逐层排查后定位到**绘制顺序**，不是配色问题：
+ *   上一版在 canvas 下面铺了一层蓝色海洋 <span>（绝对定位）。
+ *   绝对定位元素的绘制层级高于**静态**的 canvas，于是那层蓝把整块画布盖住了 ——
+ *   DOM 里有、CSS 也对、cobe 也照常在渲染，只是永远看不到。
+ * 把底衬临时隐藏后，cobe 立刻显出清晰的大陆点阵（亚洲、东南亚一眼可辨）。
+ *
+ * 【重做后的做法：两层，各管一个色相】
+ * cobe 只有一个 baseColor，海洋和陆地只能是**同一色相的不同亮度** ——
+ * 这正是「全是蓝」的根因：baseColor 是蓝，海洋=蓝×0.1（深蓝），陆地=蓝×1.3（亮蓝），
+ * 亮度差再大也还是蓝。要做出「蓝海 + 绿陆」就必须让两层颜色来自两个地方：
+ *   ① 海洋 = canvas **下面**的 CSS 径向渐变（深蓝，可自由设计）
+ *   ② 陆地 = cobe 点阵（baseColor 设为绿色，mapBrightness 1.4）
+ * 两层靠 canvas 的 `mix-blend-mode: lighten` 合成。选 lighten 而不是 screen：
+ *   screen 会把两层**都提亮**，深蓝海被冲成浅蓝、绿点被冲成发白的浅蓝（实测对比见
+ *   temp/lab-compare.png 的 C/F 与 temp/lab-v2.png 的 J）；
+ *   lighten 是逐通道取大值 —— canvas 比底衬暗的地方一律让位给底衬，
+ *   于是**海洋严格等于设计的蓝、陆地严格等于 cobe 的绿**，两层互不污染（v2 的 G/H）。
+ * 代价是底衬那层 <span> 从「可选装饰」变成「必需品」：删掉它，球会退回一颗近黑的球。
+ *
+ * 【因此 z 序必须显式写出来，不能靠 DOM 顺序】
+ * 底衬 z-0 → 高光 z-0 → 地球画布 z-10 → 小人画布 z-20。
+ * 这四条是上面那套混合成立的前提，少写一条就会退回「一颗蓝球」。
+ * 外层 div 的 `isolate`（isolation: isolate）让 lighten 只在球盒内部生效，
+ * 不会去和卡片背景、粒子网发生混合。
+ *
+ * 【dark 为什么必须是 1】
+ * cobe 的 shader 里明暗两条分支（见 node_modules/cobe/dist/index.esm.js 的 fragment）：
+ *   dark=1 → W = p + 0.1        （p 是陆地强度）→ 陆地点亮、海洋近黑
+ *   dark=0 → W = (1-p)·g^0.4 + 0.1            → 海洋点亮、陆地近黑
+ * 只有 dark=1 能让陆地点阵比海洋亮，lighten 之后绿色才浮得出来；
+ * dark=0 会让陆地比底衬暗，被 lighten 直接吃掉，球上什么都看不见。
+ *
+ * 【参数】mapSamples 22000、mapBrightness 1.4、diffuse 0.5、theta 0.4、每帧 phi += 0.005。
  *
  * 【可以拖】按住左右拖动能手动转球，拖的时候自动停，松手后弹簧把余速走完。
  * 这也让「邵阳」这个点变得可寻：拖到正面就看得见。
@@ -44,42 +76,48 @@ interface DottedGlobeProps {
 /**
  * 两套调色板。
  *
- * 【cobe 的 dark 参数不是「换个颜色」，是换一种画法】读它的片元着色器：
- *   亮度 W = mix( (1-陆地)×受光, 陆地, dark ) + 0.1，然后整块圆盘以 alpha=1 填色。
- * 所以 dark=1 时陆地亮、海洋暗 —— 是「暗底亮点」，适合深色页；
- * dark=0 时正好反过来：海洋亮、陆地暗 —— 是「亮底暗陆」。
- * 之前浅色档我给的是 dark:0 + baseColor 深墨，等于把整块圆盘涂成深色、
- * 大陆再往更黑里走，于是一张白卡片上出现一团没有层次的深色糊影 ——
- * 这就是他说的「亮色时根本看不清」。
- * 现在浅色档把 baseColor 交回纯白：圆盘近白、大陆呈深色剪影、边缘因受光衰减自然收暗，
- * 白卡片上也一样读得出球体。深色档保持「暗底亮点」。
+ * baseColor 是**陆地**的颜色（乘 mapBrightness 后就是点阵实际亮度），
+ * 海洋不在这里 —— 它由下面的 OCEAN 渐变负责，理由见文件头。
  *
- * 全球唯一的饱和蓝留给邵阳那一点上的小人 —— 那才是这块要说的信息。
- * 数值是 CSS 令牌的镜像系（不是直接取 token），因为 WebGL uniform 读不到 CSS 变量。
+ * 两套的 baseColor 相同（同一支绿），差别只在海洋底衬深浅：
+ * 深色主题用更深的蓝，让绿点对比更强、整球更「太空」；
+ * 浅色主题用中蓝，否则一颗近乎黑蓝的球压在浅色卡片上太重。
+ *
+ * WebGL uniform 读不到 CSS 变量，所以颜色值只能在这里按主题各写一份。
  */
 const PALETTE = {
   light: {
-    dark: 0,
-    /**
-     * 不给纯白。dark=0 这条路径上亮度 W 从球心的 ~1.1 衰减到边缘的 0.1，
-     * 所以 baseColor 就是「最亮处」的颜色 —— 给 1 的话球心连边带海洋全被削平成卡片白，
-     * 只剩一圈大陆点阵，右侧那半边几乎化进背景里。
-     * 给一组略低于白的冷灰，球心落到浅灰，整颗球的轮廓和受光才立得住，
-     * 陆地（0.1 × 本值）仍然是清楚的暗色。
-     */
-    baseColor: [0.82, 0.86, 0.92] as [number, number, number],
-    glowColor: [1, 1, 1] as [number, number, number],
+    dark: 1,
+    baseColor: [0.36, 0.88, 0.58] as [number, number, number],
+    glowColor: [0.55, 0.78, 1] as [number, number, number],
     markerColor: [0.08, 0.357, 0.72] as [number, number, number],
     dot: 'rgb(21, 99, 184)',
   },
   dark: {
     dark: 1,
-    baseColor: [0.8, 0.9, 1.2] as [number, number, number],
-    glowColor: [1, 1, 1] as [number, number, number],
+    baseColor: [0.36, 0.88, 0.58] as [number, number, number],
+    glowColor: [0.45, 0.72, 1] as [number, number, number],
     markerColor: [0.44, 0.71, 0.98] as [number, number, number],
     dot: 'rgb(113, 181, 250)',
   },
 };
+
+/**
+ * 海洋底衬：深蓝径向渐变 + 球面明暗 + 大气外发光。
+ *
+ * 高光放在左上（circle at 32% 26%），和旁边那层 sheen 高光同一个方向 ——
+ * 两处光必须同源，否则会读成「两个光源」，球面立刻变塑料。
+ * 中心色不要给到 #7dd3fc 那么亮：lighten 之后亮海会把绿点冲淡，
+ * 实测（temp/lab-compare.png 的 C）陆地会糊成一片浅蓝。
+ */
+const OCEAN: Record<'light' | 'dark', string> = {
+  light: 'radial-gradient(circle at 32% 26%, #2f7fd6 0%, #1a549f 36%, #0c2c60 68%, #051331 100%)',
+  dark: 'radial-gradient(circle at 32% 26%, #1d4f9c 0%, #123a7a 34%, #0a2450 62%, #04122c 100%)',
+};
+
+/** 球面明暗与外发光。inset 阴影压出右下暗面（昼夜分界），外发光当大气层 */
+const OCEAN_SHADOW =
+  'inset -24px -18px 36px rgba(2, 8, 23, 0.62), inset 10px 8px 24px rgba(186, 230, 253, 0.18), 0 0 38px rgba(59, 130, 246, 0.22)';
 
 const THETA = 0.4;
 /** 每帧自转角（弧度）。0.005 约 21 秒一圈，慢到不抢注意力 */
@@ -166,7 +204,8 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
     const pal = resolvedTheme === 'dark' ? PALETTE.dark : PALETTE.light;
     const point = toVec(coordinates);
     let width = box.offsetWidth;
-    let phi = 0;
+    // 第一次显示时让籍贯标记朝向观察者，避免需要盲拖才能找到所标位置。
+    let phi = Math.atan2(-point.x, point.z);
     let raf = 0;
 
     const measure = () => {
@@ -182,7 +221,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       dark: pal.dark,
       diffuse: 0.5,
       mapSamples: 22000,
-      mapBrightness: 1.2,
+      mapBrightness: 1.4,
       baseColor: pal.baseColor,
       markerColor: pal.markerColor,
       glowColor: pal.glowColor,
@@ -284,29 +323,68 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
      * 一枚静态虚线圆 + 一个 accent 点。地名文字在卡片里照常渲染，信息不丢。
      */
     return (
-      <div ref={boxRef} className={`relative aspect-square ${className}`} aria-hidden="true">
-        <svg viewBox="0 0 120 120" className="h-full w-full">
-          <circle cx="60" cy="60" r="46" className="fill-none stroke-border" strokeWidth="1.5" strokeDasharray="3 5" />
-          <circle cx="60" cy="60" r="30" className="fill-none stroke-border" strokeWidth="1" strokeDasharray="2 6" opacity="0.6" />
+      <div ref={boxRef} className={`relative isolate aspect-square ${className}`} aria-hidden="true">
+        <span
+          className="absolute inset-[10%] rounded-full border border-sky-200/40"
+          style={{ background: OCEAN.light, boxShadow: OCEAN_SHADOW }}
+        />
+        <svg viewBox="0 0 120 120" className="relative h-full w-full">
+          <circle cx="60" cy="60" r="46" className="fill-none stroke-emerald-200/75" strokeWidth="2" strokeDasharray="1 2" />
+          <circle cx="60" cy="60" r="30" className="fill-none stroke-sky-100/35" strokeWidth="1" strokeDasharray="2 6" opacity="0.6" />
           <circle cx="86" cy="44" r="4" className="fill-accent" />
         </svg>
       </div>
     );
   }
 
+  /**
+   * 主题未解析出来时不铺底衬色 —— 否则会先按浅色画一帧深蓝，再跳成深色版，
+   * 而下面那个 effect 也是等 resolvedTheme 有了才建球，两者一起等，闪不出现。
+   */
+  const ocean = resolvedTheme === 'dark' ? OCEAN.dark : OCEAN.light;
+
   return (
-    <div ref={boxRef} className={`relative aspect-square ${className}`}>
+    /*
+      isolate 不能省：它让地球画布的 mix-blend-mode 只在球盒内部合成，
+      不会把卡片背景、粒子网一起卷进混合（那会让球边出现脏边）。
+    */
+    <div ref={boxRef} className={`relative isolate aspect-square ${className}`}>
+      {/*
+        ① 海洋。z-0 必须显式写 —— canvas 是静态元素，绝对定位的 span 默认会盖在它上面，
+        上一版的「一颗纯蓝球」就是这么来的（详见文件头）。这一层现在是必需品：
+        删掉它，lighten 之后球会退回一颗近黑的球。
+      */}
+      <span
+        aria-hidden="true"
+        className="absolute inset-[10%] z-0 rounded-full border border-sky-200/40"
+        style={{ background: ocean, boxShadow: OCEAN_SHADOW }}
+      />
+      {/* ② 球面高光。和海洋渐变同一个光源方向（左上 28%/22%），压在海面之上、点阵之下 */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[10%] z-0 rounded-full bg-[radial-gradient(ellipse_at_28%_22%,rgba(255,255,255,0.3),transparent_32%)]"
+      />
+      {/*
+        ③ 地球本体。lighten 让近黑的海洋底色让位给下面的蓝底衬，
+        只把亮起来的绿色陆地点阵「取大」叠上去 —— 蓝海与绿陆两个色相就此分离。
+        需要 relative 才能让 z-10 生效（z-index 对静态元素无效）。
+      */}
       <canvas
         ref={globeRef}
         aria-hidden="true"
-        className="h-full w-full cursor-grab touch-pan-y active:cursor-grabbing"
+        className="relative z-10 h-full w-full cursor-grab touch-pan-y mix-blend-lighten active:cursor-grabbing"
         style={{ visibility: webglOk === true ? 'visible' : 'hidden' }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
       />
-      <canvas ref={markRef} aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" />
+      {/* ④ 小人。必须在地球画布之上（z-20），否则会被 lighten 混掉 */}
+      <canvas
+        ref={markRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-20 h-full w-full"
+      />
     </div>
   );
 }

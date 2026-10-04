@@ -3,7 +3,7 @@
 /**
  * 笔记详情页顶部的阅读进度条。
  *
- * 【它是什么】一条 2px 高的紫线，钉在固定顶栏的下沿，随阅读进度从左往右生长。
+ * 【它是什么】一条 2px 高的蓝线，钉在固定顶栏的下沿，随阅读进度从左往右生长。
  * 只挂在 `app/notes/[slug]/page.tsx`，其余页面不出现。
  *
  * 【为什么不用 framer-motion 写】
@@ -27,7 +27,7 @@
  *
  * 【减少动态效果时】整个组件不渲染（`motion-reduce:hidden` + effect 里提前 return）。
  * 项目对 reduced-motion 的常规处理是「静态呈现」而不是「不渲染」，但那适用于承载内容的元素；
- * 这条进度条纯装饰，关掉动效后「随滚动生长」的因果就不存在了，留一条静止的紫边只会是干扰。
+ * 这条进度条纯装饰，关掉动效后「随滚动生长」的因果就不存在了，留一条静止的蓝边只会是干扰。
  *
  * 【无障碍】标 `aria-hidden="true"`。它是进度的视觉复述，读屏用户读的是正文本身，
  * 多播报一个百分比只是噪音。
@@ -105,7 +105,7 @@ export default function ReadingProgress({ className }: { className?: string }) {
           （globals.css 里由 --header-h + 1px 边框算出），不写死像素值，顶栏改高度这里自动跟。
         · z-[60] —— 必须高于顶栏（z-50），低于聊天面板（z-80）。
         · origin-left —— scaleX 从左往右长；默认的 center 会变成「从中间往两头撑」。
-        · bg-accent —— 全站唯一的强调色（紫）。
+        · bg-accent —— 全站唯一的交互强调色（蓝）。
         · motion-reduce:hidden —— 减少动态效果下整条不出现。
       */
       className={`pointer-events-none fixed inset-x-0 z-[60] h-0.5 origin-left bg-accent motion-reduce:hidden ${className ?? ''}`}

@@ -1,12 +1,10 @@
 'use client';
 
 /**
- * 首屏：整屏居中竖排。自上而下 ——
- *   ① 头像（常亮彩色；悬停时放大 + 轻微侧转 + 外圈虚线环开始慢转）
- *   ② 问候行「你好，我是 锦创AI」，名字逐字落笔入场；汉字走楷体，拉丁字母走同一套字的拉丁搭档，
- *      两个字体都是自托管的子集，任何设备渲染一致（见 globals.css 的 @font-face）
- *   ③ 一句话：喜欢用人话讲解复杂问题。
- *   ④ 动作行：数字分身角色（点击开合聊天窗）+ 查看我的项目
+ * 首屏：桌面端「个人介绍 + 终端名片」双栏，手机端纵向单列。
+ *   ① 问候和品牌名字（名字逐字解码，字体自托管）
+ *   ② 简介与「查看项目 / AI 问答」入口
+ *   ③ 头像名片与可交互终端，个人信息仍读取现有站点配置
  *
  * 背景那张粒子网不在这一屏里 —— 它是全站一层 fixed 画布，挂在 app/layout.tsx，
  * 所以滚到磁贴区、项目区它也还在。这一屏自己不铺死黑底：
@@ -24,126 +22,145 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { ArrowRight, MessageCircle, X } from 'lucide-react';
+import { motion } from 'framer-motion';
 import TerminalCard from './TerminalCard';
 import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
+import { useTwinChat } from '@/lib/twin-chat-context';
+import { useHydrationSafeReducedMotion } from '@/lib/use-reveal';
 
 export default function Hero() {
   const { d, pick } = useI18n();
-  const reduceMotion = useReducedMotion();
-  const { identity } = site;
-
-  /*
-   * 手机端顶部留白收到 pt-2：和 app/page.tsx 的 pt-2 合起来只有 16px。
-   * 原来这两处相加是 64px，在 667px 高的屏上顶栏到头像之间空掉一整条，
-   * 看着像内容没加载出来（用户 2026-10-03 截图指出）。
-   * 桌面端保留 pt-6 —— 大屏上这段留白是「呼吸」，不是「空」。
+  /**
+   * 必须走 hydration-safe 版本：这里的结果直接决定 initial 属性写不写，
+   * 用裸的 useReducedMotion 会让服务端（null→false）和开了减少动态效果的手机（true）
+   * 渲染出不同的 style，触发 hydration mismatch（2026-10-04 实测确认）。
    */
+  const reduceMotion = useHydrationSafeReducedMotion();
+  const { identity } = site;
+  const { open, toggleChat } = useTwinChat();
+
   return (
-    <section className="relative pt-2 pb-10 sm:pt-6 sm:pb-14">
-      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center text-center">
-        {/* ① 头像。
-            后面那枚模糊圆是「光从头像后面透出来」的效果，它比头像大一圈、
-            被 blur 化掉边缘，所以不需要真的画一圈边框 —— 它是静态氛围，不参与任何动画。
+    <section className="relative py-2 pb-10 sm:py-6 sm:pb-14">
+      <div className="relative z-10 mx-auto grid max-w-5xl items-center gap-9 lg:grid-cols-[1.04fr_0.96fr] lg:gap-12">
+        <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
+          <motion.p
+            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.48, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+            className="mt-6 text-sm font-bold tracking-[0.12em] text-muted-foreground sm:text-base"
+          >
+            {d.hero.greeting}
+          </motion.p>
 
-            【为什么把外圈那枚虚线环删掉了】
-            那圈线转起来只是「头像旁边有个东西在动」。眼睛会把「转的线」和
-            「被圈住的照片」分开读，结论是「照片还是死的，是线在动」——
-            这正是上一版被指出的问题。
-            现在改成**头像本体自己在动**：呼吸（纵向略大的缩放）+ 轻微晃动（±0.9°），
-            两个量写在同一条 keyframes 里（见 globals.css 的 avatar-breathe），
-            因为 transform 只有一个属性，分两条 keyframes 会互相覆盖。
+          <h1 className="mt-1 text-6xl leading-[1.05] tracking-tight text-foreground sm:text-7xl lg:text-8xl">
+            <span className="sr-only">{identity.name}</span>
+            <AnimatedName text={identity.name} reduceMotion={!!reduceMotion} />
+          </h1>
 
-            【动画挂外层、hover 挂内层，也是同一个原因】
-            呼吸动画和悬停放大都写 transform。挂同一个元素上，
-            CSS transition 会去补间动画每帧写的值，呼吸会被悬停拖出残影。
-            分层之后：外层专心呼吸，内层专心做悬停反馈，互不干扰。 */}
-        <div className="group relative shrink-0">
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-[-14px] -z-10 rounded-full bg-accent/25 blur-2xl sm:inset-[-18px]"
-          />
+          <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-xl">
+            {d.hero.bio}
+          </p>
 
-          {/* 呼吸层：头像本体自己在呼吸 + 轻微晃动 */}
-          <div className="animate-avatar-breathe motion-reduce:animate-none">
-            {/* 头像尺寸：手机上 112px、sm 以上 144px。
-                手机上给小一档是因为首屏竖排一整条（头像→名字→一句话→角色→按钮），
-                在 667px 高的屏上，头像每多 16px 就要多滚一截才看得到下面的角色和按钮。 */}
-            <div className="h-28 w-28 overflow-hidden rounded-full shadow-lg ring-1 ring-accent/40 transition duration-300 group-hover:scale-[1.06] group-hover:ring-accent/80 motion-reduce:transition-none sm:h-36 sm:w-36">
-              <img
-                src={identity.avatar}
-                alt={pick(identity.avatarAlt)}
-                width={144}
-                height={144}
-                className="h-full w-full object-cover"
-              />
-            </div>
+          <div className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
+            <motion.a
+              href="#projects"
+              whileHover={reduceMotion ? undefined : { y: -2 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground shadow-[0_10px_26px_-14px_hsl(var(--accent)/0.8)] transition-shadow hover:shadow-[0_14px_30px_-13px_hsl(var(--accent)/0.7)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              {d.hero.viewProjects}
+              <ArrowRight size={16} aria-hidden="true" />
+            </motion.a>
+            <motion.button
+              type="button"
+              onClick={toggleChat}
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-label={open ? d.chat.close : d.nav.chat}
+              whileHover={reduceMotion ? undefined : { y: -2 }}
+              whileTap={reduceMotion ? undefined : { scale: 0.98 }}
+              className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${open ? 'border-accent/50 bg-accent/10 text-accent' : 'border-border bg-card text-foreground hover:border-accent/50 hover:bg-accent/5'}`}
+            >
+              {open ? <X size={16} aria-hidden="true" /> : <MessageCircle size={16} aria-hidden="true" className="text-accent" />}
+              {open ? d.chat.close : d.nav.chat}
+            </motion.button>
           </div>
         </div>
 
-        {/* ①.5 状态徽章（2026-10-04 新增）。
-            参考 shivypatel.com 的「Available」：先用一句话交代「这个人现在接不接洽」，
-            比堆自我介绍更能让人决定要不要往下聊。
-            青绿点是辅助色 --accent-2 目前唯一的用处，见 globals.css 的说明。 */}
         <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.02, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-6 inline-flex items-center gap-2 rounded-full border border-border/70 bg-secondary/40 px-3 py-1 text-xs font-semibold text-muted-foreground sm:mt-8"
+          initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.985 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.65, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="relative mx-auto w-full max-w-xl lg:ml-auto"
         >
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-2" />
-          {d.hero.status}
+          <div className="relative isolate overflow-hidden rounded-[1.75rem] border border-border bg-card p-4 shadow-[0_26px_70px_-42px_hsl(var(--foreground)/0.42)] sm:rounded-[2rem] sm:p-6">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 -z-10 opacity-70"
+              style={{
+                backgroundImage:
+                  'linear-gradient(hsl(var(--border) / 0.45) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.45) 1px, transparent 1px)',
+                backgroundSize: '34px 34px',
+                maskImage: 'linear-gradient(to bottom, black, transparent 88%)',
+              }}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-12 -top-14 -z-10 size-56 animate-hero-float rounded-full bg-[radial-gradient(circle,hsl(var(--warm)/0.25),hsl(var(--warm)/0.06)_48%,transparent_72%)] blur-2xl"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-12 -left-10 -z-10 size-48 rounded-full bg-[radial-gradient(circle,hsl(var(--accent)/0.19),transparent_70%)] blur-2xl"
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute right-8 top-12 -z-10 size-36 animate-hero-orbit rounded-full border border-warm/30 sm:right-12 sm:top-10"
+            >
+              <span className="absolute left-1/2 top-0 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-warm shadow-[0_0_16px_hsl(var(--warm)/0.8)]" />
+            </span>
+
+            <div className="relative flex items-center gap-4 rounded-2xl border border-border/80 bg-background/85 p-3.5 backdrop-blur-sm sm:p-4">
+              <div className="animate-avatar-breathe motion-reduce:animate-none">
+                <div className="group/avatar relative size-[4.5rem] shrink-0 sm:size-20">
+                  <span aria-hidden="true" className="absolute -inset-1 rounded-full bg-warm/20 blur-md" />
+                  <div className="relative size-full overflow-hidden rounded-full border-2 border-card ring-1 ring-warm/50 transition-transform duration-300 group-hover/avatar:scale-[1.04]">
+                    <img
+                      src={identity.avatar}
+                      alt={pick(identity.avatarAlt)}
+                      width={144}
+                      height={144}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="min-w-0">
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-warm sm:text-xs">
+                  PROFILE / PORTFOLIO
+                </p>
+                <p className="mt-2 line-clamp-2 text-sm font-semibold leading-relaxed text-foreground sm:text-base">
+                  {pick(identity.tagline)}
+                </p>
+              </div>
+              <span aria-hidden="true" className="ml-auto hidden size-10 shrink-0 items-center justify-center rounded-xl bg-warm/10 text-warm sm:flex">
+                <MessageCircle size={19} />
+              </span>
+            </div>
+
+            <div className="relative mt-4 sm:mt-5">
+              <TerminalCard />
+            </div>
+            <div className="mt-4 flex items-center justify-between gap-3 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
+              <span className="inline-flex items-center gap-2">
+                <span aria-hidden="true" className="size-1.5 rounded-full bg-warm" />
+                {d.terminal.title}
+              </span>
+              <span>AI · DATA · PROJECTS</span>
+            </div>
+          </div>
         </motion.div>
-
-        {/* ② 问候行。
-            徽章已经撑开了头像与标题之间的留白，这里收到 mt-3 即可。 */}
-        {/*
-          手机端字号从 text-4xl 收到 text-3xl：2026-10-03 用 390px 视口截图实测，
-          「你好，我是 锦创AI」在 36px 下约 396px 宽，超过视口减去左右内边距后的 358px，
-          名字最后一个字母被右边缘切掉。30px 下约 330px，放得下。
-          桌面端保持 text-6xl —— 那里有足够宽度。
-        */}
-        <h1 className="mt-3 text-3xl leading-[1.25] tracking-tight text-foreground sm:mt-4 sm:text-6xl sm:leading-[1.15]">
-          {/* 前缀先落位（0.05s 起），名字随后逐字入场（0.14s 起）——
-              前缀抢在名字前面 0.09 秒，读起来是「先听到招呼，再看见署名」，
-              而不是两件事同时拍在脸上。 */}
-          <motion.span
-            className="inline-block font-black"
-            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {d.hero.greeting}
-          </motion.span>{' '}
-          <span className="sr-only">{identity.name}</span>
-          <AnimatedName text={identity.name} reduceMotion={!!reduceMotion} />
-        </h1>
-
-        {/* ③ 一句话 */}
-        <p className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-xl">
-          {d.hero.bio}
-        </p>
-
-        {/*
-          ③.5 终端卡 —— 首屏的「在场感」。
-          夹在「一句话」和「动作行」中间：上面讲「我是谁」，下面给「你能做什么」，
-          中间这段补的是「我正在做什么」，首屏原来缺的就是这一层「这个人还活着」的证据。
-          宽度收到 max-w-md：首屏是居中竖排，卡铺满整幅会把它读成一个横向区块，
-          和上下两段居中的文字不成一路。
-        */}
-        <div className="mt-8 w-full max-w-md">
-          <TerminalCard />
-        </div>
-
-        {/*
-          ④ 动作行已整块删除（2026-10-03）。原来这里是「数字分身角色 + 查看我的项目」，
-          两块都搬走了：
-          · 角色 → components/TwinEntry.tsx，改成右下角常驻的浮动头像。理由见那个文件：
-            它挂在首屏末尾时既是第五个元素、又要滚回顶部才点得到。
-          · 按钮 → 直接删。去项目的入口顶栏与页脚都有，那是全站级入口，不该在首屏重复一遍。
-          于是首屏现在只有四件东西：头像 / 名字 / 一句话 / 终端卡 —— 一条线读完。
-        */}
       </div>
     </section>
   );

@@ -19,7 +19,8 @@
  */
 
 import { motion } from 'framer-motion';
-import { Brain, Heart, Link2, MapPin, Wrench } from 'lucide-react';
+import { Brain, Heart, Link2, MapPin, Maximize2, Wrench, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import DottedGlobe from '@/components/DottedGlobe';
 import Marquee from '@/components/Marquee';
 import SocialLinks from '@/components/SocialLinks';
@@ -27,9 +28,9 @@ import ContactModal, { type ContactModalVariant } from '@/components/ContactModa
 import ToolIcon from '@/components/ToolIcon';
 import { site, type ToolGlyph } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
-import { useReveal } from '@/lib/use-reveal';
+import { useReveal, CARD_REVEAL, CARD_STAGGER } from '@/lib/use-reveal';
 import { useScrollFocus } from '@/lib/use-scroll-fx';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * 一块磁贴。
@@ -49,12 +50,46 @@ import { useEffect, useRef, useState } from 'react';
  * 不需要箭头，也不需要编号。它只写覆盖层的 opacity，不碰 transform，
  * 所以和上面两条通道都不冲突。
  */
+/**
+ * 磁贴的装饰色相（2026-10-04 用户要求「颜色更丰富」后新增）。
+ *
+ * 【它只改两处】标题行那枚小图标的颜色、以及卡片右上角那团极淡的晕染。
+ * 正文、标题、按钮、状态一律不受影响 —— 也就是说这几块磁贴在语义上仍然只有
+ * 「交互蓝 / 成功青绿 / 品牌紫」三色，多出来的颜色纯粹是画上去的层次。
+ * 色值来自 globals.css 的 --tint-* 装饰色板（深浅两档各自调过明度）。
+ *
+ * 【为什么给每块不同的色相】五块磁贴内容性质本来就不同（一个球、两个清单、
+ * 一条技能带、一排工具），原来它们只有「有没有暖色」这一种区别，
+ * 扫过去是一片同色的方块。各给一个色相之后，视线能靠颜色先分区、再读内容。
+ */
+type TileTint = 'sky' | 'teal' | 'violet' | 'coral' | 'amber';
+
+/** 色相 → Tailwind 工具类。集中成一张表，避免在 JSX 里写三元表达式拼类名 */
+const TINT_ICON: Record<TileTint, string> = {
+  sky: 'text-tint-sky',
+  teal: 'text-tint-teal',
+  violet: 'text-tint-violet',
+  coral: 'text-tint-coral',
+  amber: 'text-tint-amber',
+};
+
+/** 色相 → 角落晕染用的 CSS 变量名（值由 globals.css 按主题给出） */
+const TINT_VAR: Record<TileTint, string> = {
+  sky: '--tint-sky',
+  teal: '--tint-teal',
+  violet: '--tint-violet',
+  coral: '--tint-coral',
+  amber: '--tint-amber',
+};
+
 function Tile({
   span,
   icon,
   title,
   cursorEmoji,
   delay,
+  tint = 'sky',
+  action,
   children,
 }: {
   span: string;
@@ -62,9 +97,12 @@ function Tile({
   title: string;
   cursorEmoji: string;
   delay: number;
+  /** 装饰色相，见上面的 TileTint 说明 */
+  tint?: TileTint;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const reveal = useReveal();
+  const reveal = useReveal(CARD_REVEAL);
   /** 焦点接力：这块磁贴离视口中心越近，下面那层高光越亮 */
   const { ref: focusRef, focus } = useScrollFocus<HTMLLIElement>();
   const glowRef = useRef<HTMLSpanElement>(null);
@@ -162,6 +200,15 @@ function Tile({
       }}
       className={`card group/tile relative flex list-none flex-col overflow-hidden p-4 transition-[border-color] duration-200 ease-out hover:border-accent/50 sm:p-5 ${span}`}
     >
+      {/* 右上角那团晕染：色相跟着 tint 走。透明度压在 0.14，
+          再高就会把标题行那串 12px 的灰字压得发闷（原来只有暖色一档时是 0.16）。 */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-16 -top-20 z-0 size-48 rounded-full opacity-80 blur-3xl"
+        style={{
+          background: `radial-gradient(circle, hsl(var(${TINT_VAR[tint]}) / 0.14), transparent 70%)`,
+        }}
+      />
       {/*
         焦点接力高光：一条 accent 内描边 + 一团很淡的外发光，opacity 由滚动位置驱动。
         内描边（inset 1px）而不是改 border-color：改 border 会和 hover 那条
@@ -202,16 +249,13 @@ function Tile({
           {cursorEmoji}
         </span>
       )}
-      {/*
-        眉标行。原先「籍贯」这块后面还挂了一行地名（heading），
-        现在地名改成绕地球转的那圈字了 —— 标题行再放一遍是同一个信息出现两次，删掉。
-        于是这行只剩下「图标 + 分类词」，flex-wrap 也不必留（只有一个子项，不会换行）。
-      */}
-      <h3 className="relative flex items-baseline gap-x-2">
+      {/* 标题图标、类别名与可选快捷操作共用一行，避免缩放按钮覆盖卡片内容。 */}
+      <h3 className="relative flex items-center justify-between gap-x-2">
         <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-          <span className="self-center text-accent">{icon}</span>
+          <span className={`self-center ${TINT_ICON[tint]}`}>{icon}</span>
           {title}
         </span>
+        {action}
       </h3>
       <div className="relative mt-3 flex min-w-0 flex-1 flex-col justify-center">{children}</div>
     </motion.li>
@@ -219,11 +263,114 @@ function Tile({
 }
 
 /**
+ * 将首页点阵地球放大到独立弹层中，让访客能看清地形并继续拖动旋转。
+ * 打开期间锁住背景滚动；Escape、遮罩与关闭按钮均可关闭，键盘焦点留在弹层内。
+ *
+ * @param props.open 是否显示弹层
+ * @param props.onClose 关闭弹层的回调
+ * @param props.coordinates 地球标记坐标，纬度/经度（度）
+ * @param props.triggerRef 打开弹层的按钮引用，用于关闭后恢复键盘焦点
+ * @returns 弹层 Portal；关闭时不渲染
+ */
+function GlobeZoomDialog({
+  open,
+  onClose,
+  coordinates,
+  triggerRef,
+}: {
+  open: boolean;
+  onClose: () => void;
+  coordinates: [number, number];
+  triggerRef: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const { d, pick } = useI18n();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    openerRef.current = triggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      // 弹层只有一个可聚焦控件，Tab 循环回关闭按钮，不让焦点落到遮罩背后的页面。
+      if (event.key === 'Tab' && closeRef.current) {
+        event.preventDefault();
+        closeRef.current.focus();
+      }
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      openerRef.current?.focus();
+    };
+  }, [open, onClose, triggerRef]);
+
+  if (!open || typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[210] flex items-center justify-center p-3 sm:p-6"
+      role="presentation"
+      onPointerDown={(event) => {
+        if (!dialogRef.current?.contains(event.target as Node)) onClose();
+      }}
+    >
+      <div aria-hidden="true" className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm" />
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="globe-zoom-title"
+        aria-describedby="globe-zoom-hint"
+        className="relative flex max-h-[min(92dvh,760px)] w-full max-w-2xl flex-col items-center overflow-auto rounded-3xl border border-border bg-card px-4 pb-6 pt-3 text-card-foreground shadow-2xl sm:px-8 sm:pb-8"
+      >
+        <div className="flex min-h-11 w-full items-center justify-between gap-3">
+          <span aria-hidden="true" className="size-11" />
+          <h2 id="globe-zoom-title" className="text-base font-bold text-foreground sm:text-lg">
+            {d.location.zoomTitle}
+          </h2>
+          <button
+            ref={closeRef}
+            type="button"
+            onClick={onClose}
+            aria-label={d.location.closeZoom}
+            className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <X size={19} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="mt-1 flex w-full justify-center">
+          <DottedGlobe coordinates={coordinates} className="w-[min(78vw,420px)]" />
+        </div>
+        <p className="-mt-3 text-sm font-semibold text-foreground">{pick(site.identity.location.label)}</p>
+        <p id="globe-zoom-hint" className="mt-1 text-center text-xs text-muted-foreground">
+          {d.location.zoomHint}
+        </p>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/**
  * 技能条目。
  *
- * 【改前它和工具条里的标签是同一套】圆角药丸 + 边框 + 内嵌一枚 accent 紫点。
+ * 【改前它和工具条里的标签是同一套】圆角药丸 + 边框 + 内嵌一枚 accent 色小点。
  * 一屏三十来枚同款，读起来就是「一堵墙」—— 分不出哪是组名、哪是条目。
- * 改成更轻的标签：去边框、去每枚紫点、底色压淡一档、字号收一档，
+ * 改成更轻的标签：去边框、去每枚小点、底色压淡一档、字号收一档，
  * 把「重量」整个让给组标题，层级才立得起来。
  *
  * 【为什么没有 whitespace-nowrap】原来照抄了工具条的写法（那是给跑马灯用的，条目必须单行）。
@@ -358,7 +505,11 @@ export default function Dashboard() {
   const { location } = site.identity;
   const { favoriteTools, skills, tools } = site;
   const [modal, setModal] = useState<ContactModalVariant | null>(null);
+  const [globeZoomed, setGlobeZoomed] = useState(false);
+  const globeZoomButtonRef = useRef<HTMLButtonElement>(null);
 
+  const openGlobeZoom = useCallback(() => setGlobeZoomed(true), []);
+  const closeGlobeZoom = useCallback(() => setGlobeZoomed(false), []);
 
   return (
     <div className="pb-2">
@@ -377,73 +528,49 @@ export default function Dashboard() {
           title={d.location.label}
           cursorEmoji="✈️"
           delay={0}
+          tint="sky"
+          action={
+            <button
+              ref={globeZoomButtonRef}
+              type="button"
+              onClick={openGlobeZoom}
+              aria-haspopup="dialog"
+              aria-expanded={globeZoomed}
+              aria-label={d.location.zoom}
+              className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent/50 hover:bg-accent/5 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              <Maximize2 size={14} aria-hidden="true" />
+              <span>{d.location.zoom}</span>
+            </button>
+          }
         >
-          {/* 【为什么是「裁开」而不是「缩小」】
-              点阵的密度是固定的，把整颗球缩进小方框里，每个点就只剩不到一像素 ——
-              浅色底上糊成一片灰雾，大陆完全读不出来。
-              所以反过来：球给到 460px，靠外层 overflow-hidden 只露出上面一条
-              （裁窗 190/210px）。露出的那一段从北极到北纬 5° 左右，
-              邵阳（北纬 27.2°）落在这条带的中下部，转到正面就看得见。
-              top 的 -26px 是把球往上推、让圆盘顶端正好贴进裁窗，不留一条空白。 */}
+          {/*
+            仍保留 cobe 的真实经纬地形和可拖拽旋转；蓝色海洋、青绿陆地点阵与球面阴影
+            让它读起来更像地球，而不是灰色示意球。首屏磁贴只露上半球以保持网格高度，
+            想看完整球面可点标题行的「放大地球」进入同一交互的大图。
+          */}
           <div className="relative mt-1 h-[190px] overflow-hidden sm:h-[210px]">
-            <div className="absolute left-1/2 top-[-26px] w-[460px] -translate-x-1/2">
-              <DottedGlobe coordinates={location.coordinates} className="w-[460px]" />
-              {/*
-                地址文字环 —— 名字绕地球转一圈。
-                与地球 (DottedGlobe) 同一个 460px 绝对定位容器，圆心对齐到地球圆心 (230, 230)；
-                文字沿半径 210 的圆路径排列（比地球赤道再大一圈，不会被陆地挡住）。
-                整段用 animate-orbit 匀速自转 36 秒一圈，比地球自转（21 秒一圈）慢一档，
-                两层旋转叠在一起，「他在哪儿」（地球转）和「他是哪儿人」（地址转）各走各的节奏。
-                textPath 里把同一段 label 重复 5 次 + 分隔点，刚好把整圈铺满不留缺口。
-                pointer-events-none：不挡地球拖拽，也不被磁贴的弹印当成可点区域。
-              */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 animate-orbit motion-reduce:animate-none"
-              >
-                <svg viewBox="0 0 460 460" className="h-full w-full">
-                  <defs>
-                    <path
-                      id="location-orbit"
-                      d="M 230 230 m -210 0 a 210 210 0 1 1 420 0 a 210 210 0 1 1 -420 0"
-                      fill="none"
-                    />
-                  </defs>
-                  <text
-                    /*
-                      行楷 + 主文字色（不是 accent 紫）。
-                      【为什么换掉紫】这圈字是「说明文字」不是「强调」，
-                      染成 accent 紫会和首屏名字、按钮、粒子网那一整套紫抢注意力 ——
-                      一页上只剩一个紫才叫强调，处处紫等于没有强调。
-                      改成 fill-foreground（主文字色）后它退到「注释」这一层：
-                      亮色档是深蓝黑、暗色档是浅灰白，两套主题各自保证对比度。
-                      【字号为什么提到 20】行楷笔画细、带连笔，17px 下笔画会糊成一条。
-                      字距从 5 收到 4：行楷本身字身较宽，字距再大会把一圈撑爆。
-                      paint-order:stroke + stroke=hsl(background) 给文字描一圈底色边，
-                      转过陆地时不会糊在一堆点上、读不出字。
-                    */
-                    className="fill-foreground font-xingkai font-bold"
-                    fontSize="20"
-                    letterSpacing="4"
-                    style={{ paintOrder: 'stroke', stroke: 'hsl(var(--background))', strokeWidth: '3' }}
-                  >
-                    {/*
-                      5 段重复 + 分隔点：一圈路径周长约 2πr ≈ 1319px，
-                      「中国湖南省邵阳市 · 」13 个字符、字距 4、字号 20，约 280px，
-                      5 段刚好 ≈ 1400px，略挤但能铺满不留缺口。
-                    */}
-                    <textPath href="#location-orbit" startOffset="0">
-                      {`${pick(location.label)} · ${pick(location.label)} · ${pick(location.label)} · ${pick(location.label)} · ${pick(location.label)} · `}
-                    </textPath>
-                  </text>
-                </svg>
+            {!globeZoomed && (
+              <div className="absolute left-1/2 top-[-26px] w-[460px] -translate-x-1/2">
+                <DottedGlobe coordinates={location.coordinates} className="w-[460px]" />
               </div>
-            </div>
+            )}
+            {/*
+              地名标签。原来居中放在窗口底部（left-1/2 + -translate-x-1/2），
+              2026-10-04 重做地球后暴露了问题：小人站在湖南（球心偏右），
+              手机窄屏上球被裁得更靠右，小人的腿正好被这块居中的标签压住。
+              改成钉在左下角 —— 那里是海面，不会和任何内容重叠，
+              读起来也更像一张地图的角标。
+            */}
+            <span className="pointer-events-none absolute bottom-2 left-3 z-10 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border/80 bg-card/90 px-3 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur-sm">
+              <MapPin size={12} aria-hidden="true" className="text-warm" />
+              {pick(location.label)}
+            </span>
           </div>
         </Tile>
 
         {/* ② 最喜欢的工具：右侧上格 */}
-        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Heart size={13} />} title={d.favorite.title} cursorEmoji="❤️" delay={0.06}>
+        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Heart size={13} />} title={d.favorite.title} cursorEmoji="❤️" delay={CARD_STAGGER} tint="coral">
           <ul className="space-y-2">
             {favoriteTools.map((t) => (
               <li
@@ -461,7 +588,7 @@ export default function Dashboard() {
 
         {/* ③ 连接：右侧下格。和上一格同一列，两块各吃地球一半的高度，
             这一列就不会出现空柱。 */}
-        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Link2 size={13} />} title={d.connect.title} cursorEmoji="🔗" delay={0.12}>
+        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Link2 size={13} />} title={d.connect.title} cursorEmoji="🔗" delay={CARD_STAGGER * 2} tint="teal">
           <div className="flex flex-wrap items-center justify-center gap-1">
             <SocialLinks size={19} itemClassName="size-11" onOpenModal={setModal} />
           </div>
@@ -473,7 +600,7 @@ export default function Dashboard() {
             图例那行组名和带子里的内容对不上号，等于把六份信息搅成一份。
             每组单独配一条滚动带也不行：条目少的组会同时露出两份一样的标签。
             静态换行同时避开这两个问题。 */}
-        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Brain size={13} />} title={d.skills.title} cursorEmoji="🧠" delay={0.18}>
+        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Brain size={13} />} title={d.skills.title} cursorEmoji="🧠" delay={CARD_STAGGER * 3} tint="violet">
           <div className="space-y-4">
             {skills.map((g, gi) => (
               <div
@@ -500,12 +627,18 @@ export default function Dashboard() {
         </Tile>
 
         {/* ⑤ 工具：整条铺开。只摆图标，名字等鼠标停上去才出现（实现与取舍见上面 ToolRow） */}
-        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Wrench size={13} />} title={d.tools.title} cursorEmoji="🔧" delay={0.24}>
+        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Wrench size={13} />} title={d.tools.title} cursorEmoji="🔧" delay={CARD_STAGGER * 4} tint="amber">
           <ToolRow row={tools} duration="52s" pick={pick} />
         </Tile>
       </ul>
 
       <ContactModal open={modal !== null} variant={modal ?? 'notice'} onClose={() => setModal(null)} />
+      <GlobeZoomDialog
+        open={globeZoomed}
+        onClose={closeGlobeZoom}
+        coordinates={location.coordinates}
+        triggerRef={globeZoomButtonRef}
+      />
     </div>
   );
 }

@@ -32,12 +32,12 @@ interface MobileNavDrawerProps {
 
 export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNavDrawerProps) {
   const { d, pick } = useI18n();
-  const { openChat } = useTwinChat();
+  const { open: chatOpen, toggleChat } = useTwinChat();
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
 
   /**
-   * 抽屉里的页面链接；「问分身」是按钮，单独渲染在最后。
+   * 抽屉里的页面链接；「AI 问答」开关单独渲染在最后。
    * 三项都和顶栏保持一致、指向真路由 —— 顶栏和抽屉写的是两份独立的列表，
    * 改一处必须同时改另一处，否则手机和桌面会看到不同的导航。
    */
@@ -141,7 +141,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-x-3">
-          {/* 左列：页内导航 + 「问分身」按钮 */}
+          {/* 左列：页内导航 + AI 问答开关 */}
           <nav className="flex flex-col gap-1">
           {linkItems.map((item) => {
             /* 和顶栏同一套判断：首页精确匹配，其余按前缀 —— 详见 Navbar.tsx 的注释 */
@@ -161,17 +161,19 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
                 </Link>
               );
             })}
-            {/* 「问分身」是按钮不是锚点：聊天区只在面板打开时存在，页面上没有可跳的目标 */}
+            {/* AI 问答控制的是全站悬浮面板开合，不是页内锚点 */}
             <button
               type="button"
               onClick={() => {
                 onClose();
-                openChat();
+                toggleChat();
               }}
               aria-haspopup="dialog"
+              aria-expanded={chatOpen}
+              aria-label={chatOpen ? d.chat.close : d.nav.chat}
               className="rounded-lg px-3 py-3 text-left text-base font-bold text-foreground transition hover:bg-secondary"
             >
-              {d.nav.chat}
+              {chatOpen ? d.chat.close : d.nav.chat}
             </button>
           </nav>
 

@@ -3,7 +3,8 @@
 /**
  * 全站的粒子连线背景层（canvas）——一张会动的网：
  * 点缓慢漂浮，互相靠近到一定距离就连线；鼠标伸进去把附近的点推开，
- * 被推开那片区域的连线变成白色，其余保持紫色 —— 手一走开就自己恢复。
+ * 被推开那片区域的连线换成高对比色（暗色档变白、亮色档压深），其余保持冷蓝灰 ——
+ * 手一走开就自己恢复。具体色值见下面 PALETTE。
  *
  * 【为什么画在 layout 而不是某个 section 里】
  * 它挂在整个视口的 fixed 层上、内容包在 z-10 里，所以滚到哪儿都在。
@@ -223,8 +224,8 @@ export default function ParticleField({
       const rect = canvas.getBoundingClientRect();
       mouseX = e.clientX - rect.left;
       mouseY = e.clientY - rect.top;
-      // 出界就当「鼠标离开了」，连线立刻恢复全紫 —— 不判这一步的话
-      // 鼠标划到页面边上时，那根白线会一直白着不收回
+      // 出界就当「鼠标离开了」，连线立刻恢复常态色 —— 不判这一步的话
+      // 鼠标划到页面边上时，那根高亮线会一直亮着不收回
       if (mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height) {
         mouseX = -9999;
         mouseY = -9999;
