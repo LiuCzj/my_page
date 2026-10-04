@@ -3,9 +3,8 @@ import FlowLink from '@/components/FlowLink';
 import Dashboard from '@/components/Dashboard';
 import Projects from '@/components/Projects';
 import NotesList from '@/components/NotesList';
-import DigitalTwinChat from '@/components/DigitalTwinChat';
 import ChatInset from '@/components/ChatInset';
-import { site, homePreview } from '@/config/site';
+import { homePreview } from '@/config/site';
 import { getAllNotes } from '@/lib/notes';
 
 /**
@@ -74,8 +73,7 @@ export default function Home() {
         </div>
       </ChatInset>
 
-      {/* features.chat 置 false 时服务端直接不渲染这个面板 */}
-      {site.features.chat && <DigitalTwinChat />}
+      {/* 数字分身聊天面板已挪到 app/layout.tsx —— 它得在所有页面都能用（/projects、/notes 也是） */}
     </>
   );
 }

@@ -45,17 +45,18 @@ interface Dot {
 /**
  * 两套配色，跟着主题的 .dark 类切。
  *
- * 暗色档就是你点名的那三个值，原样不动。
- * 亮色档必须换一套：rgba(191,128,255,.8) 那颗浅紫点在近白的底上几乎看不见，
- * 而「鼠标附近变白」那几根线在亮色档下会直接消失 —— 白画在白纸上。
- * 所以亮色档给的是同色族但更深的紫，"附近那几根不一样" 这个效果改成往深紫走，
- * 保留的是「鼠标经过时线会变一组」这件事，不是某个具体颜色。
+ * 【2026-10-04 双色分工后改色】原来是紫，现在换成冷蓝灰 ——
+ * 让紫回到品牌标识那两处（logo 的「AI」、首屏名字）；
+ * 粒子网是铺满全屏的大面积层，它一紫整页就「一片紫」，
+ * 所以改走交互蓝的冷色族。键名 line 就是普通连线（原 purple）。
+ * 亮色档要比暗色档深一档：浅色点画在近白底上几乎看不见，
+ * 而「鼠标附近变亮」那几根线在亮色档下必须往深走 —— 否则白画在白纸上。
  */
 const PALETTE = {
-  dark: { dot: 'rgba(191, 128, 255, 0.8)', purple: '200, 150, 255', near: '255, 255, 255', nearBoost: 1.5 },
-  light: { dot: 'rgba(112, 40, 200, 0.7)', purple: '150, 96, 214', near: '48, 18, 92', nearBoost: 1.6 },
+  dark: { dot: 'rgba(130, 170, 250, 0.7)', line: '135, 170, 240', near: '255, 255, 255', nearBoost: 1.5 },
+  light: { dot: 'rgba(56, 96, 180, 0.55)', line: '96, 130, 200', near: '18, 40, 90', nearBoost: 1.6 },
 };
-/** 用法：rgba(200, 150, 255, 透明度) —— 透明度每根线按距离算 */
+/** 用法：rgba(135, 170, 240, 透明度) —— 透明度每根线按距离算 */
 
 const MOUSE_RADIUS = 150;      // 鼠标影响半径
 const MOUSE_FORCE = 0.55;      // 推开力度
@@ -199,7 +200,7 @@ export default function ParticleField({
             aMx * aMx + aMy * aMy < MOUSE_RADIUS * MOUSE_RADIUS ||
             bMx * bMx + bMy * bMy < MOUSE_RADIUS * MOUSE_RADIUS;
 
-          ctx.strokeStyle = `rgba(${near ? pal.near : pal.purple}, ${near ? alpha * pal.nearBoost : alpha})`;
+          ctx.strokeStyle = `rgba(${near ? pal.near : pal.line}, ${near ? alpha * pal.nearBoost : alpha})`;
           ctx.lineWidth = near ? 0.9 : 0.7;
           ctx.beginPath();
           ctx.moveTo(a.x, a.y);

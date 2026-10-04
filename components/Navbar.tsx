@@ -90,7 +90,7 @@ export default function Navbar() {
               aria-label={d.topbar.siteName}
             >
               {site.identity.name.replace(site.identity.nameAccent, '')}
-              <span className="text-accent">{site.identity.nameAccent}</span>
+              <span className="text-brand">{site.identity.nameAccent}</span>
             </Link>
 
             {/* 桌面导航：顺序排列，避免窄屏时与右侧图标叠在一起 */}

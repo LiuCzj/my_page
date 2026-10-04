@@ -225,9 +225,15 @@ function Tile({
  * 一屏三十来枚同款，读起来就是「一堵墙」—— 分不出哪是组名、哪是条目。
  * 改成更轻的标签：去边框、去每枚紫点、底色压淡一档、字号收一档，
  * 把「重量」整个让给组标题，层级才立得起来。
+ *
+ * 【为什么没有 whitespace-nowrap】原来照抄了工具条的写法（那是给跑马灯用的，条目必须单行）。
+ * 但技能里有「表格数据专用深度学习模型（TabNet、FT-Transformer、TabTransformer 等）」
+ * 这种超长条目 —— nowrap 会让它顶出卡片右边缘、被 overflow-hidden 切掉
+ * （2026-10-04 用 390 视口实测被切 101px，用户反馈「手机上内容被挡住」）。
+ * 所以这里允许换行，长条目在自己那一格里折成两三行。
  */
 const SKILL_TAG =
-  'inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-secondary/50 px-2 py-0.5 text-xs font-medium text-muted-foreground';
+  'inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-xs font-medium break-words text-muted-foreground';
 
 /** 触屏弹印活多久。比 emoji-pop 那条 1.1s 的动画略长，让它淡完再被摘掉 */
 const STAMP_MS = 1150;

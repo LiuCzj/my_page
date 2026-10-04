@@ -23,6 +23,7 @@
  * 真正给读屏的是旁边那枚 sr-only 的完整名字。
  */
 
+import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import TerminalCard from './TerminalCard';
 import { site } from '@/config/site';
@@ -149,121 +150,175 @@ export default function Hero() {
 }
 
 /**
- * 名字的动效：**落笔**。
+ * 名字的动效：**解码 + 落定**（2026-10-04 重做）。
  *
- * 三步，依次发生，做完后就安静下来：
- *   ① 逐字入场：每字从两侧（左右交替）带着模糊和旋转汇拢到中线上，错开 90ms。
- *      「模糊 → 清晰」是关键 —— 笔画由虚到实，读起来像写的那一笔正在落墨；
- *      没有这一层的话就只是「四个字飞进来摆好」，是位移不是落笔。
- *   ② 落笔线：全部落位后，名字下方那条 accent 细线从中间向两端展开（0.55s）。
- *      它是「写完了、收笔」的句号，也把这一行从「标题」锚成「署名」。
- *   ③ 扫光：一道高光从字的左侧扫到右侧（见 globals.css 的 name-shine）。
- *      之后每 8 秒自己再扫一次 —— 页面放着不动时名字仍有呼吸，
- *      但它不位移、不抖动，正在读字的人不会被骚扰。
+ * 【为什么重做】上一版是「逐字从两侧小幅度飞入 + 模糊对焦」，
+ * 位移只有 16px、旋转只有 9°，实际页面里几乎看不出来（用户反馈「动效不明显」）。
+ * 这一版换成两步，每一步都是「一眼能看见」的量级：
+ *   ① 解码：每个字先在**同宽度的随机字**里快速跳变，从左到右逐个锁定成真字 ——
+ *      读起来像 AI 正在把这个名字算出来。中文用中文池、拉丁用拉丁池。
+ *   ② 锁定瞬间：该字放大 1.5 倍 + 泛光，再收回 1 —— 一次「落定」的冲击
+ *      （keyframes 见 globals.css 的 name-lock）。
+ * 最后接原有的扫光（名字下方那条下划线已按用户要求去掉）。
  *
- * 【为什么不再做「每字轮流上下浮动」的循环】
- * 上一版有一条例行的逐字波浪（每 5 秒整词抖一轮）。名字是页面唯一一处
- * 持续运动的文字，它一动，视线就被从下面的简介和按钮上拽走一次 ——
- * 抖动的收益是「页面像活的」，代价是「一直在抢注意力」，这笔账不划算。
- * 改成每 8 秒一次扫光：同样活着，但只在字面上掠过，不改变一个字的位置。
+ * 【乱码为什么不会把行宽搞乱】
+ * 每一格渲染两层：一层是**不可见的真字**（占位、把这一格宽度定死），
+ * 一层是绝对定位居中的乱码。乱码再宽也只在自己那一格里居中溢出，不会推挤相邻字。
+ * 中文是等宽字本来就不会变；拉丁字母（A / I 宽窄差很多）靠这层占位兜住。
  *
  * 【按字符分派字体】
  * 「锦创AI」是中文 + 拉丁混排。汉字走楷体（font-xingkai），拉丁字母走 font-accent
- * （同一套字里的拉丁搭档）。两档现在都指向自托管的霞鹜文楷子集
- * （见 globals.css 的 @font-face），所以中英是同一种笔意写出来的，
- * 而且任何设备上渲染一致 —— 不再有「安卓机没有楷体、退回宋体」这回事。
+ * （同一套字里的拉丁搭档）。两档都指向自托管的霞鹜文楷子集，
+ * 所以中英是同一种笔意写出来的，且任何设备渲染一致。
  *
- * 拆成一个个 span 会破坏读屏与选中，所以动画层是 aria-hidden，
- * 真正给读屏的是旁边那枚 sr-only 的完整名字。
- * reduceMotion 为真时只去掉动画，字体分派照旧 —— 否则这一档下拉丁字母会落回
- * 系统默认字（多数情况下是 sans-serif），跟汉字连看都不像一路。
+ * 【无 JS / reduceMotion】初始 state 就是真字、全部锁定，静态下名字照常显示；
+ * reduceMotion 时 useEffect 直接返回，不启动解码。
+ * 动画层是 aria-hidden，真正给读屏的是旁边那枚 sr-only 的完整名字。
  */
+
+/** 解码用的字符池：中文取「科技 / AI」语感的字，拉丁取宽窄接近的大写与数字 */
+const CJK_POOL = Array.from(
+  '锦创智算模型网络节点算法数据代码智能科技未来量子芯片矩阵向量梯度训练推理生成探索构建架构系统平台开源迭代优化部署云原生边缘并行分布式图谱语义检索增强对齐微调蒸馏卷积循环注意力变换',
+);
+const LATIN_POOL = Array.from('AIOCDENRSXZKMWHBQP0123456789');
+
+/** 三段 CJK 码位区间：扩展A（3400–4DBF）/ 统一表意文字（4E00–9FFF）/ 兼容表意文字（F900–FAFF） */
+function isCJKChar(c: string): boolean {
+  const code = c.codePointAt(0) ?? 0;
+  return (
+    (code >= 0x3400 && code <= 0x4dbf) ||
+    (code >= 0x4e00 && code <= 0x9fff) ||
+    (code >= 0xf900 && code <= 0xfaff)
+  );
+}
+
+/** 汉字走楷体，其余（拉丁字母、数字）走同一套字里的拉丁搭档 */
+const fontFor = (c: string) => (isCJKChar(c) ? 'font-xingkai' : 'font-accent');
+
+/** 取一个「同池」的随机字 */
+const randGlyph = (c: string) => {
+  const pool = isCJKChar(c) ? CJK_POOL : LATIN_POOL;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+/** 第 i 个字的锁定时刻 = LOCK_BASE + i * LOCK_STEP（ms）；SCRAMBLE_TICK 是乱码刷新间隔 */
+const LOCK_BASE = 320;
+const LOCK_STEP = 140;
+const SCRAMBLE_TICK = 42;
+
 function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: boolean }) {
   const chars = Array.from(text);
+  /** 当前显示的字（解码期间是随机字）。初始为真字 —— 保证 SSR / 无 JS 下名字正常 */
+  const [shown, setShown] = useState<string[]>(chars);
+  /** 每个字是否已锁定成真字。初始全部锁定（同上） */
+  const [locked, setLocked] = useState<boolean[]>(() => chars.map(() => true));
+  /** 第几次播放。+1 就重播一遍解码（重新进入视口 / 悬停时触发） */
+  const [runId, setRunId] = useState(0);
+  /** 正在播放中 —— 避免连续触发叠在一起 */
+  const running = useRef(false);
+  const hostRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const n = chars.length;
+    const lockAt = (i: number) => LOCK_BASE + i * LOCK_STEP;
+    const t0 = performance.now();
+    running.current = true;
+
+    // 先整体进入乱码态：让用户看到的是「跳动的字」，而不是先亮一下再跳
+    setShown(chars.map((c) => randGlyph(c)));
+    setLocked(chars.map(() => false));
+
+    const id = window.setInterval(() => {
+      const t = performance.now() - t0;
+      const nextShown: string[] = new Array(n);
+      const nextLocked: boolean[] = new Array(n);
+      let allLocked = true;
+      for (let i = 0; i < n; i++) {
+        if (t >= lockAt(i)) {
+          nextShown[i] = chars[i];
+          nextLocked[i] = true;
+        } else {
+          nextShown[i] = randGlyph(chars[i]);
+          nextLocked[i] = false;
+          allLocked = false;
+        }
+      }
+      setShown(nextShown);
+      setLocked(nextLocked);
+      if (allLocked) {
+        window.clearInterval(id);
+        running.current = false;
+      }
+    }, SCRAMBLE_TICK);
+
+    return () => {
+      window.clearInterval(id);
+      running.current = false;
+    };
+  }, [reduceMotion, text, runId]);
+
   /**
-   * 汉字走楷体，其余（拉丁字母、数字）走同一套字里的拉丁搭档。
-   * 按码位区间判断而不是写正则：正则里放字面汉字的话，区间边界长什么样肉眼根本检查不了，
-   * 编辑器或转码动一下就可能悄悄失效。
-   * 三段：CJK 扩展A（3400–4DBF）、CJK 统一表意文字（4E00–9FFF）、CJK 兼容表意文字（F900–FAFF）。
+   * 【重播】解码原来只在「刷新页面」时看得见（用户反馈「其他时候根本看不出」）。
+   * 现在两个时机重播：
+   *   · 名字**重新进入视口**（往下滚走、再滚回来）—— 用 IntersectionObserver；
+   *     首次进入不算（初始本来就可见，否则会和 mount 那次撞在一起）。
+   *   · 鼠标**悬停**在名字上。
+   * 刻意不做定时循环：定时重播会变成「页面一直在跳」，比看不见更烦。
    */
-  const fontFor = (c: string) => {
-    const code = c.codePointAt(0) ?? 0;
-    const isCJK =
-      (code >= 0x3400 && code <= 0x4dbf) ||
-      (code >= 0x4e00 && code <= 0x9fff) ||
-      (code >= 0xf900 && code <= 0xfaff);
-    return isCJK ? 'font-xingkai' : 'font-accent';
+  useEffect(() => {
+    if (reduceMotion) return;
+    const el = hostRef.current;
+    if (!el) return;
+    let wasVisible = true;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !wasVisible) setRunId((n) => n + 1);
+          wasVisible = e.isIntersecting;
+        }
+      },
+      { threshold: 0.55 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [reduceMotion]);
+
+  /** 悬停重播。播放中不响应，免得来回扫过时叠成一团 */
+  const replay = () => {
+    if (!reduceMotion && !running.current) setRunId((n) => n + 1);
   };
 
-  /**
-   * 入场的起始横移：左右交替，整段读起来是「从两侧汇拢到中线」，
-   * 而不是一排字被同一个力推着走。
-   * 幅度 16px 而不是几十像素：这是「落位」，不是「飞进来」。
-   */
-  const entryX = (i: number) => (i % 2 === 0 ? -16 : 16);
-
-  /**
-   * 入场的起始旋转：和横移同侧同号，字是「转着正过来」的。
-   * 9° 是能看出倾斜、又不会让人以为字歪了的上限。
-   */
-  const entryRotate = (i: number) => (i % 2 === 0 ? -9 : 9);
-
-  /** 第一个字的起步时刻，以及字与字之间错开的量 */
-  const BASE_DELAY = 0.14;
-  const STEP_DELAY = 0.09;
-
-  if (reduceMotion) {
-    return (
-      <span aria-hidden="true" className="font-semibold text-accent">
-        {chars.map((c, i) => (
-          <span key={`${c}-${i}`} className={fontFor(c)}>
-            {c}
-          </span>
-        ))}
-      </span>
-    );
-  }
+  /** 全部锁定完成的时刻（秒）—— 扫光等它 */
+  const settleAt = (LOCK_BASE + chars.length * LOCK_STEP) / 1000;
 
   return (
     /*
-      外层是普通 span 而不是 motion 组件，也不挂 whileHover：
-      名字不是一个可点的东西，而站里「抬一下」的语义是留给真正可点的元素的
-      （同一条原则见 components/Dashboard.tsx 的 Tile：磁贴只给边缘高亮，不做悬停位移）。
-      给一个不可点的署名加悬停反馈，等于告诉别人「这里能点」。
+      外层是普通 span，不挂 whileHover 的位移 —— 名字不是可点的东西，
+      站里「抬一下」的语义留给真正可点的元素（同一条原则见 Dashboard 的 Tile）。
+      这里只挂 onMouseEnter 触发「重播解码」：它改的是字的内容、不是位置，
+      读起来是「它又在算这个名字」，不会被误读成「这里能点」。
     */
-    <span aria-hidden="true" className="relative inline-flex font-semibold text-accent">
+    <span
+      ref={hostRef}
+      aria-hidden="true"
+      onMouseEnter={replay}
+      className="relative inline-flex font-semibold text-brand"
+    >
       {chars.map((c, i) => (
-        <motion.span
-          key={`${c}-${i}`}
-          className={`inline-block origin-bottom ${fontFor(c)}`}
-          style={{ willChange: 'transform, opacity, filter' }}
-          initial={{
-            opacity: 0,
-            x: entryX(i),
-            y: '0.4em',
-            scale: 0.74,
-            rotate: entryRotate(i),
-            filter: 'blur(9px)',
-          }}
-          animate={{
-            opacity: 1,
-            x: 0,
-            y: 0,
-            scale: 1,
-            rotate: 0,
-            filter: 'blur(0px)',
-          }}
-          transition={{
-            // 四条曲线分开写：位置/旋转走同一条「缓出」，透明度先到位
-            // （字先显形、再走完最后一段路），模糊收得最快 ——
-            // 笔画在对焦，不是整块字在飘。
-            default: { duration: 0.68, delay: BASE_DELAY + i * STEP_DELAY, ease: [0.22, 1, 0.36, 1] },
-            opacity: { duration: 0.4, delay: BASE_DELAY + i * STEP_DELAY, ease: 'easeOut' },
-            filter: { duration: 0.5, delay: BASE_DELAY + i * STEP_DELAY, ease: 'easeOut' },
-          }}
-        >
-          {c}
-        </motion.span>
+        <span key={`${c}-${i}`} className={`relative inline-block ${fontFor(c)}`}>
+          {/* 占位层：不可见时也把这一格的宽度定死（= 真字宽度），乱码跳变时整行不抖。
+              锁定后它转为可见并挂上「落定」动画 */}
+          <span className={locked[i] ? 'animate-name-lock inline-block' : 'invisible inline-block'}>
+            {c}
+          </span>
+          {/* 乱码层：绝对定位居中。锁定时它与占位层完全重合（同一个字），直接不渲染 */}
+          {!locked[i] && (
+            <span className="absolute inset-0 flex items-center justify-center opacity-55 blur-[0.6px]">
+              {shown[i]}
+            </span>
+          )}
+        </span>
       ))}
 
       {/*
@@ -271,7 +326,7 @@ function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: bool
         所以亮起来的是笔画本身，而不是一块盖在字上面的矩形光斑。
         【为什么逐字复制而不是整串一个 span】上面那层是每字一个 inline-block，
         整串渲染的字距和它会差一两个像素，扫光时会看出两层字错位。
-        延迟到逐字入场结束之后才显示：入场途中字还在飞，那时的高光扫不出形状。
+        等全部锁定之后才显示：解码途中字还在跳，那时的高光扫不出形状。
       */}
       <motion.span
         aria-hidden="true"
@@ -282,7 +337,7 @@ function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: bool
         }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.3, delay: BASE_DELAY + chars.length * STEP_DELAY }}
+        transition={{ duration: 0.3, delay: settleAt }}
       >
         {chars.map((c, i) => (
           <span key={`${c}-${i}`} className={`inline-block ${fontFor(c)}`}>
@@ -290,24 +345,6 @@ function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: bool
           </span>
         ))}
       </motion.span>
-
-      {/*
-        落笔线：全部字落位后，从中间向两端展开。
-        origin-center + scaleX 0→1 是「从中间往两头写」，origin-left 会读成「从左往右划」，
-        后者和上面那道扫光撞成同一个方向。
-        宽度取 100% 而不是字宽之外再留白：它是这一行的下划线，不是分隔符。
-      */}
-      <motion.span
-        aria-hidden="true"
-        className="absolute -bottom-1 left-0 right-0 h-[3px] origin-center rounded-full bg-accent/45"
-        initial={{ scaleX: 0, opacity: 0 }}
-        animate={{ scaleX: 1, opacity: 1 }}
-        transition={{
-          duration: 0.55,
-          delay: BASE_DELAY + chars.length * STEP_DELAY + 0.12,
-          ease: [0.22, 1, 0.36, 1],
-        }}
-      />
     </span>
   );
 }

@@ -104,7 +104,7 @@ export default function Footer() {
             <div className="col-span-2 sm:col-span-1">
               <p className="text-base font-bold tracking-tight text-foreground">
                 {site.identity.name.replace(site.identity.nameAccent, '')}
-                <span className="text-accent">{site.identity.nameAccent}</span>
+                <span className="text-brand">{site.identity.nameAccent}</span>
               </p>
               <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted-foreground">
                 {/* 这句直接用 config 里他自己写的 tagline，不另造一句页脚专用文案 ——

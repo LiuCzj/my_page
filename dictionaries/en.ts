@@ -12,7 +12,8 @@ const en: Dict = {
     home: 'Home',
     projects: 'Projects',
     notes: 'Notes',
-    chat: 'Ask the twin',
+    // 2026-10-04 由 'Ask the twin' 改 —— 和中文同理：导航项要让第一次来的人秒懂
+    chat: 'Ask AI',
   },
   topbar: {
     menu: 'Open menu',

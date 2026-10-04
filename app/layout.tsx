@@ -12,6 +12,7 @@ import PageTransition from '@/components/page-transition'
 import ShortcutLayer from '@/components/ShortcutLayer'
 import TwinEntry from '@/components/TwinEntry'
 import ResetPasswordPanel from '@/components/ResetPasswordPanel'
+import DigitalTwinChat from '@/components/DigitalTwinChat'
 import { site } from '@/config/site'
 import { getAllNotes } from '@/lib/notes'
 
@@ -122,6 +123,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   在同一个层叠上下文里比层级。
                 */}
                 <TwinEntry />
+
+                {/*
+                  数字分身聊天面板。2026-10-04 从 app/page.tsx 挪到这里 ——
+                  原来它只挂在首页，导致在 /projects、/notes 上点右下角的分身头像
+                  「什么都不会发生」（面板根本没渲染，用户反馈过）。
+                  它自己是客户端组件，由服务端 layout 渲染没有问题；
+                  开合状态住在 TwinChatProvider（也在 layout 这一层），所以任何页面都能开关。
+                */}
+                <DigitalTwinChat />
 
                 {/*
                   重置密码浮层：接管邮件里 `?reset=<token>` 的链接。

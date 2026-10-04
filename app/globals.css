@@ -90,17 +90,20 @@
   /* 大面积用在正文副文本上，取值保证压在近白背景上仍达 WCAG AA（约 7:1） */
   --muted-foreground: 220 11% 36%;
   /*
-   * 全站唯一的强调色：紫。
-   * 粒子网、鼠标拖尾、首屏领带都是紫色族，所以强调令牌直接定在紫，
-   * 而不是「蓝色令牌 + 到处写死紫」：
-   * 按钮、链接、图标、焦点环、头像光圈、领带，一处令牌全跟着走。
-   * 明亮档压到 46% 亮度，是为了当正文级链接色时压得住白底（约 5.5:1，过 AA）。
+   * ── 双色分工（2026-10-04 改）──────────────────────────────
+   * 原来全站只有一支紫，结果是「所有需要有色地方都是紫」→ 紫不再是强调色，而是页面主色。
+   * 现在拆成两支，各司其职：
+   *   --brand ：品牌紫。**只给品牌标识** —— 顶栏/页脚 logo 的「AI」、首屏名字。
+   *   --accent：交互蓝。负责所有「可交互 / 结构强调」—— 链接、按钮、索引号、技能条、焦点环。
+   * 蓝取 #3B82F6 一族，与新站点图标（终端 >_ 的青→蓝渐变）同源。
+   * 明亮档压到 46% 亮度，当正文级链接色时压得住白底（约 5.5:1，过 AA）。
    */
-  --accent: 268 62% 46%;
+  --accent: 217 91% 46%;
   --accent-foreground: 0 0% 100%;
+  --brand: 268 62% 46%;
   --border: 220 13% 87%;
   --input: 220 13% 82%;
-  --ring: 268 62% 46%;
+  --ring: 217 91% 46%;
   --destructive: 0 72% 38%;
   /* 背景光晕强度，由文件末尾的 body::before 使用。
      上限被首屏那枚 accent 药丸定死：峰值再高会把 text-accent 压到 4.5:1 以下。 */
@@ -165,12 +168,14 @@
   --secondary-foreground: 220 12% 90%;
   --muted: 222 10% 17%;
   --muted-foreground: 220 10% 66%;
-  /* accent 提亮到 72%（紫），accent-foreground 取深紫墨：实心按钮 bg-accent + text-accent-foreground 也过 AA */
-  --accent: 268 92% 72%;
-  --accent-foreground: 268 60% 10%;
+  /* accent 提亮到 66%（交互蓝），accent-foreground 取深墨：实心按钮 bg-accent + text-accent-foreground 也过 AA。
+     brand 是品牌紫，饱和度从 92% 降到 80% —— 艳紫用久了显廉价，暗色档尤其明显。 */
+  --accent: 217 91% 66%;
+  --accent-foreground: 220 60% 10%;
+  --brand: 268 80% 72%;
   --border: 222 10% 22%;
   --input: 222 10% 27%;
-  --ring: 268 92% 72%;
+  --ring: 217 91% 66%;
   --destructive: 0 78% 68%;
   --aura-top: 0.09;
   --aura-side: 0.06;
@@ -205,6 +210,8 @@
   --color-destructive: hsl(var(--destructive));
   /* 辅助色：青绿，只做极小面积点缀（目前是首屏「可联系」状态点），见 :root 的说明 */
   --color-accent-2: hsl(var(--accent-2));
+  /* 品牌色：紫。只给 logo 的「AI」与首屏名字，见 :root 的「双色分工」说明 */
+  --color-brand: hsl(var(--brand));
 
   /*
    * ── 字体家族 ─────────────────────────────────────────
@@ -407,6 +414,34 @@
     13%,
     100% {
       background-position: -80% 50%;
+    }
+  }
+
+  /*
+   * 名字解码动画：每个字「锁定」成真字的那一瞬间 —— 放大 1.5 倍 + 泛光，再收回 1。
+   *
+   * 【为什么要有这一下】解码（乱码跳变）本身只是「字在变」，读起来更像故障；
+   * 加一个「落定」的冲击，整段才读成「AI 把名字算出来了」而不是「字坏了」。
+   * 泛光用 text-shadow，颜色取 --brand（品牌紫），让这一下和名字同色。
+   *
+   * fill-mode both：动画开始前就按 0% 那帧站位（放大 + 泛光），
+   * 不写的话 class 加上的那一帧会先闪一下原尺寸。
+   */
+  --animate-name-lock: name-lock 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes name-lock {
+    0% {
+      transform: scale(1.5);
+      opacity: 0.15;
+      text-shadow: 0 0 22px hsl(var(--brand) / 0.95);
+    }
+    55% {
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+      text-shadow: 0 0 0 hsl(var(--brand) / 0);
     }
   }
 
