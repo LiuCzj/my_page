@@ -160,7 +160,7 @@ function Tile({
         // 浏览器接管了纵向下滚（pointercancel）—— 这一下是划页面，不是在点球
         pending.current = null;
       }}
-      className={`group/tile relative flex list-none flex-col overflow-hidden rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] duration-200 ease-out hover:border-accent/50 hover:shadow-md sm:p-5 ${span}`}
+      className={`card group/tile relative flex list-none flex-col overflow-hidden p-4 transition-[border-color] duration-200 ease-out hover:border-accent/50 sm:p-5 ${span}`}
     >
       {/*
         焦点接力高光：一条 accent 内描边 + 一团很淡的外发光，opacity 由滚动位置驱动。
@@ -175,7 +175,7 @@ function Tile({
           boxShadow:
             'inset 0 0 0 1px hsl(var(--accent) / 0.45), 0 0 30px -12px hsl(var(--accent) / 0.4)',
         }}
-        className="pointer-events-none absolute inset-0 rounded-lg"
+        className="pointer-events-none absolute inset-0 rounded-xl"
       />
 
       {/* 发光层。accent 透明度定在 0.16：再高就会把上面那行 12px 的灰字压到看不清。
@@ -218,9 +218,16 @@ function Tile({
   );
 }
 
-/** 滚动条里的一枚标签。用 inline-flex 是因为标签现在可能带一枚图标 */
-const CHIP =
-  'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-secondary px-3 py-1 text-xs font-semibold text-secondary-foreground';
+/**
+ * 技能条目。
+ *
+ * 【改前它和工具条里的标签是同一套】圆角药丸 + 边框 + 内嵌一枚 accent 紫点。
+ * 一屏三十来枚同款，读起来就是「一堵墙」—— 分不出哪是组名、哪是条目。
+ * 改成更轻的标签：去边框、去每枚紫点、底色压淡一档、字号收一档，
+ * 把「重量」整个让给组标题，层级才立得起来。
+ */
+const SKILL_TAG =
+  'inline-flex shrink-0 items-center whitespace-nowrap rounded-md bg-secondary/50 px-2 py-0.5 text-xs font-medium text-muted-foreground';
 
 /** 触屏弹印活多久。比 emoji-pop 那条 1.1s 的动画略长，让它淡完再被摘掉 */
 const STAMP_MS = 1150;
@@ -461,16 +468,22 @@ export default function Dashboard() {
             每组单独配一条滚动带也不行：条目少的组会同时露出两份一样的标签。
             静态换行同时避开这两个问题。 */}
         <Tile span="sm:col-span-3 sm:row-span-1" icon={<Brain size={13} />} title={d.skills.title} cursorEmoji="🧠" delay={0.18}>
-          <div className="space-y-2">
+          <div className="space-y-4">
             {skills.map((g, gi) => (
-              <div key={gi} className="flex flex-col gap-1.5 border-t border-border/40 pt-2 first:border-t-0 first:pt-0">
-                <span className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <div
+                key={gi}
+                className="flex flex-col gap-2 border-t border-border/40 pt-3 first:border-t-0 first:pt-0"
+              >
+                {/* 组标题：改前是 12px 灰色大写，和下面的标签同色同重，扫读时分不出
+                    「组名」和「条目」。现在加粗、换成主文字色，左边加一枚 accent 短竖条当标记 ——
+                    一屏看下去，先看到六个组，再看到每组下面的条目，层级才立得住。 */}
+                <span className="flex items-center gap-2 text-sm font-bold text-foreground">
+                  <span aria-hidden="true" className="h-3.5 w-0.5 rounded-full bg-accent" />
                   {pick(g.title)}
                 </span>
-                <div className="flex flex-wrap gap-x-2 gap-y-1">
+                <div className="flex flex-wrap gap-x-2 gap-y-1.5">
                   {g.items.map((item, i) => (
-                    <span key={i} className={CHIP}>
-                      <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-accent/70" />
+                    <span key={i} className={SKILL_TAG}>
                       {pick(item)}
                     </span>
                   ))}

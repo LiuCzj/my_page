@@ -28,6 +28,7 @@ import { site, homePreview } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
 import ProjectsGrid from './ProjectsGrid';
+import SectionHeader from './SectionHeader';
 
 export default function Projects() {
   const { d } = useI18n();
@@ -50,13 +51,12 @@ export default function Projects() {
       className="scroll-mt-[var(--anchor-offset)] pb-2"
       aria-labelledby="projects-title"
     >
-      <motion.h2
-        {...reveal(0)}
+      <SectionHeader
+        index="01"
         id="projects-title"
-        className="text-2xl font-black tracking-tight text-foreground sm:text-3xl"
-      >
-        {d.projects.title}
-      </motion.h2>
+        title={d.projects.title}
+        lead={d.projects.lead}
+      />
 
       {shown.length === 0 ? (
         /* 空态：明确说「这里还空着」并给出下一步，而不是留一个看起来坏掉的洞 */
@@ -82,7 +82,7 @@ export default function Projects() {
             <motion.div {...reveal(0.12)} className="mt-4">
               <Link
                 href="/projects"
-                className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-accent no-underline transition-opacity hover:opacity-80"
+                className="link-underline inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-accent"
               >
                 {d.projects.viewAll}
                 <ArrowRight size={15} aria-hidden="true" />

@@ -45,7 +45,7 @@ export default function Footer() {
    * 行内文字链接可以窄，但页脚这几行是列表项，用户会当成整行可点。
    */
   const row =
-    'inline-flex min-h-[44px] w-full items-center gap-2.5 text-sm text-muted-foreground transition-colors hover:text-accent visited:text-muted-foreground';
+    'inline-flex min-h-[44px] w-full items-center gap-2.5 text-sm text-muted-foreground transition-[color,transform] duration-200 hover:translate-x-1 hover:text-accent visited:text-muted-foreground';
   /**
    * 行内文本加粗：原版 font-medium 在 16px 字号下读着像普通正文，
    * 访客扫读时容易漏掉。提到 font-semibold 与导航项同级，
@@ -83,7 +83,7 @@ export default function Footer() {
               type="button"
               onClick={() => setModal('email')}
               aria-haspopup="dialog"
-              className="mt-7 inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="press mt-7 inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <MailIcon size={15} />
               {d.footer.greetCta}

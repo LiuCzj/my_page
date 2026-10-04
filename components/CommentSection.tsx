@@ -461,7 +461,7 @@ export default function CommentSection({ slug }: CommentSectionProps) {
           <p className="text-sm text-muted-foreground">{d.comments.working}</p>
         ) : user === null ? (
           /* ── 未登录：登录 / 注册 / 找回密码 ── */
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="card p-4">
             <div className="flex gap-1 rounded-lg bg-secondary p-1">
               {(['login', 'register'] as const).map((t) => (
                 <button
@@ -592,7 +592,7 @@ export default function CommentSection({ slug }: CommentSectionProps) {
           </div>
         ) : !user.emailVerified ? (
           /* ── 已登录未验证 ── */
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="card p-4">
             <p className="text-sm text-foreground">{d.comments.needVerify}</p>
             <div className="mt-3 flex items-center gap-3">
               <button

@@ -49,6 +49,8 @@ const zh = {
     greeting: '你好，我是',
     /** 问候行下面那一句自我介绍 */
     bio: '喜欢用人话讲解复杂问题。',
+    /** 首屏状态徽章：青绿点 + 这行字，表示愿意接洽/回消息 */
+    status: '可联系',
     robotHintOpen: '点我，开启数字分身',
     robotHintClose: '点我，关闭数字分身',
     robotAria: '数字分身聊天窗开关',

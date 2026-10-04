@@ -20,7 +20,8 @@
  *
  * 【绝不要给卡片写 transition-all】
  * 入场动画由 framer-motion 每帧写内联 transform。transition-all 会让 CSS
- * 去补间那些 transform，滚动入场会被拖出残影。只过渡 border-color 和 box-shadow。
+ * 去补间那些 transform，滚动入场会被拖出残影。
+ * 卡面样式走 globals.css 的 .card / .card-hoverable（那里也只过渡指定属性）。
  */
 
 import { motion } from 'framer-motion';
@@ -45,8 +46,22 @@ import { useScrollCard } from '@/lib/use-scroll-fx';
  * 【视差为什么只给卡片、不给磁贴】
  * 磁贴（Dashboard 的 Tile）是 overflow-hidden 的，卡片内容一旦位移就会在边缘露出缝；
  * 项目卡没有裁切，位移只会让相邻两张卡之间错开一点，正是想要的手感。
+ *
+ * 【编号（2026-10-04 新增）】
+ * 参考 huyml.co 那类获奖作品集：给每件作品一个 01 / 02 / 03 的序号。
+ * 它补上了卡片原来缺的「视觉锚点」—— 没有封面图时，一个等宽编号 + 一行标题
+ * 就是这张卡的眼睛，也让卡片之间有了一种「清单」的秩序感。
+ * index 从父组件传进来，而不是在卡里自增，因为两张卡分属两个 li、没有共享状态。
  */
-function ProjectCard({ project, delay }: { project: (typeof site.projects)[number]; delay: number }) {
+function ProjectCard({
+  project,
+  delay,
+  index,
+}: {
+  project: (typeof site.projects)[number];
+  delay: number;
+  index: number;
+}) {
   const { pick } = useI18n();
   const reveal = useReveal();
   const { ref, focus, y } = useScrollCard<HTMLLIElement>(8);
@@ -58,7 +73,7 @@ function ProjectCard({ project, delay }: { project: (typeof site.projects)[numbe
         target="_blank"
         rel="noopener noreferrer"
         style={{ y }}
-        className="relative flex h-full flex-col rounded-lg border border-border bg-card p-4 transition-[border-color,box-shadow] duration-200 ease-out hover:border-accent/50 hover:shadow-md sm:p-5"
+        className="card card-hoverable group relative flex h-full flex-col p-4 sm:p-5"
       >
         {/* 焦点接力高光：这张卡离视口中心越近越亮，见 lib/use-scroll-fx.ts。
             同一行两张卡的进度不同，往下滚时高光在卡片之间依次传递 */}
@@ -69,14 +84,25 @@ function ProjectCard({ project, delay }: { project: (typeof site.projects)[numbe
             boxShadow:
               'inset 0 0 0 1px hsl(var(--accent) / 0.45), 0 0 30px -12px hsl(var(--accent) / 0.4)',
           }}
-          className="pointer-events-none absolute inset-0 rounded-lg"
+          className="pointer-events-none absolute inset-0 rounded-xl"
         />
 
-        <span className="flex items-start justify-between gap-3">
-          <span className="text-lg font-bold leading-snug break-words text-foreground">
-            {pick(project.title)}
+        {/* 顶部一行：编号（左）+ 外链箭头（右） */}
+        <span className="mb-2 flex items-center justify-between">
+          <span className="font-mono text-xs font-bold tracking-[0.2em] text-muted-foreground/60">
+            {String(index + 1).padStart(2, '0')}
           </span>
-          <ArrowUpRight size={17} className="mt-1 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {/* 箭头悬停时向右上「推出去」一点，暗示「点了会跳走」；
+              颜色同时转 accent，和标题的变化对齐 */}
+          <ArrowUpRight
+            size={17}
+            className="shrink-0 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        </span>
+
+        <span className="text-lg font-bold leading-snug break-words text-foreground transition-colors group-hover:text-accent">
+          {pick(project.title)}
         </span>
 
         <span className="mt-2 text-sm leading-relaxed break-words text-muted-foreground">
@@ -112,7 +138,7 @@ export default function ProjectsGrid({ items }: { items: typeof site.projects })
   return (
     <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
       {items.map((p, i) => (
-        <ProjectCard key={p.slug} project={p} delay={0.06 * (i + 1)} />
+        <ProjectCard key={p.slug} project={p} delay={0.06 * (i + 1)} index={i} />
       ))}
     </ul>
   );

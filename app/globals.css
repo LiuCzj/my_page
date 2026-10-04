@@ -124,6 +124,30 @@
   --panel-top: calc(var(--header-h-total) + 8px);
   /* 锚点跳转的落点补偿：滚到顶栏下方，再留 2rem 让区块标题看得见 */
   --anchor-offset: calc(var(--header-h-total) + 2rem);
+
+  /*
+   * ── 表面层级（2026-10-04 新增）──────────────────────────────
+   * 长页面靠「层次」而不是「颜色」制造节奏：卡片要比背景抬起来一档。
+   * 三样东西合起来才有浮起感，缺一样就会退回「贴在一起的黑块」：
+   *   1. 明度差 —— --card 已比 --background 抬亮一档
+   *   2. 顶部内高光 --card-hi —— 模拟光从上方来，卡沿上缘留一线反光
+   *   3. 双层柔和投影 --shadow-1（近、实）/ --shadow-2（远、虚）
+   * 亮色主题下白卡上的内高光看不见，故 --card-hi 取 0，靠边框 + 投影分离。
+   */
+  --card-hi: 0;
+  --shadow-1: 0.05;
+  --shadow-2: 0.06;
+  --card-hover: 0 0% 100%;
+  --radius-card: 0.75rem;
+
+  /*
+   * ── 辅助色（2026-10-04 新增）：青绿 ─────────────────────────
+   * 用户已放宽「全站只有一支紫」这条旧约束（原话：我没说全局都只能用一个紫色）。
+   * 但辅助色**只做极小面积点缀** —— 目前唯一用途是首屏「可联系」那枚状态点：
+   * 青绿=可联系/在线是通用语义，比紫点更「像状态」。
+   * 亮色档压到 36% 亮度，压在近白底上才够对比。**不要大面积铺色**，一铺就廉价。
+   */
+  --accent-2: 172 64% 36%;
 }
 
 .dark {
@@ -150,6 +174,14 @@
   --destructive: 0 78% 68%;
   --aura-top: 0.09;
   --aura-side: 0.06;
+  /* 表面层级：暗色下内高光才看得见（亮色白卡上等于没有），投影也要更重才压得住 */
+  --card-hi: 0.07;
+  --shadow-1: 0.45;
+  --shadow-2: 0.55;
+  --card-hover: 222 12% 15%;
+  --radius-card: 0.75rem;
+  /* 辅助色：暗色下青绿要提亮到 52% 才跳得出来 */
+  --accent-2: 168 68% 52%;
 }
 
 /* 把上面这些分量注册成 Tailwind 颜色：bg-foreground / border-accent / fill-background 等 */
@@ -171,6 +203,8 @@
   --color-ring: hsl(var(--ring));
   /* 错误色：聊天失败提示用 text-destructive（两套主题各自调过明度，都能看清） */
   --color-destructive: hsl(var(--destructive));
+  /* 辅助色：青绿，只做极小面积点缀（目前是首屏「可联系」状态点），见 :root 的说明 */
+  --color-accent-2: hsl(var(--accent-2));
 
   /*
    * ── 字体家族 ─────────────────────────────────────────
@@ -536,6 +570,91 @@
       transition-duration: 0.001ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/*
+ * ── 表面层级：卡片（2026-10-04 新增）──────────────────────────
+ * .card            展示型卡片（磁贴、评论卡）—— 只负责「浮起来」，不做悬停位移
+ * .card-hoverable  可点卡片（项目卡、终端卡）—— 多一条悬停抬升
+ *
+ * 【为什么放 @layer components 而不是裸写】
+ * Tailwind v4 的层序是 theme → base → components → utilities。
+ * 放进 components 层，组件上写的 hover:border-accent/50 这类工具类才盖得住它；
+ * 裸写（unlayered）优先级最高，会把 hover: 系列全压死，磁贴的悬停高亮就没了。
+ *
+ * 【为什么把 box-shadow 写成三层】
+ * 第一层 inset 是顶部内高光（模拟光从上方来），后两层是投影：近处小而实、远处大而虚。
+ * 单层投影会显得「糊」，两层叠起来才像真有一个光源。
+ *
+ * 【绝不要在这里写 transition-all】
+ * 入场动画由 framer 每帧写内联 transform，transition-all 会让 CSS 去补间那些 transform，
+ * 入场被拖出残影（项目卡 / 磁贴上踩过同一个坑）。
+ */
+@layer components {
+  .card {
+    border-radius: var(--radius-card);
+    border: 1px solid hsl(var(--border));
+    background-color: hsl(var(--card));
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / var(--card-hi)),
+      0 1px 2px -1px hsl(220 45% 2% / var(--shadow-1)),
+      0 10px 28px -14px hsl(220 45% 2% / var(--shadow-2));
+  }
+
+  .card-hoverable {
+    transition:
+      border-color 0.2s ease,
+      background-color 0.2s ease,
+      box-shadow 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  .card-hoverable:hover {
+    border-color: hsl(var(--accent) / 0.5);
+    background-color: hsl(var(--card-hover));
+    transform: translateY(-2px);
+    box-shadow:
+      inset 0 1px 0 0 hsl(0 0% 100% / var(--card-hi)),
+      0 2px 4px -1px hsl(220 45% 2% / var(--shadow-1)),
+      0 16px 40px -16px hsl(220 45% 2% / var(--shadow-2));
+  }
+
+  /* 减少动态效果时不位移，但保留边框/投影反馈 */
+  @media (prefers-reduced-motion: reduce) {
+    .card-hoverable:hover {
+      transform: none;
+    }
+  }
+
+  /*
+   * 文字链接的下划线：默认 0 宽（看不见），悬停时从左往右展开到 100%。
+   *
+   * 【为什么用 background 而不是 text-decoration】
+   * text-decoration 的下划线是离散属性，没法做「从无到有」的过渡；
+   * background-image + background-size 才能让线「长出来」。
+   * currentColor 让线跟着链接自身的颜色走，不必为每种颜色各写一条。
+   */
+  .link-underline {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 0% 1px;
+    transition: background-size 0.25s ease;
+  }
+
+  .link-underline:hover,
+  .link-underline:focus-visible {
+    background-size: 100% 1px;
+  }
+
+  /*
+   * 按钮的「按下去」反馈：下移 1px。
+   * 【为什么不在这里写 transition】元素自身已经有 Tailwind 的 transition
+   * （它包含 transform），这里再写一条会互相覆盖。这里只声明按下时的位移。
+   */
+  .press:active {
+    transform: translateY(1px);
   }
 }
 

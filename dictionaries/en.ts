@@ -47,6 +47,7 @@ const en: Dict = {
   hero: {
     greeting: 'Hi, I’m',
     bio: 'I explain complicated things in plain language.',
+    status: 'Available for contact',
     robotHintOpen: 'Click to open the AI twin',
     robotHintClose: 'Click to close the AI twin',
     robotAria: 'Toggle the digital twin chat window',

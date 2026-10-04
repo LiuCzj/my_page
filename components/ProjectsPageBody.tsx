@@ -19,6 +19,7 @@ import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
 import ProjectsGrid from './ProjectsGrid';
+import SectionHeader from './SectionHeader';
 
 export default function ProjectsPageBody() {
   const { d } = useI18n();
@@ -26,16 +27,7 @@ export default function ProjectsPageBody() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-10 pb-16 sm:pt-14">
-      <motion.h1
-        {...reveal(0)}
-        className="text-2xl font-black tracking-tight text-foreground sm:text-3xl"
-      >
-        {d.projects.title}
-      </motion.h1>
-
-      <motion.p {...reveal(0.06)} className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        {d.projects.lead}
-      </motion.p>
+      <SectionHeader as="h1" title={d.projects.title} lead={d.projects.lead} />
 
       {site.projects.length === 0 ? (
         /* 空态：和首页那块同一套写法，说清「这里还空着」而不是留一个破洞 */

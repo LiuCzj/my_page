@@ -28,6 +28,7 @@ import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
 import type { NoteMeta } from '@/lib/notes';
+import SectionHeader from './SectionHeader';
 
 interface NotesListProps {
   notes: NoteMeta[];
@@ -38,30 +39,26 @@ interface NotesListProps {
   headingLevel?: 1 | 2;
   /** 传了就渲染「查看全部笔记」入口，指向它 */
   viewAllHref?: string;
+  /**
+   * 章节编号（如 "02"）。首页的笔记摘要是第二章，传 "02"；
+   * /notes 独立页只有一节，不传即不渲染编号。
+   */
+  index?: string;
 }
 
-export default function NotesList({ notes, headingLevel = 2, viewAllHref }: NotesListProps) {
+export default function NotesList({ notes, headingLevel = 2, viewAllHref, index }: NotesListProps) {
   const { d, fill } = useI18n();
   const reveal = useReveal();
 
-  /** 两种标题级的样式一样，只是标签不同 */
-  const headingClass = 'text-2xl font-black tracking-tight text-foreground sm:text-3xl';
-
   return (
     <section aria-labelledby="notes-title">
-      {headingLevel === 1 ? (
-        <motion.h1 {...reveal(0)} id="notes-title" className={headingClass}>
-          {d.notes.title}
-        </motion.h1>
-      ) : (
-        <motion.h2 {...reveal(0)} id="notes-title" className={headingClass}>
-          {d.notes.title}
-        </motion.h2>
-      )}
-
-      <motion.p {...reveal(0.06)} className="mt-2 text-sm leading-relaxed text-muted-foreground">
-        {d.notes.lead}
-      </motion.p>
+      <SectionHeader
+        as={headingLevel === 1 ? 'h1' : 'h2'}
+        index={index}
+        id="notes-title"
+        title={d.notes.title}
+        lead={d.notes.lead}
+      />
 
       {notes.length === 0 ? (
         /* 空态：明确说「这里还空着」并给出下一步，而不是留一个看起来坏掉的洞 */
@@ -125,7 +122,7 @@ export default function NotesList({ notes, headingLevel = 2, viewAllHref }: Note
             <motion.div {...reveal(0.12)} className="mt-4">
               <Link
                 href={viewAllHref}
-                className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-accent no-underline transition-opacity hover:opacity-80"
+                className="link-underline inline-flex min-h-[44px] items-center gap-1.5 text-sm font-semibold text-accent"
               >
                 {d.notes.viewAll}
                 <ArrowRight size={15} aria-hidden="true" />

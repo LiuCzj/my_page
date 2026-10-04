@@ -69,7 +69,7 @@ export default function Home() {
 
           {/* 笔记摘要。mt-6 + 上面那条 40px 的线，合起来还是原来 mt-12 的呼吸量 */}
           <div className="mt-6">
-            <NotesList notes={notes} headingLevel={2} viewAllHref="/notes" />
+            <NotesList notes={notes} headingLevel={2} viewAllHref="/notes" index="02" />
           </div>
         </div>
       </ChatInset>

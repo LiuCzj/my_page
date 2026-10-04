@@ -242,7 +242,7 @@ export default function TerminalCard({ className }: { className?: string }) {
         // aria-label 用字典里的 aria 文案，读屏拿到的是「这是什么、点一下会怎样」，
         // 而不是把卡里那一堆命令和输出逐个念一遍。
         aria-label={d.terminal.aria}
-        className={`group/term block w-full cursor-pointer overflow-hidden rounded-xl border border-border bg-card text-left shadow-sm transition-colors duration-200 hover:border-accent/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${className ?? ''}`}
+        className={`card card-hoverable group/term block w-full cursor-pointer overflow-hidden text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${className ?? ''}`}
       >
         {/* ── 窗口标题栏 ── */}
         <span className="flex items-center gap-2.5 border-b border-border bg-secondary/60 px-3.5 py-2.5">

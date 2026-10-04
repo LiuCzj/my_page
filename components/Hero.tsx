@@ -81,16 +81,29 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* ② 问候行
-            mt-6 而不是 mt-8：手机上首屏是竖排一整条，这里省下的 8px 留给下面的角色。
-            sm 以上回到 32px，标题和头像之间要有足够的呼吸。 */}
+        {/* ①.5 状态徽章（2026-10-04 新增）。
+            参考 shivypatel.com 的「Available」：先用一句话交代「这个人现在接不接洽」，
+            比堆自我介绍更能让人决定要不要往下聊。
+            青绿点是辅助色 --accent-2 目前唯一的用处，见 globals.css 的说明。 */}
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.02, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-6 inline-flex items-center gap-2 rounded-full border border-border/70 bg-secondary/40 px-3 py-1 text-xs font-semibold text-muted-foreground sm:mt-8"
+        >
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-accent-2" />
+          {d.hero.status}
+        </motion.div>
+
+        {/* ② 问候行。
+            徽章已经撑开了头像与标题之间的留白，这里收到 mt-3 即可。 */}
         {/*
           手机端字号从 text-4xl 收到 text-3xl：2026-10-03 用 390px 视口截图实测，
           「你好，我是 锦创AI」在 36px 下约 396px 宽，超过视口减去左右内边距后的 358px，
           名字最后一个字母被右边缘切掉。30px 下约 330px，放得下。
           桌面端保持 text-6xl —— 那里有足够宽度。
         */}
-        <h1 className="mt-6 text-3xl leading-[1.25] tracking-tight text-foreground sm:mt-8 sm:text-6xl sm:leading-[1.15]">
+        <h1 className="mt-3 text-3xl leading-[1.25] tracking-tight text-foreground sm:mt-4 sm:text-6xl sm:leading-[1.15]">
           {/* 前缀先落位（0.05s 起），名字随后逐字入场（0.14s 起）——
               前缀抢在名字前面 0.09 秒，读起来是「先听到招呼，再看见署名」，
               而不是两件事同时拍在脸上。 */}
@@ -107,7 +120,7 @@ export default function Hero() {
         </h1>
 
         {/* ③ 一句话 */}
-        <p className="mt-4 max-w-lg text-lg leading-relaxed text-muted-foreground sm:text-2xl">
+        <p className="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-xl">
           {d.hero.bio}
         </p>
 
