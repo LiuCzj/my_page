@@ -8,6 +8,10 @@
  * 只是条数不同。样式写在两处早晚会漂移（改了一边忘了另一边），
  * 所以卡片本身只写一遍，两处都用它。
  *
+ * 【数据从哪来】项目存在数据库里，由服务端组件读好当 props 传进来。
+ * 本文件是客户端组件，`import type` 进来的 ProjectRecord 编译后会被完全擦除，
+ * 不会把 better-sqlite3 带进浏览器包。
+ *
  * 【卡片为什么整张可点，而不是「标题是链接、其他地方不是」】
  * 和笔记列表同一个理由：手机上没有悬停，只有标题那几个字能点的话手指要瞄得很准。
  * 整张卡可点之后，点哪儿都行，且卡片高度天然超过 44px。
@@ -18,65 +22,55 @@
  * target="_blank" 必须配 rel="noopener noreferrer"：
  * 只写 target 的话，被打开的页面能通过 window.opener 反向操控本站标签页。
  *
- * 【绝不要给卡片写 transition-all】
- * 入场动画由 framer-motion 每帧写内联 transform。transition-all 会让 CSS
- * 去补间那些 transform，滚动入场会被拖出残影。
- * 卡面样式走 globals.css 的 .card / .card-hoverable（那里也只过渡指定属性）。
+ * 【管理员的编辑/删除按钮为什么放在卡片外面】
+ * 卡片本身是一个 <a>。把 <button> 塞进 <a> 里是非法嵌套（交互元素套交互元素），
+ * 点击行为在各浏览器上表现不一致。所以按钮放在 <a> 的**兄弟位置**，排在卡片下方。
  */
 
 import { motion } from 'framer-motion';
-import { ArrowUpRight } from 'lucide-react';
-import { site } from '@/config/site';
+import { ArrowUpRight, Pencil, Trash2 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
 import { useScrollCard } from '@/lib/use-scroll-fx';
+import type { ProjectRecord } from '@/lib/content';
 
-/**
- * 单张项目卡。
- *
- * 【为什么抽成组件】两张特效各需要一个 hook，而 hook 不能在 map 里调用
- * —— 所以每张卡必须是自己的组件，不能把特效直接写进下面的 map。
- *
- * 【三条动画为什么分挂在两个元素上】
- * - li  ：入场位移（useReveal 写 transform）
- * - a   ：视差位移（随滚动上下 8px）
- * 各占一个元素，因为两条都是 transform，挂一处会互相覆盖。
- * 高光那层只写 opacity，挂哪儿都不冲突，就放在 a 里。
- *
- * 【视差为什么只给卡片、不给磁贴】
- * 磁贴（Dashboard 的 Tile）是 overflow-hidden 的，卡片内容一旦位移就会在边缘露出缝；
- * 项目卡没有裁切，位移只会让相邻两张卡之间错开一点，正是想要的手感。
- *
- * 【编号（2026-10-04 新增）】
- * 参考 huyml.co 那类获奖作品集：给每件作品一个 01 / 02 / 03 的序号。
- * 它补上了卡片原来缺的「视觉锚点」—— 没有封面图时，一个等宽编号 + 一行标题
- * 就是这张卡的眼睛，也让卡片之间有了一种「清单」的秩序感。
- * index 从父组件传进来，而不是在卡里自增，因为两张卡分属两个 li、没有共享状态。
- */
+/** 管理员操作按钮的统一外观（小、轻、不抢卡片） */
+const ACTION =
+  'inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground';
+
 function ProjectCard({
   project,
   delay,
   index,
+  onEdit,
+  onDelete,
 }: {
-  project: (typeof site.projects)[number];
+  project: ProjectRecord;
   delay: number;
   index: number;
+  onEdit?: (p: ProjectRecord) => void;
+  onDelete?: (p: ProjectRecord) => void;
 }) {
   const { pick } = useI18n();
   const reveal = useReveal();
   const { ref, focus, y } = useScrollCard<HTMLLIElement>(8);
 
   return (
-    <motion.li ref={ref} {...reveal(delay)}>
+    /*
+      【布局】li 是 flex 列：卡片 flex-1 撑满，管理员按钮排在下面。
+      踩过的坑：原来卡片写 h-full、按钮直接跟在后面，于是卡片先占满整个格子高度、
+      按钮再往下挤出去，压到了下一行的卡片上（用户实测反馈）。
+      改成「li 定高、卡片 flex-1」，按钮自然待在格子内。
+    */
+    <motion.li ref={ref} {...reveal(delay)} className="flex flex-col">
       <motion.a
         href={project.url}
         target="_blank"
         rel="noopener noreferrer"
         style={{ y }}
-        className="card card-hoverable group relative flex h-full flex-col p-4 sm:p-5"
+        className="card card-hoverable group relative flex flex-1 flex-col p-4 sm:p-5"
       >
-        {/* 焦点接力高光：这张卡离视口中心越近越亮，见 lib/use-scroll-fx.ts。
-            同一行两张卡的进度不同，往下滚时高光在卡片之间依次传递 */}
+        {/* 焦点接力高光：这张卡离视口中心越近越亮，见 lib/use-scroll-fx.ts */}
         <motion.span
           aria-hidden="true"
           style={{
@@ -92,8 +86,6 @@ function ProjectCard({
           <span className="font-mono text-xs font-bold tracking-[0.2em] text-muted-foreground/60">
             {String(index + 1).padStart(2, '0')}
           </span>
-          {/* 箭头悬停时向右上「推出去」一点，暗示「点了会跳走」；
-              颜色同时转 accent，和标题的变化对齐 */}
           <ArrowUpRight
             size={17}
             className="shrink-0 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent motion-reduce:transition-none"
@@ -130,15 +122,48 @@ function ProjectCard({
           </span>
         )}
       </motion.a>
+
+      {/* 管理员操作。只有传了回调才渲染 —— 访客的 DOM 里根本不会有这两个按钮 */}
+      {(onEdit || onDelete) && (
+        <div className="mt-2 flex gap-2">
+          {onEdit && (
+            <button type="button" onClick={() => onEdit(project)} className={ACTION}>
+              <Pencil size={13} aria-hidden="true" />
+              编辑
+            </button>
+          )}
+          {onDelete && (
+            <button type="button" onClick={() => onDelete(project)} className={ACTION}>
+              <Trash2 size={13} aria-hidden="true" />
+              删除
+            </button>
+          )}
+        </div>
+      )}
     </motion.li>
   );
 }
 
-export default function ProjectsGrid({ items }: { items: typeof site.projects }) {
+export default function ProjectsGrid({
+  items,
+  onEdit,
+  onDelete,
+}: {
+  items: ProjectRecord[];
+  onEdit?: (p: ProjectRecord) => void;
+  onDelete?: (p: ProjectRecord) => void;
+}) {
   return (
     <ul className="grid gap-3 sm:grid-cols-2 sm:gap-4">
       {items.map((p, i) => (
-        <ProjectCard key={p.slug} project={p} delay={0.06 * (i + 1)} index={i} />
+        <ProjectCard
+          key={p.slug}
+          project={p}
+          delay={0.06 * (i + 1)}
+          index={i}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ))}
     </ul>
   );

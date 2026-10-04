@@ -28,14 +28,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
+import { useAuth, type AuthUser } from '@/lib/auth-context';
 
-/** 当前用户（与 lib/auth.ts 的 PublicUser 对应） */
-interface CurrentUser {
-  id: number;
-  email: string;
-  displayName: string;
-  emailVerified: boolean;
-}
+/**
+ * 当前用户。直接复用全局登录态里的类型（lib/auth-context.ts 的 AuthUser），
+ * 不再本地重复定义一份 —— 两边字段一旦不同步，赋值处就会莫名报类型错。
+ */
+type CurrentUser = AuthUser;
 
 /** 一条评论 */
 interface Comment {
@@ -93,8 +92,16 @@ function relativeTime(ts: number, lang: string): string {
 export default function CommentSection({ slug }: CommentSectionProps) {
   const { d, lang } = useI18n();
 
-  /** undefined = 还在查登录态；null = 确定未登录 */
-  const [user, setUser] = useState<CurrentUser | null | undefined>(undefined);
+  /**
+   * 登录态来自全局 AuthProvider（顶栏的账号入口与这里共用同一份）。
+   *
+   * 【为什么不再自己 fetch /api/auth/me】改造前只有评论区用登录态，各存一份没问题；
+   * 现在顶栏也要用。两边各存一份的话，从顶栏登录之后评论区仍是「未登录」，
+   * 得刷新整页才同步 —— 那是典型的「两个真相来源」bug。
+   *
+   * undefined = 还在查；null = 确定未登录。
+   */
+  const { user, setUser } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loadingList, setLoadingList] = useState(true);
 
@@ -146,24 +153,12 @@ export default function CommentSection({ slug }: CommentSectionProps) {
     }
   }, [slug, d]);
 
-  /** 首次挂载：并行查登录态和评论列表 */
+  /**
+   * 首次挂载只拉评论列表 —— 登录态由全局 AuthProvider 负责（见上面的说明），
+   * 这里不再自己查一次 /api/auth/me（否则每进一篇笔记就多打一次无用请求）。
+   */
   useEffect(() => {
-    let alive = true;
-
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/me', { cache: 'no-store' });
-        const data = await res.json();
-        if (alive) setUser((data.user as CurrentUser | null) ?? null);
-      } catch {
-        if (alive) setUser(null);
-      }
-    })();
-
     loadComments();
-    return () => {
-      alive = false;
-    };
   }, [loadComments]);
 
   /**
@@ -276,35 +271,11 @@ export default function CommentSection({ slug }: CommentSectionProps) {
     }
   };
 
-  /** 注销账号（不可逆，先让用户输入确认） */
-  const doDeleteAccount = async () => {
-    if (busy) return;
-
-    // 双重确认：这是不可逆操作，一次 confirm 太容易误触
-    if (!window.confirm(d.comments.confirmDeleteAccount)) return;
-
-    setBusy('delete');
-    setNotice(null);
-    try {
-      const res = await fetch('/api/auth/account', { method: 'DELETE' });
-      const data = await res.json();
-
-      if (!data.ok) {
-        setNotice({ kind: 'err', text: errText(data.code) });
-        return;
-      }
-
-      // 账号没了，本地的评论列表也要刷新（自己那些评论已被级联删除）
-      setUser(null);
-      setReplyTo(null);
-      setNotice({ kind: 'ok', text: d.comments.accountDeleted });
-      await loadComments();
-    } catch {
-      setNotice({ kind: 'err', text: d.comments.errors.network });
-    } finally {
-      setBusy(null);
-    }
-  };
+  /*
+    注销账号的入口已搬到顶栏的账号菜单（components/AuthMenu.tsx → DeleteAccountPanel）。
+    理由：它是**账号级**操作，不该挂在某一篇笔记的评论区下面；而且新流程要「先收邮箱验证码」，
+    和这里「发评论」的上下文没有关系。
+  */
 
   /** 发表评论或回复 */
   const submitComment = async (e: React.FormEvent) => {
@@ -605,14 +576,6 @@ export default function CommentSection({ slug }: CommentSectionProps) {
               <button type="button" onClick={doLogout} disabled={busy === 'auth'} className={linkBtnCls}>
                 {d.comments.doLogout}
               </button>
-              <button
-                type="button"
-                onClick={doDeleteAccount}
-                disabled={busy === 'delete'}
-                className="cursor-pointer text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-red-500 hover:underline disabled:opacity-50"
-              >
-                {d.comments.deleteAccount}
-              </button>
             </div>
           </div>
         ) : (
@@ -632,14 +595,6 @@ export default function CommentSection({ slug }: CommentSectionProps) {
                 )}
                 <button type="button" onClick={doLogout} disabled={busy === 'auth'} className={linkBtnCls}>
                   {d.comments.doLogout}
-                </button>
-                <button
-                  type="button"
-                  onClick={doDeleteAccount}
-                  disabled={busy === 'delete'}
-                  className="cursor-pointer text-xs font-semibold text-muted-foreground underline-offset-2 hover:text-red-500 hover:underline disabled:opacity-50"
-                >
-                  {d.comments.deleteAccount}
                 </button>
               </span>
             </div>

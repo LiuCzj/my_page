@@ -1,13 +1,17 @@
 'use client';
 
 /**
- * 首页的「项目」区块 —— 现在是**摘要**，不是全量列表。
+ * 首页的「项目」区块 —— 是**摘要**，不是全量列表。
  *
  * 【为什么改成摘要】
  * 项目多起来之后，首页把每一条都铺开会把页面拉得很长，
  * 而首页的职责是「让人快速知道你是谁、在做什么」，不是当索引。
  * 所以这里只放前 N 条（N 见 config/site.ts 的 homePreview），
  * 剩下的交给 /projects 页；条数超出时才出现「查看全部项目」。
+ *
+ * 【数据从哪来】改造后项目存在数据库里，由服务端组件（app/page.tsx）读好当 props 传进来。
+ * 这个文件是客户端组件，**不能**直接 import lib/content.ts —— 那边依赖 better-sqlite3（原生模块），
+ * 进了浏览器包会直接构建失败。所以类型用 `import type`（编译后会被完全擦除）。
  *
  * 【为什么条数不超过 N 时不显示入口】
  * 只有 2 条项目却挂一个「查看全部」，点进去看到的还是这 2 条 ——
@@ -24,13 +28,14 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { ArrowRight, FolderOpen } from 'lucide-react';
-import { site, homePreview } from '@/config/site';
+import { homePreview } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
+import type { ProjectRecord } from '@/lib/content';
 import ProjectsGrid from './ProjectsGrid';
 import SectionHeader from './SectionHeader';
 
-export default function Projects() {
+export default function Projects({ projects }: { projects: ProjectRecord[] }) {
   const { d } = useI18n();
   const reveal = useReveal();
 
@@ -39,11 +44,11 @@ export default function Projects() {
    * 这样即使没有一条标 featured，首页也不会空着 —— 会按原顺序取前几条。
    */
   const shown = [
-    ...site.projects.filter((p) => p.featured),
-    ...site.projects.filter((p) => !p.featured),
+    ...projects.filter((p) => p.featured),
+    ...projects.filter((p) => !p.featured),
   ].slice(0, homePreview.projects);
 
-  const hasMore = site.projects.length > shown.length;
+  const hasMore = projects.length > shown.length;
 
   return (
     <section

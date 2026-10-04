@@ -34,6 +34,7 @@ import LanguageToggle from './LanguageToggle';
 import SocialLinks from './SocialLinks';
 import ContactModal, { type ContactModalVariant } from './ContactModal';
 import MobileNavDrawer from './MobileNavDrawer';
+import AuthMenu from './AuthMenu';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
 import { site } from '@/config/site';
@@ -146,6 +147,8 @@ export default function Navbar() {
                 <SocialLinks size={18} onOpenModal={setModal} />
               </div>
               <span className="mx-1 hidden h-6 w-px bg-border lg:block" aria-hidden="true" />
+              {/* 账号入口：登录/昵称，放在语言、主题旁边 —— 网页里最常见的位置 */}
+              <AuthMenu />
               <LanguageToggle />
               <ThemeToggle />
               <button

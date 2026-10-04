@@ -1,22 +1,22 @@
 /**
- * 注册：建账号 + 发验证邮件。
+ * 注册：校验邮箱验证码 → 建账号（直接是已激活）→ 直接登录。
  *
- * 【注册成功 ≠ 能评论】这个接口只负责把账号建出来并寄出验证信，
- * 用户必须点开邮件里的链接（app/api/auth/verify/route.ts）才被标记为已激活。
- * 未激活的账号登录后可以看到评论框，但提交会被拒绝并提示去验证邮箱。
+ * 【2026-10-04 流程改造】原来是「建账号 + 发验证链接 + 点链接才激活」。
+ * 现在改成常见网站的流程：先调 /api/auth/send-code 拿 6 位码，
+ * 再把「邮箱 + 码 + 密码 + 确认密码 + 昵称」一起提交到这里。
+ * 码本身已经证明了邮箱归属，所以建出来的账号 **email_verified = 1**，
+ * 不再需要点链接那一步（verify 路由保留，给历史未激活账号用）。
  *
- * 【为什么错误码要这么细】
- * 前端要把这些码翻译成当前语言（中/英）显示。直接回一句英文报错糊在中文界面上，
- * 用户看不懂，也定位不到问题。细分的码还有一个作用：把「邮箱已被注册」
- * 和「这是临时邮箱」区分开 —— 两者的用户提示完全不同。
+ * 【为什么错误码要这么细】前端要把这些码翻成当前语言显示。
+ * 细分的码能把「邮箱已注册」「昵称被占」「验证码错了」「验证码过期」分开 ——
+ * 这几种情况用户该做的事完全不同，混成一句「注册失败」等于没说。
  */
 
 import { NextResponse } from 'next/server';
-import { randomBytes } from 'node:crypto';
 import { getDb } from '@/lib/db';
 import { hashPassword, createSession, toPublicUser, type UserRow } from '@/lib/auth';
 import { canReceiveMail, isDisposableEmail, isEmailShapeOk } from '@/lib/email-guard';
-import { buildVerifyUrl, isMailConfigured, sendVerificationEmail } from '@/lib/mailer';
+import { verifyCode, consumeCode } from '@/lib/codes';
 
 /** Node 运行时：要用 node:crypto / node:dns / better-sqlite3，都不能跑在 Edge 上 */
 export const runtime = 'nodejs';
@@ -27,10 +27,6 @@ const MIN_PASSWORD_LEN = 8;
 /** 昵称长度范围 */
 const NAME_MIN = 1;
 const NAME_MAX = 24;
-/*
- * 验证 token 的 24 小时有效期判断放在 app/api/auth/verify/route.ts 里做 ——
- * 只有那一处会读 token，在这里再定义一份只会变成两处需要同步的常量。
- */
 
 /** 注册接口的错误码 */
 export type RegisterErrorCode =
@@ -39,22 +35,20 @@ export type RegisterErrorCode =
   | 'disposable_email'
   | 'undeliverable_email'
   | 'weak_password'
+  | 'password_mismatch'
   | 'invalid_name'
+  | 'invalid_code'
+  | 'expired_code'
+  | 'too_many_attempts'
   | 'email_taken'
   | 'name_taken'
-  | 'mail_not_configured'
-  | 'mail_failed'
   | 'rate_limited';
 
 /**
  * 极简限流：同一 IP 十分钟内最多注册 5 次。
  *
- * 【为什么注册也要限流】不限的话，脚本可以拿一份邮箱列表批量注册，
- * 每次都会触发一封验证邮件 —— 你的 SMTP 账号会被当成垃圾邮件源，
- * 轻则进黑名单，重则被服务商停用。
- *
- * 【已知边界】计数在进程内存里，重启清零；多实例部署时各算各的。
- * 个人站单进程部署够用，要更严就换 Redis。
+ * 【为什么注册也要限流】不限的话，脚本可以拿一份邮箱列表批量注册。
+ * 个人站单进程部署够用；要更严就换 Redis。
  */
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_ALLOW = 5;
@@ -81,7 +75,7 @@ function rateLimited(ip: string): boolean {
 /**
  * 处理注册请求。
  *
- * @param request 请求体 JSON：{ email, displayName, password }
+ * @param request 请求体 JSON：{ email, code, password, confirmPassword, displayName }
  * @returns 成功 { ok: true, user }；失败 { ok: false, code }
  */
 export async function POST(request: Request): Promise<NextResponse> {
@@ -96,7 +90,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   if (rateLimited(ip)) return fail('rate_limited', 429);
 
-  let body: { email?: string; displayName?: string; password?: string };
+  let body: {
+    email?: string;
+    code?: string;
+    password?: string;
+    confirmPassword?: string;
+    displayName?: string;
+  };
   try {
     body = await request.json();
   } catch {
@@ -104,8 +104,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const email = (body.email ?? '').trim().toLowerCase();
-  const displayName = (body.displayName ?? '').trim();
+  const code = (body.code ?? '').trim();
   const password = body.password ?? '';
+  const confirmPassword = body.confirmPassword ?? '';
+  const displayName = (body.displayName ?? '').trim();
 
   if (!isEmailShapeOk(email)) return fail('invalid_email');
 
@@ -116,16 +118,10 @@ export async function POST(request: Request): Promise<NextResponse> {
   if (!(await canReceiveMail(email))) return fail('undeliverable_email');
 
   if (password.length < MIN_PASSWORD_LEN) return fail('weak_password');
+  // 两次密码必须一致 —— 这是防「手滑打错一个字符，之后再也登不上」
+  if (password !== confirmPassword) return fail('password_mismatch');
   if (displayName.length < NAME_MIN || displayName.length > NAME_MAX) return fail('invalid_name');
-
-  /*
-    SMTP 检查放在所有输入校验**之后**。
-
-    顺序是有讲究的：用户填了临时邮箱时，应该立刻被告知「这个邮箱不行」，
-    而不是先被一句「服务端没配邮件服务」挡住 —— 后者会让他以为是自己填错了，
-    去改一个本来就没问题的邮箱。先判输入、再判服务端能力，报错才对得上用户刚做的事。
-  */
-  if (!isMailConfigured()) return fail('mail_not_configured', 503);
+  if (!/^\d{6}$/.test(code)) return fail('invalid_code');
 
   const db = getDb();
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
@@ -135,68 +131,51 @@ export async function POST(request: Request): Promise<NextResponse> {
     昵称唯一。用 COLLATE NOCASE 让 "Tom" 和 "tom" 算同一个 —— 否则评论区里
     会出现两个肉眼分不清的昵称，读者根本认不出谁是谁。
 
-    这里提前查一次是为了给出**准确的错误码**（name_taken 而不是笼统的失败）。
-    真正的保证来自 lib/db.ts 里的唯一索引：并发下两个请求可能同时通过这次查询，
-    那时由索引兜底 —— 所以下面 INSERT 的 catch 里要能区分是邮箱冲突还是昵称冲突。
+    这里提前查一次是为了给出**准确的错误码**。真正的保证来自 lib/db.ts 的唯一索引：
+    并发下两个请求可能同时通过这次查询，那时由索引兜底（见下面的 catch）。
   */
   const nameTaken = db
     .prepare('SELECT id FROM users WHERE display_name = ? COLLATE NOCASE')
     .get(displayName);
   if (nameTaken) return fail('name_taken', 409);
 
-  // 验证 token：24 小时有效，明文只在邮件里出现，入库存哈希
-  const verifyToken = randomBytes(32).toString('base64url');
-  const now = Date.now();
+  /*
+    校验验证码。
 
+    【为什么放在最后】验证码是「用户刚去邮箱抄回来的东西」，前面那些（邮箱格式、
+    临时邮箱、密码强度、昵称）都是他手上就能改的。先报那些，用户一轮就能改完；
+    先报验证码的话，他改完密码还得再输一遍码（而码可能已经过期了）。
+  */
+  const verdict = verifyCode(email, 'register', code);
+  if (verdict === 'expired') return fail('expired_code');
+  if (verdict === 'too_many') return fail('too_many_attempts');
+  if (verdict !== 'ok') return fail('invalid_code');
+
+  const now = Date.now();
   let userId: number;
   try {
+    // 码已证明邮箱归属 → 直接建成已激活
     const info = db
       .prepare(
-        `INSERT INTO users (email, display_name, password_hash, email_verified, verify_token, verify_sent_at, created_at)
-         VALUES (?, ?, ?, 0, ?, ?, ?)`,
+        `INSERT INTO users (email, display_name, password_hash, email_verified, created_at)
+         VALUES (?, ?, ?, 1, ?)`,
       )
-      .run(email, displayName, hashPassword(password), verifyToken, now, now);
+      .run(email, displayName, hashPassword(password), now);
     userId = Number(info.lastInsertRowid);
   } catch (err) {
     /*
       唯一索引兜底：并发下两个请求可能同时通过了上面那两次查询。
-
-      靠错误信息里提到的索引名来区分是邮箱冲突还是昵称冲突 ——
-      两者对用户的提示完全不同（「换个邮箱」 vs 「换个昵称」），混为一谈会让用户
-      改错字段，反复提交同一个错误。
+      靠错误信息里提到的索引名区分是邮箱冲突还是昵称冲突 —— 两者对用户的提示完全不同。
     */
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('idx_users_name')) return fail('name_taken', 409);
     return fail('email_taken', 409);
   }
 
-  // 拼验证链接时用请求自身的 origin 兜底，本地开发不配 SITE_URL 也能点开
-  const origin = new URL(request.url).origin;
-  const verifyUrl = buildVerifyUrl(origin, verifyToken);
+  // 码用完即弃：同一枚码不该能注册第二个账号
+  consumeCode(email, 'register');
 
-  try {
-    const sent = await sendVerificationEmail(email, verifyUrl, displayName);
-    if (!sent) return fail('mail_not_configured', 503);
-  } catch (err) {
-    // 信发不出去就把刚建的账号删掉 —— 留着一个收不到验证信的账号只会让用户困惑
-    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
-
-    /*
-      把真实原因写进服务端日志。
-
-      前端只能看到「确认邮件没发出去」这一句 —— 这是对的，不该把 SMTP 的原始报错
-      （可能含服务器地址、账号）暴露给访客。但**服务端必须留痕**：
-      没有这行日志，运维只能看到一个笼统的失败，无从判断是密码错、端口被防火墙封了、
-      还是被服务商的反垃圾策略拒了。
-      2026-10-03 排查时就是因为这里把错误吞了，只能另写脚本单独测 SMTP 才定位到问题。
-    */
-    const detail = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
-    console.error('[register] 验证邮件发送失败 →', detail);
-
-    return fail('mail_failed', 502);
-  }
-
-  // 注册即登录（但未验证）：这样用户点完邮件回来，页面已经是登录态
+  // 注册即登录：省掉「注册完还得再登一次」
   await createSession(userId);
 
   const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;

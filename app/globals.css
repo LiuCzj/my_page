@@ -841,6 +841,39 @@
  * 如果让单元格折行，一张四列表格在 375px 下会挤成每格两个字，
  * 反而更读不出来。
  */
+/*
+ * 表格外层滚动容器：由 lib/markdown.ts 的 rehype 插件给每个 <table> 包上。
+ * 单元格是 nowrap 的，宽表格必须靠这一层横向滚动，否则会把整页撑宽
+ * （改造前这一步由 mdx-components.tsx 做，现在内容改成运行时渲染，挪到这里）。
+ */
+.prose-site .table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/*
+ * ==高亮== 的落点 —— lib/markdown.ts 里的 rehype 插件把 ==...== 换成了 <mark>。
+ * 用 accent 的淡化底色而不是浏览器默认的荧光黄：荧光黄在深色模式下刺眼，
+ * 而且和站里唯一的强调色打架。
+ */
+.prose-site mark {
+  background-color: hsl(var(--accent) / 0.22);
+  color: inherit;
+  border-radius: 0.2em;
+  padding: 0 0.15em;
+}
+
+/*
+ * 块级公式 $$...$$ 渲染成 .katex-display。公式可能很宽，手机或窄屏上必须允许水平滚动，
+ * 否则会撑破页面宽度、把整页顶出横向滚动条。KaTeX 自带样式已给 display 块设置了一定处理，
+ * 这里再兜底一次：横向可滚、纵向裁掉，并留出一点上下间距。
+ */
+.prose-site .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.3em;
+}
+
 .prose-site table {
   border-collapse: collapse;
   width: 100%;

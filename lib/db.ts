@@ -23,6 +23,7 @@
 import Database from 'better-sqlite3';
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { seedContent } from './seed';
 
 /** 模块级单例连接 */
 let instance: Database.Database | null = null;
@@ -52,8 +53,8 @@ function ensureColumn(d: Database.Database, table: string, column: string, defin
  * 三张表：
  *   users      —— 注册用户。email_verified 为 0 时不能发评论，这是挡临时邮箱的最后一关。
  *   sessions   —— 登录态。存库而不是只靠签名 cookie，好处是可以主动吊销（登出即删行）。
- *   comments   —— 评论。note_slug 直接存笔记文件名，不建外键到文件系统
- *                 （笔记是 .mdx 文件，不是数据库记录，没有可引用的主键）。
+ *   comments   —— 评论。note_slug 直接存笔记短名，不建外键到 notes 表
+ *                 （评论先于「笔记入库」这个改动存在，历史数据里可能还有指向已删笔记的行）。
  *
  * @param d 已打开的连接
  */
@@ -120,8 +121,68 @@ function migrate(d: Database.Database): void {
       err instanceof Error ? err.message : err,
     );
   }
-}
 
+  /*
+    ── 2026-10-04 新增：可在线编辑的内容 ──────────────────────────────
+    「项目」「笔记」原来分别是 config/site.ts 里的常量、和 content/notes 下的 .mdx 文件，
+    都是**构建期静态**内容 —— 网页上改不了。要让站长能在网页里编辑，
+    就必须把它们从「构建期静态」搬到「运行时数据库」。
+
+    两张表都是「一条内容一行」的形态，正文整段存原文，读的时候整行取出来用。
+      tags / stack 存 JSON 数组字符串（如 '["AI","SSE"]'）：它们只用于展示与搜索匹配，
+      不需要按元素查询，所以不值得单开关联表。
+
+    updated_at 用于「最后修改时间」的展示与排序兜底。
+  */
+  d.exec(`
+    CREATE TABLE IF NOT EXISTS notes (
+      slug       TEXT    PRIMARY KEY,
+      title      TEXT    NOT NULL,
+      date       TEXT    NOT NULL,
+      summary    TEXT    NOT NULL,
+      tags       TEXT    NOT NULL DEFAULT '[]',
+      draft      INTEGER NOT NULL DEFAULT 0,
+      body       TEXT    NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS projects (
+      slug       TEXT    PRIMARY KEY,
+      title_zh   TEXT    NOT NULL,
+      title_en   TEXT    NOT NULL DEFAULT '',
+      summary_zh TEXT    NOT NULL,
+      summary_en TEXT    NOT NULL DEFAULT '',
+      url        TEXT    NOT NULL DEFAULT '',
+      stack      TEXT    NOT NULL DEFAULT '[]',
+      date       TEXT,
+      featured   INTEGER NOT NULL DEFAULT 0,
+      sort       INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
+
+    /*
+      ── 2026-10-04 新增：邮箱验证码 ────────────────────────────────
+      注册与注销都要「往邮箱发一个 6 位码、填回来确认」。码存哈希不存明文 ——
+      和 session token 一个道理：库万一泄漏，拿到哈希也反推不出可用的码。
+      主键是 (email, purpose)：一个邮箱在同一个用途下**同时只有一个有效码**，
+      重发就覆盖旧的，不会留下一堆还能用的历史码。
+
+      attempts 用来限制暴力尝试次数（6 位数字只有 100 万种，不限制的话脚本能刷穿）。
+    */
+    CREATE TABLE IF NOT EXISTS email_codes (
+      email      TEXT    NOT NULL,
+      purpose    TEXT    NOT NULL,
+      code_hash  TEXT    NOT NULL,
+      expires_at INTEGER NOT NULL,
+      attempts   INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (email, purpose)
+    );
+  `);
+
+  // 首次启动（两张表都还空着）时，把仓库里现有的静态内容灌进去，保证一篇不丢。
+  seedContent(d);
+}
 /**
  * 取数据库连接（首次调用时打开并建表）。
  *

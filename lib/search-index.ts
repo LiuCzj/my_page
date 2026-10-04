@@ -2,15 +2,15 @@
  * 站内搜索索引。
  *
  * 【它做什么】
- * 把散落在两处的站点内容拍平成一张「可搜索条目」表，供 components/SiteSearch.tsx
- * 直接过滤、分组、渲染。两处来源分别是：
- *   1. config/site.ts —— 项目 / 技术栈 / 工具 / 页面（纯数据，客户端可读）
- *   2. 笔记 —— 来自 content/notes 的 frontmatter，由服务端读好后当 props 传进来
+ * 把散落在各处的站点内容拍平成一张「可搜索条目」表，供 components/SiteSearch.tsx
+ * 直接过滤、分组、渲染。来源分别是：
+ *   1. config/site.ts —— 技术栈 / 工具 / 页面（纯数据，客户端可读）
+ *   2. 项目与笔记 —— 存在 SQLite 里（lib/content.ts），由服务端读好后当 props 传进来
  *
- * 【为什么笔记必须从外部传入，这个文件不 import lib/notes.ts】
- * lib/notes.ts 用 node:fs 读磁盘。它一旦被 'use client' 组件（或本文件）静态 import，
- * fs 就会被整个打进浏览器包，构建直接失败。所以笔记数据只能由服务端组件
- * （app/layout.tsx）读好后，以纯数据 props 传进搜索面板。本文件只认它被传进来的形状。
+ * 【为什么项目和笔记必须从外部传入，这个文件不自己去读】lib/content.ts 依赖 better-sqlite3。
+ * 它一旦被 'use client' 组件（或本文件）静态 import，原生模块会被打进浏览器包，构建直接失败。
+ * 所以数据只能由服务端组件（app/layout.tsx）读好后，以纯数据 props 传进搜索面板。
+ * 本文件只认它被传进来的形状。
  *
  * 【为什么每条的匹配文本里中英文都要有】
  * 站点数据里大量字段是 LocalizedText（{ zh, en }）。访客可能用中文关键词搜
@@ -40,7 +40,7 @@ export type SearchGroup = 'projects' | 'notes' | 'skills' | 'tools' | 'pages';
 /**
  * 一条笔记的最小可搜索形状。
  *
- * 【为什么不用 lib/notes.ts 的 NoteMeta】
+ * 【为什么不用 lib/content.ts 的 NoteMeta】
  * NoteMeta 多出 date / draft / readingMinutes 等搜索用不到的字段，而且引入它的类型
  * 会让 TypeScript 顺着 import 关系去解析 node:fs（即便只是 import type，
  * 也把「笔记来自文件系统」这件事耦合进来）。这里刻意只声明搜索真正要用的四个字段，
@@ -52,6 +52,22 @@ export interface SearchNote {
   title: string;
   summary: string;
   tags: string[];
+}
+
+/**
+ * 搜索索引里的一个项目。
+ *
+ * 【为什么单独定义而不是直接引 ProjectRecord】ProjectRecord 来自 lib/content.ts，
+ * 那边依赖 better-sqlite3。虽然 `import type` 会被编译擦除，但让一个客户端也会加载的
+ * 模块在源码上指向「服务端专属模块」是个隐患（以后有人不小心写成普通 import 就炸）。
+ * 这里用结构化的最小类型，lib/content.ts 的 ProjectRecord 天然满足它。
+ */
+export interface SearchProject {
+  slug: string;
+  title: LocalizedText;
+  summary: LocalizedText;
+  url: string;
+  stack: string[];
 }
 
 /** 拍平后的一条可搜索条目 */
@@ -144,23 +160,27 @@ function rank(entry: SearchEntry, query: string): number {
  * 把站点数据拍平成可搜索条目数组。
  *
  * 【参数】
- * @param notes 由服务端读好并传入的笔记元数据（本文件不读文件系统，见文件头说明）
- * @param lang  当前界面语言，决定每条 entry 的展示文案用中文还是英文
+ * @param notes    由服务端读好并传入的笔记元数据（本文件不碰数据库，见文件头说明）
+ * @param projects 同上：由服务端从数据库读好的项目列表
+ * @param lang     当前界面语言，决定每条 entry 的展示文案用中文还是英文
  *
  * 【返回】按 GROUP_ORDER 顺序排好的条目数组：项目 → 笔记 → 技术栈 → 工具 → 页面
  */
 export function buildSearchIndex({
   notes,
+  projects,
   lang,
 }: {
   notes: SearchNote[];
+  projects: SearchProject[];
   lang: Lang;
 }): SearchEntry[] {
   const entries: SearchEntry[] = [];
 
   // ── 项目 ────────────────────────────────────────────────
-  // 每个项目一条。链接指向 config 里的 url（本站目前都是 GitHub 仓库），属于站外。
-  for (const project of site.projects) {
+  // 每个项目一条。链接指向项目的 url（本站目前都是 GitHub 仓库），属于站外。
+  // 项目改造后存在数据库里，由服务端读好传进来 —— 不再从 config 直接取。
+  for (const project of projects) {
     entries.push({
       id: `project:${project.slug}`,
       group: 'projects',
@@ -175,7 +195,7 @@ export function buildSearchIndex({
   }
 
   // ── 笔记 ────────────────────────────────────────────────
-  // 笔记正文只有中文（见 lib/notes.ts 的说明），所以标题 / 摘要 / 标签直接进匹配文本。
+  // 笔记正文只有中文（见 lib/content.ts 的说明），所以标题 / 摘要 / 标签直接进匹配文本。
   // 站内链接，走 next/link。
   for (const note of notes) {
     entries.push({

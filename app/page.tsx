@@ -5,7 +5,7 @@ import Projects from '@/components/Projects';
 import NotesList from '@/components/NotesList';
 import ChatInset from '@/components/ChatInset';
 import { homePreview } from '@/config/site';
-import { getAllNotes } from '@/lib/notes';
+import { listNoteMetas, listProjects } from '@/lib/content';
 
 /**
  * 首页，从上到下五块可见内容：
@@ -13,30 +13,28 @@ import { getAllNotes } from '@/lib/notes';
  *   2   磁贴区（籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接） → Dashboard
  *   3   项目摘要（只放前几条，多的去 /projects）             → Projects
  *   4   笔记摘要（只放最近几篇，多的去 /notes）              → NotesList
- *   5   数字分身聊天窗                                      → DigitalTwinChat（fixed 悬浮面板，不进文档流）
+ *   5   数字分身聊天窗                                      → DigitalTwinChat（挂在 app/layout.tsx，所有页面可用）
  *
  * 【为什么这个文件是服务端组件，而且不能加 'use client'】
- * 笔记数据来自 content/notes 目录，靠 node:fs 读取（lib/notes.ts）。
- * 一旦这个文件变成客户端组件，fs 会被打进浏览器包并直接构建失败。
- * 需要客户端能力的那两块（NotesList 的字典、Projects 的交互）各自是客户端组件，
+ * 笔记与项目数据都在 SQLite 里，读取要用 better-sqlite3（原生模块）。
+ * 一旦这个文件变成客户端组件，原生模块会被打进浏览器包并直接构建失败。
+ * 需要客户端能力的那几块（NotesList 的字典、Projects 的交互）各自是客户端组件，
  * 由这里把数据当 props 传下去。
  *
- * 整页的底色和粒子网由 app/layout.tsx 那一层 fixed 画布负责，不属于这一页的内容，
- * 所以这里的区块不需要各自再铺背景图。
- *
- * config 里的 recentWork / expertise / interests 三份数据不在这一页上出现 ——
- * 它们是数字分身回答时引用的资料，不是页面内容。
- *
- * 聊天窗的开关状态由 app/layout.tsx 的 TwinChatProvider 提供（顶栏也要用它）。
- * ChatInset 负责在桌面端展开面板时把正文让开，不让面板压在内容上。
+ * 【为什么整页改成按需渲染】内容现在可以在网页上随时改（见 lib/content.ts）。
+ * 如果还按构建期预渲染，站长改完会发现「页面没变」—— 因为看到的是构建那一刻的快照。
+ * 所以这一页和它下面的 /notes、/projects 都显式声明 force-dynamic：
+ * 每次请求现读数据库，改完刷新就生效。代价是每次请求多几次本地 SQLite 查询（毫秒级）。
  */
+export const dynamic = 'force-dynamic';
+
 export default function Home() {
   /**
-   * 首页只展示最近几篇笔记，条数见 config/site.ts 的 homePreview。
-   * getAllNotes() 读的是 content/notes 目录 —— 这就是这个文件必须是服务端组件的原因。
-   * 目录不存在时它返回空数组（内部有 existsSync 兜底），首页会显示空态而不是崩掉。
+   * 首页只展示最近几篇笔记、前几个项目，条数见 config/site.ts 的 homePreview。
+   * 这两个函数读的是数据库；库里没内容时返回空数组，首页会显示空态而不是崩掉。
    */
-  const notes = getAllNotes().slice(0, homePreview.notes);
+  const notes = listNoteMetas().slice(0, homePreview.notes);
+  const projects = listProjects();
 
   return (
     <>
@@ -62,7 +60,11 @@ export default function Home() {
 
           <FlowLink />
 
-          <Projects />
+          {/*
+            首页的项目是**摘要**，不给编辑入口 —— 编辑集中在 /projects 页。
+            摘要是「让人快速知道你在做什么」，就地能改反而容易误触。
+          */}
+          <Projects projects={projects} />
 
           <FlowLink className="h-10" />
 
@@ -72,8 +74,6 @@ export default function Home() {
           </div>
         </div>
       </ChatInset>
-
-      {/* 数字分身聊天面板已挪到 app/layout.tsx —— 它得在所有页面都能用（/projects、/notes 也是） */}
     </>
   );
 }

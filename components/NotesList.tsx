@@ -13,21 +13,26 @@
  * 只有标题那几个字能点的话，手指要瞄得很准。整项可点之后，
  * 点哪儿都行，而且整项的高度天然超过 44px 的触控下限，不用额外补。
  *
+ * 【管理员的编辑/删除按钮为什么排在链接外面】
+ * 列表项本身是一个 <a>。把 <button> 塞进 <a> 里是非法嵌套（交互元素套交互元素），
+ * 点击行为在各浏览器上不一致。所以按钮放在 <a> 的**兄弟位置** —— 只有传了回调才渲染，
+ * 访客的 DOM 里根本不会有这两个按钮。
+ *
  * 【为什么标题要 break-words】
  * 中文标题没有空格，浏览器默认不在汉字之间断行（取决于 word-break 设置）。
  * 一个长标题在 375px 宽的屏上会直接把容器撑宽，连带整页出现横向滚动条。
  *
  * 【NoteMeta 为什么用 import type】
- * lib/notes.ts 用了 node:fs。`import type` 在编译后会被完全擦除，
- * 不会产生运行时 import；写成普通 import 就会把 fs 打进浏览器包并直接报错。
+ * lib/content.ts 依赖 better-sqlite3。`import type` 在编译后会被完全擦除，
+ * 不会产生运行时 import；写成普通 import 就会把原生模块打进浏览器包并直接报错。
  */
 
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Pencil, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
-import type { NoteMeta } from '@/lib/notes';
+import type { NoteMeta } from '@/lib/content';
 import SectionHeader from './SectionHeader';
 
 interface NotesListProps {
@@ -44,9 +49,24 @@ interface NotesListProps {
    * /notes 独立页只有一节，不传即不渲染编号。
    */
   index?: string;
+  /** 管理员才传：传了就在每条右侧渲染「编辑」按钮 */
+  onEdit?: (note: NoteMeta) => void;
+  /** 管理员才传：传了就在每条右侧渲染「删除」按钮 */
+  onDelete?: (note: NoteMeta) => void;
 }
 
-export default function NotesList({ notes, headingLevel = 2, viewAllHref, index }: NotesListProps) {
+/** 管理员操作按钮的统一外观 */
+const ACTION =
+  'inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground';
+
+export default function NotesList({
+  notes,
+  headingLevel = 2,
+  viewAllHref,
+  index,
+  onEdit,
+  onDelete,
+}: NotesListProps) {
   const { d, fill } = useI18n();
   const reveal = useReveal();
 
@@ -76,20 +96,30 @@ export default function NotesList({ notes, headingLevel = 2, viewAllHref, index 
         <>
           <ul className="mt-6 divide-y divide-border border-t border-border">
             {notes.map((n, i) => (
-              <motion.li key={n.slug} {...reveal(0.06 * (i + 1))}>
+              <motion.li
+                key={n.slug}
+                {...reveal(0.06 * (i + 1))}
+                className="flex items-start gap-2"
+              >
                 <Link
                   href={`/notes/${n.slug}`}
-                  className="group flex flex-col gap-1.5 py-5 no-underline transition-colors hover:bg-secondary/40 sm:px-2"
+                  className="group flex min-w-0 flex-1 flex-col gap-1.5 py-5 no-underline transition-colors hover:bg-secondary/40 sm:px-2"
                 >
                   <span className="text-lg font-bold leading-snug break-words text-foreground transition-colors group-hover:text-accent">
                     {n.title}
                   </span>
 
                   {/* 日期 + 阅读时长并排。whitespace-nowrap 防止在中间断成两行 */}
-                  <span className="text-xs font-semibold whitespace-nowrap text-muted-foreground">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold whitespace-nowrap text-muted-foreground">
                     <time dateTime={n.date}>{n.date}</time>
-                    <span aria-hidden="true"> · </span>
+                    <span aria-hidden="true">·</span>
                     {fill(d.notes.readTime, { minutes: n.readingMinutes })}
+                    {/* 草稿只在管理员看得见的列表里出现，所以这里出现就一定要标出来 */}
+                    {n.draft && (
+                      <span className="rounded-full border border-accent/50 px-2 py-0.5 text-accent">
+                        {d.admin.draftBadge}
+                      </span>
+                    )}
                   </span>
 
                   <span className="text-sm leading-relaxed break-words text-muted-foreground">
@@ -109,6 +139,23 @@ export default function NotesList({ notes, headingLevel = 2, viewAllHref, index 
                     </span>
                   )}
                 </Link>
+
+                {(onEdit || onDelete) && (
+                  <div className="flex shrink-0 flex-col gap-1 pt-5 sm:flex-row">
+                    {onEdit && (
+                      <button type="button" onClick={() => onEdit(n)} className={ACTION}>
+                        <Pencil size={13} aria-hidden="true" />
+                        {d.admin.edit}
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button type="button" onClick={() => onDelete(n)} className={ACTION}>
+                        <Trash2 size={13} aria-hidden="true" />
+                        {d.admin.delete}
+                      </button>
+                    )}
+                  </div>
+                )}
               </motion.li>
             ))}
           </ul>

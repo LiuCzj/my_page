@@ -214,6 +214,100 @@ export async function sendResetEmail(
 }
 
 /**
+ * 发「验证码」邮件（注册 / 注销）。
+ *
+ * 【为什么不用链接而用码】用户要求流程和常见网站一致。码还有一个额外好处：
+ * 它是有有效期的、限尝试次数的，而链接只要被翻出来就一直能用。
+ *
+ * 【为什么注销和注册用不同的措辞】注销是不可逆的。收到「你正在注销账号」的邮件，
+ * 如果不是本人操作，用户会立刻知道要改密码；措辞含糊会让人以为只是注册确认。
+ *
+ * @param to 收件邮箱
+ * @param code 6 位验证码（明文）
+ * @param purpose 用途：register（注册）/ delete（注销）
+ * @param displayName 称呼（注销时是已登录用户的昵称，注册时还没有昵称）
+ * @returns 发送成功返回 true；SMTP 未配置返回 false；发送异常抛出
+ * @throws 邮件服务连不上或认证失败时抛出
+ */
+export async function sendCodeEmail(
+  to: string,
+  code: string,
+  purpose: 'register' | 'delete',
+  displayName = '',
+): Promise<boolean> {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
+  const isDelete = purpose === 'delete';
+  const who = displayName ? `${displayName}，你好：` : '你好：';
+
+  const action = isDelete ? '注销账号' : '注册账号';
+  const bodyText = isDelete
+    ? '有人请求注销这个邮箱在锦创AI的账号。注销会**永久删除**你的账号和全部评论，无法恢复。'
+    : '请把下面的验证码填回注册页面，完成注册。';
+  const footer = isDelete
+    ? '如果不是你本人操作，请立刻忽略这封邮件，并考虑修改密码 —— 你的账号不会被注销。'
+    : '如果不是你本人操作，忽略这封邮件即可，不会有任何影响。';
+
+  await transporter.sendMail({
+    from: `"锦创AI" <${from}>`,
+    to,
+    subject: `${code} 是你的${action}验证码 · 锦创AI`,
+    text: `${who}\n\n${bodyText}\n\n验证码：${code}\n\n10 分钟内有效。\n\n${footer}\n\n—— 锦创AI`,
+    html: renderCodeHtml(code, {
+      who,
+      heading: `${action}验证码`,
+      body: bodyText.replace(/\*\*/g, ''),
+      footer,
+    }),
+  });
+
+  return true;
+}
+
+/**
+ * 验证码邮件的 HTML。
+ *
+ * 和验证信同一套骨架（表格布局 + 行内样式 + 浅底），只把「按钮」换成一个大号验证码。
+ * 验证码用等宽字体、大字号、加字距 —— 用户要照着抄，字符必须一眼分清（0 和 O、1 和 l）。
+ *
+ * @param code 验证码
+ * @param copy 文案
+ * @returns 邮件 HTML
+ */
+function renderCodeHtml(
+  code: string,
+  copy: { who: string; heading: string; body: string; footer: string },
+): string {
+  const { who, heading, body, footer } = copy;
+  return `<!doctype html>
+<html lang="zh-CN"><body style="margin:0;padding:24px;background:#f4f4f6;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
+    <tr><td style="padding:28px 28px 8px;">
+      <div style="font-size:15px;font-weight:600;color:#26215c;">锦创AI</div>
+    </td></tr>
+    <tr><td style="padding:8px 28px 0;">
+      <p style="margin:0 0 14px;font-size:15px;color:#2c2c2a;">${escapeHtml(who)}</p>
+      <p style="margin:0 0 18px;font-size:14px;line-height:1.7;color:#5f5e5a;">${escapeHtml(body)}</p>
+    </td></tr>
+    <tr><td style="padding:0 28px 20px;">
+      <div style="background:#f4f2fb;border:1px solid #ddd8f2;border-radius:10px;padding:18px;text-align:center;">
+        <div style="font-size:12px;color:#888780;margin-bottom:8px;">${escapeHtml(heading)}</div>
+        <div style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:32px;font-weight:700;letter-spacing:8px;color:#534ab7;">${escapeHtml(code)}</div>
+      </div>
+    </td></tr>
+    <tr><td style="padding:0 28px 24px;">
+      <p style="margin:0;font-size:12px;line-height:1.7;color:#888780;">验证码 10 分钟内有效，请勿转发给他人。</p>
+    </td></tr>
+    <tr><td style="padding:16px 28px 24px;border-top:1px solid #eceae4;">
+      <p style="margin:0;font-size:12px;line-height:1.7;color:#888780;">${escapeHtml(footer)}</p>
+    </td></tr>
+  </table>
+</body></html>`;
+}
+
+/**
  * HTML 转义。
  *
  * 昵称是用户自己填的，会出现在邮件里。不转义的话，一个叫

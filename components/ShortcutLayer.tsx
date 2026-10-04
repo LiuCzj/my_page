@@ -8,7 +8,7 @@
  * 这几样各自独立，但有一个共同约束：都必须活在客户端 Provider 内部
  * （useHotkeys 要用 next-themes 的 useTheme、useI18n 的 toggleLang、聊天窗的 useTwinChat），
  * 而 app/layout.tsx 是**服务端组件**，不能直接调用 hook。
- * 所以由这里当那个「客户端入口」：layout 把服务端读好的笔记数据当 props 递进来，
+ * 所以由这里当那个「客户端入口」：layout 把服务端读好的笔记与项目数据当 props 递进来，
  * 这里负责把状态（两个面板的开合）和事件（Cmd+K → 搜索、点按钮 → 快捷键说明）串起来。
  *
  * 【为什么面板的开合状态住在这里，而不是塞进面板内部】
@@ -17,9 +17,9 @@
  * 状态必须住在这些入口的共同父级，才能多个入口驱动同一个面板。
  * 塞进面板内部就成了「只有自己能打开自己」。
  *
- * 【为什么 props 传的是「已拍平的笔记数据」而不是让这里去读文件】
- * 笔记正文存在 content/notes 下，靠 node:fs 读取（lib/notes.ts）。
- * 客户端组件一旦 import 那个模块，fs 会被打进浏览器包并直接构建失败。
+ * 【为什么 props 传的是「已拍平的数据」而不是让这里自己去读】
+ * 笔记与项目现在都存在数据库里（lib/content.ts，依赖 better-sqlite3）。
+ * 客户端组件一旦 import 那个模块，原生模块会被打进浏览器包并直接构建失败。
  * 所以读取留在服务端（app/layout.tsx），这里只接收纯数据。
  */
 
@@ -28,7 +28,7 @@ import { Keyboard } from 'lucide-react';
 import { useHotkeys } from '@/lib/use-hotkeys';
 import { useI18n } from '@/lib/i18n';
 import ShortcutHelp from './ShortcutHelp';
-import SiteSearch, { type SearchNote } from './SiteSearch';
+import SiteSearch, { type SearchNote, type SearchProject } from './SiteSearch';
 
 interface ShortcutLayerProps {
   /**
@@ -36,15 +36,18 @@ interface ShortcutLayerProps {
    * 站内搜索用它建「笔记」那一组的条目。
    */
   notes: SearchNote[];
+  /** 服务端读好的项目列表。站内搜索用它建「项目」那一组的条目。 */
+  projects: SearchProject[];
 }
 
 /**
  * 挂载全局键盘能力、两个浮层，以及快捷键的常驻入口。
  *
- * @param props.notes 服务端传下来的笔记索引
+ * @param props.notes    服务端传下来的笔记索引
+ * @param props.projects 服务端传下来的项目列表
  * @returns 一个常驻小按钮 + 两个浮层；除按钮外不产生可见布局
  */
-export default function ShortcutLayer({ notes }: ShortcutLayerProps) {
+export default function ShortcutLayer({ notes, projects }: ShortcutLayerProps) {
   const { d } = useI18n();
 
   /** 搜索面板的开合。唯一的真实来源在这里，键盘与（将来的）顶栏按钮都改它 */
@@ -98,7 +101,12 @@ export default function ShortcutLayer({ notes }: ShortcutLayerProps) {
       </button>
 
       {/* 站内搜索：受控，由上面的 searchOpen 决定 */}
-      <SiteSearch open={searchOpen} onOpenChange={setSearchOpen} notes={notes} />
+      <SiteSearch
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        notes={notes}
+        projects={projects}
+      />
     </>
   );
 }

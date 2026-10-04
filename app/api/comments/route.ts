@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic';
 
 /** 单条评论长度上限 */
 const BODY_MAX = 1000;
-/** 笔记 slug 只允许字母数字和连字符（与 lib/notes.ts 的校验保持一致） */
+/** 笔记 slug 只允许字母数字和连字符（与 lib/content.ts 的 SLUG_RE 保持一致） */
 const SLUG_RE = /^[\w-]+$/;
 
 /** 返回给前端的评论形状 */

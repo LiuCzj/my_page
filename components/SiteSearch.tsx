@@ -13,7 +13,7 @@
  * 本组件只负责渲染与「请求改变」—— 这样任何入口都只是调 onOpenChange(true)。
  *
  * 【笔记为什么走 props 而不是自己读】
- * 笔记来自 node:fs（lib/notes.ts），客户端组件不能 import 它，否则 fs 会进浏览器包。
+ * 笔记与项目都存在数据库里（lib/content.ts），客户端组件不能 import 它，否则原生模块会进浏览器包。
  * 由服务端组件（app/layout.tsx）读好后以 notes 属性传进来，这里只消费纯数据。
  *
  * 【焦点 / 滚动 / 层级，照抄站内既有浮层】
@@ -47,13 +47,15 @@ import {
   type SearchEntry,
   type SearchGroup,
   type SearchNote,
+  type SearchProject,
 } from '@/lib/search-index';
 
 /**
- * 重新导出笔记条目的形状。
- * 服务端组件从 lib/notes.ts 拿到 NoteMeta 后，只需挑出这四个字段即可满足本组件的 notes 属性。
+ * 重新导出条目形状。
+ * 服务端组件从 lib/content.ts 拿到 NoteMeta / ProjectRecord 后，
+ * 只需挑出对应字段即可满足本组件的 notes / projects 属性。
  */
-export type { SearchNote };
+export type { SearchNote, SearchProject };
 
 /** 搜索面板的属性 */
 export interface SiteSearchProps {
@@ -61,8 +63,10 @@ export interface SiteSearchProps {
   open: boolean;
   /** 请求改变开合状态。组件内部只调用它，不自己持有状态 */
   onOpenChange: (open: boolean) => void;
-  /** 服务端读好的笔记元数据（本组件不读文件系统，见文件头说明） */
+  /** 服务端读好的笔记元数据（本组件不碰数据库，见文件头说明） */
   notes: SearchNote[];
+  /** 服务端读好的项目列表 */
+  projects: SearchProject[];
   /** 追加在浮层根节点上的类名，供调用方做位置微调 */
   className?: string;
 }
@@ -209,7 +213,7 @@ function ResultRow({ entry, index, active, onHover, onActivate, registerRef }: R
  * @param props.notes        服务端传入的笔记元数据
  * @param props.className    追加到浮层根节点的类名
  */
-export default function SiteSearch({ open, onOpenChange, notes, className }: SiteSearchProps) {
+export default function SiteSearch({ open, onOpenChange, notes, projects, className }: SiteSearchProps) {
   const { d, lang } = useI18n();
   /** 系统开了「减少动态效果」时不做任何动画 */
   const reduceMotion = useReducedMotion();
@@ -226,10 +230,10 @@ export default function SiteSearch({ open, onOpenChange, notes, className }: Sit
 
   /**
    * 全量索引。
-   * 随「语言」或「笔记数据」变化重建：切中英文时每条条目的展示文案要跟着换，
+   * 随「语言」或「笔记/项目数据」变化重建：切中英文时每条条目的展示文案要跟着换，
    * 而匹配文本里始终带着双语，所以切换语言不会丢失另一种语言的可搜性。
    */
-  const index = useMemo(() => buildSearchIndex({ notes, lang }), [notes, lang]);
+  const index = useMemo(() => buildSearchIndex({ notes, projects, lang }), [notes, projects, lang]);
 
   /**
    * 过滤 + 分组，并给每条打上全局序号。

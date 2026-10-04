@@ -1,8 +1,13 @@
 import './globals.css'
+// KaTeX 公式样式 + 字体：rehype-katex 把 $...$ / $$...$$ 渲染成带 .katex 类的 HTML，
+// 但这套 HTML 自身不带样式，必须引入它的 CSS（含 woff2 字体）公式才会正常显示。
+// 放在根布局 = 全站任意笔记/项目页都能用，且 Next.js 会自动打包并服务字体。
+import 'katex/dist/katex.min.css'
 import type { Metadata, Viewport } from 'next'
 import { ThemeProvider } from 'next-themes'
 import { I18nProvider } from '@/lib/i18n'
 import { TwinChatProvider } from '@/lib/twin-chat-context'
+import { AuthProvider } from '@/lib/auth-context'
 import Navbar from '@/components/Navbar'
 import CustomCursor from '@/components/CustomCursor'
 import CursorFx from '@/components/CursorFx'
@@ -14,7 +19,18 @@ import TwinEntry from '@/components/TwinEntry'
 import ResetPasswordPanel from '@/components/ResetPasswordPanel'
 import DigitalTwinChat from '@/components/DigitalTwinChat'
 import { site } from '@/config/site'
-import { getAllNotes } from '@/lib/notes'
+import { listNoteMetas, listProjects } from '@/lib/content'
+import { getCurrentUser } from '@/lib/auth'
+
+/**
+ * 全站按需渲染。
+ *
+ * 根布局会为站内搜索读取笔记与项目的索引（见下面的 listNoteMetas / listProjects），
+ * 而这两样内容现在可以在网页上随时改（见 lib/content.ts）。若还按构建期预渲染，
+ * 站长改完会发现搜索里还是旧数据。声明在这里 = 整站按需渲染，
+ * 与首页、/notes、/projects 各自的 force-dynamic 是同一口径。
+ */
+export const dynamic = 'force-dynamic'
 
 /**
  * 站点级 metadata。
@@ -50,30 +66,50 @@ export const viewport: Viewport = {
   ],
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   /**
-   * 站内搜索要用的笔记索引。
+   * 站内搜索要用的索引：笔记 + 项目。
    *
-   * 【为什么在这里读】lib/notes.ts 靠 node:fs 读 content/notes 目录 ——
-   * 客户端组件一旦 import 它，fs 会被打进浏览器包并直接构建失败。
+   * 【为什么在这里读】两者都存在数据库里（lib/content.ts 依赖 better-sqlite3）——
+   * 客户端组件一旦 import 它，原生模块会被打进浏览器包并直接构建失败。
    * 所以读取留在这一层（服务端），把结果当纯数据往下传。
-   * 只取搜索用得到的四个字段，正文不参与；几十篇也只是一串小对象。
+   * 只挑搜索用得到的字段，笔记正文不参与；几十条也只是一串小对象。
    *
-   * 【开销】layout 对每个页面都执行一次，但整站是构建期预渲染的，
-   * 运行时不会为每次请求再读一遍磁盘。
+   * 【开销】layout 对每个页面都执行一次，每次请求两次 SQLite 查询（本地文件，毫秒级）。
    */
-  const notes = getAllNotes().map((n) => ({
+  const notes = listNoteMetas().map((n) => ({
     slug: n.slug,
     title: n.title,
     summary: n.summary,
     tags: n.tags,
   }));
 
+  const projects = listProjects().map((p) => ({
+    slug: p.slug,
+    title: p.title,
+    summary: p.summary,
+    url: p.url,
+    stack: p.stack,
+  }));
+
+  /**
+   * 当前登录用户（服务端读）。
+   * 传给 AuthProvider 当首屏初始值 —— 否则顶栏的账号入口要等客户端查完才蹦出来。
+   */
+  const me = await getCurrentUser();
+
   return (
     <html lang="zh" suppressHydrationWarning>
       <body className="antialiased">
         {/* ThemeProvider 负责给 <html> 加/去 .dark 类，globals.css 里的 @custom-variant dark 认的就是这个类 */}
         <ThemeProvider attribute="class" defaultTheme={site.defaults.theme} disableTransitionOnChange>
+          {/*
+            AuthProvider：全站登录态。
+            顶栏的账号入口与笔记页评论区的登录框共用同一份 —— 否则会出现
+            「在顶栏登录了、滚到评论区还是显示未登录」这种两个真相来源的问题。
+            与 I18nProvider 互不依赖，放外层即可。
+          */}
+          <AuthProvider initialUser={me}>
           {/* I18nProvider 在 Navbar 之外，顶栏的语言按钮和导航文案才能同时读到字典 */}
           <I18nProvider>
             {/*
@@ -113,7 +149,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   它的浮层用 z-[100]，要和聊天面板 z-[80]、抽屉 z-[90]
                   在同一个层叠上下文里比较才有意义。
                 */}
-                <ShortcutLayer notes={notes} />
+                <ShortcutLayer notes={notes} projects={projects} />
 
                 {/*
                   数字分身的常驻入口：右下角一颗浮动头像。
@@ -146,6 +182,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <CustomCursor />
             </TwinChatProvider>
           </I18nProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

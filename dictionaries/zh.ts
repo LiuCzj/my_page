@@ -94,7 +94,7 @@ const zh = {
     empty: '还没有写好的笔记',
     emptyHint: '这里会放技术笔记。我先把版式搭好，再一篇篇补进来。',
     viewAll: '查看全部笔记',
-    /** 列表项里的阅读时长，{minutes} 由 lib/notes.ts 现算 */
+    /** 列表项里的阅读时长，{minutes} 由 lib/content.ts 现算 */
     readTime: '{minutes} 分钟阅读',
     /** 详情页顶部的返回入口 */
     back: '返回笔记列表',
@@ -191,6 +191,14 @@ const zh = {
     fieldName: '昵称',
     fieldNameHint: '显示在评论旁边，1–24 个字',
     fieldPasswordHint: '至少 8 位',
+    /** 验证码流程（2026-10-04 新增：注册与注销都改成「收码填回」） */
+    fieldCode: '验证码',
+    fieldCodeHint: '6 位数字，10 分钟内有效',
+    sendCode: '发送验证码',
+    resendCode: '重新发送',
+    codeSending: '发送中…',
+    codeSent: '验证码已发出，请查收邮箱（10 分钟内有效）。',
+    codeCountdown: '{seconds} 秒后可重发',
     doLogin: '登录',
     doRegister: '注册',
     doLogout: '登出',
@@ -236,6 +244,10 @@ const zh = {
       disposable_email: '不支持临时邮箱，请用常用邮箱注册。',
       undeliverable_email: '这个邮箱域名收不到信，换一个试试。',
       weak_password: '密码至少 8 位。',
+      password_mismatch: '两次输入的密码不一样。',
+      invalid_code: '验证码不对，再看一眼邮件。',
+      expired_code: '验证码过期了，重新发一个吧。',
+      too_many_attempts: '验证码试太多次已作废，重新发一个吧。',
       invalid_name: '昵称请填 1–24 个字。',
       email_taken: '这个邮箱已经注册过了，直接登录吧。',
       name_taken: '这个昵称被别人用了，换一个吧。',
@@ -252,6 +264,74 @@ const zh = {
       too_long: '评论最多 1000 字。',
       invalid_slug: '这条笔记不存在。',
       not_found: '这条评论已经不在了。',
+      network: '网络不太顺，再试一次。',
+      generic: '出了点问题，稍后再试。',
+    },
+  },
+  /**
+   * 账号入口（2026-10-04 新增）。
+   * 只放顶栏特有的几个词 —— 登录/注册表单的字段与错误码复用 d.comments（同一张表单）。
+   */
+  auth: {
+    login: '登录',
+    logout: '登出',
+    loginTitle: '登录',
+    registerTitle: '注册',
+    adminBadge: '管理员',
+    notVerified: '邮箱未验证',
+  },
+  /**
+   * 内容管理（2026-10-04 新增）。
+   * 只有管理员登录后才会用到这些文案 —— 入口本身也只在管理员身份下渲染。
+   * 错误码与 lib/admin-guard.ts / 各管理端路由返回的 code 一一对应。
+   */
+  admin: {
+    newNote: '新建笔记',
+    /** 上传本地写好的 .md 文件，自动把 frontmatter 与正文填进表单 */
+    importFile: '上传 Markdown 文件',
+    importHint: '已从文件填入，检查一下再保存',
+    newProject: '新建项目',
+    edit: '编辑',
+    delete: '删除',
+    save: '保存',
+    saving: '保存中…',
+    cancel: '取消',
+    writeTab: '编辑',
+    previewTab: '预览',
+    previewEmpty: '（还没写内容）',
+    confirmDelete: '确定删除「{name}」？删了就找不回来了。',
+    saved: '已保存。',
+    deleted: '已删除。',
+    draftBadge: '草稿',
+    /** 笔记字段 */
+    slug: '短名',
+    slugHint: '用于网址，只能小写字母、数字、连字符；建好后不能改',
+    title: '标题',
+    date: '日期',
+    summary: '摘要',
+    tags: '标签',
+    listHint: '多个用英文逗号分隔',
+    draft: '存为草稿（不在线上显示）',
+    body: '正文（Markdown）',
+    /** 项目字段 */
+    titleZh: '标题（中文）',
+    titleEn: '标题（英文，可留空）',
+    summaryZh: '摘要（中文）',
+    summaryEn: '摘要（英文，可留空）',
+    url: '链接',
+    stack: '技术栈',
+    featured: '首页优先',
+    sort: '排序（数字小的在前）',
+    errors: {
+      not_logged_in: '登录已过期，请重新登录。',
+      forbidden: '这个账号没有管理权限。',
+      invalid_slug: '短名不合规：只能小写字母、数字、连字符，且以字母或数字开头。',
+      invalid_title: '标题不能为空。',
+      invalid_date: '日期格式不对（笔记 YYYY-MM-DD，项目 YYYY-MM）。',
+      invalid_summary: '摘要不能为空。',
+      invalid_body: '正文不能为空。',
+      not_found: '这条内容已经不在了。',
+      bad_request: '请求格式不对。',
       network: '网络不太顺，再试一次。',
       generic: '出了点问题，稍后再试。',
     },

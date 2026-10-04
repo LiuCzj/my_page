@@ -16,7 +16,7 @@
  */
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { getDb } from './db';
 
 /** 会话 cookie 名 */
@@ -70,6 +70,13 @@ export interface PublicUser {
   displayName: string;
   emailVerified: boolean;
   createdAt: number;
+  /**
+   * 是否管理员（由 ADMIN_EMAILS 判定）。
+   * 带上它是为了让界面能显示「管理员」标记 —— 站长改完 ADMIN_EMAILS 后
+   * 一眼就能确认权限到底生效没有（前提是**重启过服务**，见 .env.example 的说明）。
+   * 它只是「自己看自己」的信息，不构成任何权限：真正的闸门在每个写接口里。
+   */
+  isAdmin: boolean;
 }
 
 /**
@@ -88,6 +95,7 @@ export function toPublicUser(row: UserRow): PublicUser {
     displayName: row.display_name,
     emailVerified: row.email_verified === 1,
     createdAt: row.created_at,
+    isAdmin: isAdmin(row.email),
   };
 }
 
@@ -146,8 +154,14 @@ function hashToken(token: string): string {
  * 【httpOnly】JS 读不到，XSS 也偷不走。
  * 【sameSite: lax】挡跨站 POST 伪造（CSRF）；用 lax 而不是 strict，是因为
  *   strict 下从外部链接点进来会丢登录态，体验太差。
- * 【secure】只在 HTTPS 下发送。开发环境是 http，所以按 NODE_ENV 判断，
- *   写死 true 会让本地调试完全登录不上。
+ * 【secure】只在**真的是 HTTPS** 时才带。
+ *
+ *   踩过的坑（2026-10-04）：原来是 `NODE_ENV === 'production'`，
+ *   而站长手机是用 `http://192.168.10.211:3000` 这种**局域网 HTTP** 访问的 ——
+ *   Secure cookie 在 HTTP 下浏览器**根本不存**，表现是「登录完一刷新就掉」，
+ *   连带服务端每次都判定未登录、管理员的编辑入口也不渲染。
+ *   所以改成看**请求协议**（x-forwarded-proto），HTTP 环境自动不带 Secure。
+ *   想强制就用 COOKIE_SECURE=0（关）/ 1（开）。
  *
  * @param userId 用户 id
  */
@@ -160,11 +174,25 @@ export async function createSession(userId: number): Promise<void> {
     .prepare('INSERT INTO sessions (token, user_id, created_at, expires_at) VALUES (?, ?, ?, ?)')
     .run(hashToken(token), userId, now, expiresAt);
 
+  /**
+   * 要不要给 cookie 加 Secure。
+   * 优先级：显式开关 COOKIE_SECURE → 请求头 x-forwarded-proto。
+   * 拿不到协议头时按「非 HTTPS」处理 —— 宁可 cookie 可用，也不要登录不上。
+   */
+  const forced = process.env.COOKIE_SECURE;
+  const proto = (await headers()).get('x-forwarded-proto') ?? '';
+  const secure =
+    forced === '0' || forced === 'false'
+      ? false
+      : forced === '1' || forced === 'true'
+        ? true
+        : proto.split(',')[0].trim().toLowerCase() === 'https';
+
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure,
     path: '/',
     maxAge: SESSION_DAYS * 24 * 60 * 60,
   });
