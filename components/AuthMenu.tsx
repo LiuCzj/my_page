@@ -26,10 +26,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogIn, LogOut, ShieldCheck, UserX } from 'lucide-react';
+import { LogOut, ShieldCheck, UserX } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth-context';
-import AuthPanel from './AuthPanel';
+import { TOPBAR_PILL } from '@/lib/topbar';
+import AuthPanel, { type AuthTab } from './AuthPanel';
 import DeleteAccountPanel from './DeleteAccountPanel';
 
 export default function AuthMenu() {
@@ -37,6 +38,12 @@ export default function AuthMenu() {
   const router = useRouter();
   const { user, setUser } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
+  /**
+   * 浮层打开时停在哪个页签（2026-10-05 新增）。
+   * 顶栏现在是**两颗**按钮 ——「登录」和「注册」—— 各自要直接进到对应的页签，
+   * 而不是都先落到登录页签让用户再点一次 tab。
+   */
+  const [panelTab, setPanelTab] = useState<AuthTab>('login');
   const [menuOpen, setMenuOpen] = useState(false);
   /**
    * 注销账号浮层的开合。
@@ -64,21 +71,42 @@ export default function AuthMenu() {
     return () => document.removeEventListener('pointerdown', onDown);
   }, [menuOpen]);
 
-  const btn =
-    'inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3 text-xs font-semibold text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+  /*
+    【2026-10-05 改版】从「40px 方框 + 边框 + 卡片底色」改成「40px 胶囊 + 极淡底色、无边框」。
+    站长反馈原来那一排方框「丑」—— 方框把顶栏控件画成了卡片，而它们是工具不是内容。
+    样式走 lib/topbar.ts 的共享常量，和主题 / 语言 / 音乐那几枚同款，
+    这样「登录是方的、主题是圆的」这种漂移不会再发生。
+  */
+  const btn = TOPBAR_PILL;
 
   // 还在查登录态：什么都不渲染，避免闪烁
   if (user === undefined) return null;
 
   if (!user) {
+    /*
+      【为什么登录按钮上没有图标了】2026-10-05 站长要求。
+      去掉之后还多一层好处：两颗按钮都是纯文字，宽度只由字数决定，
+      并排时不会出现「一颗带图标、一颗不带」的参差。
+      【为什么窄屏不显示「注册」】390px 的顶栏已经排了 logo + 登录 + 语言 + 主题 + 汉堡，
+      再塞一颗会挤爆。手机上「注册」并没有消失 —— 点「登录」打开浮层，页签里就有「注册」。
+    */
+    const openPanel = (tab: AuthTab) => {
+      setPanelTab(tab);
+      setPanelOpen(true);
+    };
     return (
       <>
-        <button type="button" onClick={() => setPanelOpen(true)} className={btn}>
-          <LogIn size={15} aria-hidden="true" />
-          {/* 窄屏只留图标，顶栏那一行放不下更多字 */}
-          <span className="hidden sm:inline">{d.auth.login}</span>
+        <button type="button" onClick={() => openPanel('login')} className={btn}>
+          {d.auth.login}
         </button>
-        <AuthPanel open={panelOpen} onClose={() => setPanelOpen(false)} />
+        <button
+          type="button"
+          onClick={() => openPanel('register')}
+          className={`${btn} hidden sm:inline-flex`}
+        >
+          {d.auth.register}
+        </button>
+        <AuthPanel open={panelOpen} onClose={() => setPanelOpen(false)} initialTab={panelTab} />
       </>
     );
   }

@@ -30,6 +30,13 @@ const en: Dict = {
     ariaToLight: 'Switch to light mode',
     ariaToDark: 'Switch to dark mode',
   },
+  /** 顶栏的背景音乐控件。键必须与 dictionaries/zh.ts 完全一致，少一个就编译不过 */
+  music: {
+    play: 'Play background music',
+    pause: 'Pause background music',
+    mute: 'Mute',
+    unmute: 'Unmute',
+  },
   contact: {
     wechatTitle: 'WeChat Official Account',
     wechatHint: 'Scan to follow “{account}”',
@@ -61,6 +68,14 @@ const en: Dict = {
     zoomTitle: 'Explore your hometown',
     zoomHint: 'Drag the globe to see other sides',
     closeZoom: 'Close enlarged globe',
+  },
+  /**
+   * 「关于我」这一页的章节名与引言。键必须与 dictionaries/zh.ts 完全一致，
+   * 少一个就编译不过 —— 这是故意的，避免英文界面漏出中文或 undefined。
+   */
+  about: {
+    title: 'About',
+    lead: 'Where I come from, the tools I reach for, and my stack.',
   },
   favorite: {
     title: 'Favourite tools',
@@ -177,7 +192,7 @@ const en: Dict = {
     fieldEmail: 'Email',
     fieldPassword: 'Password',
     fieldName: 'Display name',
-    fieldNameHint: 'Shown next to your comment, 1–24 characters',
+    fieldNameHint: '1–24 characters, Chinese included; case-insensitive — Tom and tom count as the same',
     fieldPasswordHint: 'At least 8 characters',
     /** Verification-code flow (2026-10-04): both sign-up and deletion now use a code. */
     fieldCode: 'Code',
@@ -187,6 +202,12 @@ const en: Dict = {
     codeSending: 'Sending…',
     codeSent: `Code sent — check your inbox (valid for ${EMAIL_CODE_TTL_MINUTES} minutes).`,
     codeCountdown: 'Resend in {seconds}s',
+    /** 图形验证码（image CAPTCHA）。和上面的邮箱验证码是两回事：这枚要看着图片抄 */
+    fieldCaptcha: 'Image code',
+    fieldCaptchaPlaceholder: 'Type the 5 characters in the image',
+    captchaRefresh: 'New image',
+    captchaLoading: 'Loading…',
+    captchaFailed: 'Could not load the image. Click “New image” to retry.',
     doLogin: 'Sign in',
     doRegister: 'Sign up',
     doLogout: 'Sign out',
@@ -232,7 +253,13 @@ const en: Dict = {
       too_many_attempts: 'Too many attempts — that code is void. Request a new one.',
       invalid_name: 'Display name must be 1–24 characters.',
       email_taken: 'That email is already registered — just sign in.',
-      name_taken: 'That display name is taken. Try another one.',
+      name_taken: 'That account already exists. Pick another name.',
+      /** 图形验证码的三种失败 */
+      captcha_invalid: 'Wrong image code — check the picture and try again.',
+      captcha_expired: 'The image code expired. Click “New image”.',
+      captcha_too_many: 'Too many wrong tries on that image code. Click “New image”.',
+      /** 注销时密码填错 */
+      wrong_password: 'Wrong password.',
       bad_credentials: 'Wrong email or password.',
       invalid_parent: 'The comment you were replying to is gone.',
       invalid_token: 'That link is not valid. Please request a new one.',
@@ -253,6 +280,8 @@ const en: Dict = {
   /** Account entry (2026-10-04). Only the topbar-specific words — the form reuses d.comments. */
   auth: {
     login: 'Sign in',
+    /** 顶栏那颗「注册」按钮。和 registerTitle 分开：按钮上的字要短 */
+    register: 'Sign up',
     logout: 'Sign out',
     loginTitle: 'Sign in',
     registerTitle: 'Sign up',

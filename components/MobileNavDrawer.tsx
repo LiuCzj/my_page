@@ -21,6 +21,7 @@ import { site } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
 import { CsdnIcon, GitHubIcon, MailIcon, WechatIcon, ZhihuIcon } from './BrandIcons';
+import MusicControls from './MusicControls';
 import type { ContactModalVariant } from './ContactModal';
 
 interface MobileNavDrawerProps {
@@ -138,6 +139,18 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           >
             {d.contact.close}
           </button>
+        </div>
+
+        {/*
+          背景音乐。窄屏顶栏放不下它（logo + 账号 + 语言 + 主题 + 汉堡已经占满一行），
+          所以挪到这里。控件和顶栏那两枚是同一个组件、同一份播放状态
+          （状态住在 lib/music-context.tsx，两处渲染 <audio> 会同时播两条音轨）。
+        */}
+        <div className="mt-3 flex items-center gap-2 rounded-xl bg-foreground/[0.04] px-3 py-2">
+          <span className="text-sm font-semibold text-foreground">{pick(site.music.title)}</span>
+          <span className="ml-auto">
+            <MusicControls />
+          </span>
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-x-3">

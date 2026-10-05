@@ -33,7 +33,7 @@ import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
 import type { ProjectRecord } from '@/lib/content';
 import ProjectsGrid from './ProjectsGrid';
-import SectionHeader from './SectionHeader';
+import SectionBand from './SectionBand';
 
 export default function Projects({ projects }: { projects: ProjectRecord[] }) {
   const { d } = useI18n();
@@ -51,13 +51,17 @@ export default function Projects({ projects }: { projects: ProjectRecord[] }) {
   const hasMore = projects.length > shown.length;
 
   return (
-    <section
-      id="projects"
-      className="scroll-mt-[var(--anchor-offset)] pb-2"
-      aria-labelledby="projects-title"
-    >
-      <SectionHeader
-        index="01"
+    /*
+      【id="projects" 已经挪到 app/page.tsx 的 <Band> 上】
+      首屏那颗「查看我的项目」按钮指向的锚点必须落在**跨页的顶端**，
+      留在这里会让跳转后上面露出半截「关于我」页。
+      滚动落点的补偿（scroll-mt）也跟着一起挪到了 <Band> 上。
+    */
+    <section aria-labelledby="projects-title">
+      <SectionBand
+        tone="works"
+        index="02"
+        latin="WORKS"
         id="projects-title"
         title={d.projects.title}
         lead={d.projects.lead}

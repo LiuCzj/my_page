@@ -55,7 +55,25 @@ export default function Footer() {
 
   return (
     <>
-      <footer className="relative mt-16 overflow-hidden border-t border-border bg-card/40">
+      {/*
+        ── 版权页（第五页，2026-10-05）──────────────────────────────
+        页脚原来用 bg-card/40 + 一条灰上边线，夹在整页平色底上。
+        现在它是这本册子的**收口页**：底色走 --band-colophon（全页最暗/最浅的一档），
+        顶上一条 2px 中性色通栏线 —— 和上面四个跨页用的是同一套「页」的语言。
+        少了这一层，前四页翻完会落在「一块没有边界的灰区」上，翻页感断在最后一米。
+
+        【为什么这一页的主导色是中性色】封面紫、关于我青、项目橘、笔记绿都已经用掉了。
+        收口页不该再引入第五支彩色 —— 它是让视线停下来的地方，中性才收得住。
+      */}
+      <footer
+        className="relative mt-16 overflow-hidden"
+        style={{ backgroundColor: 'hsl(var(--band-colophon))' }}
+      >
+        <span
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-0.5"
+          style={{ backgroundColor: 'hsl(var(--muted-foreground))' }}
+        />
         <span
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 bottom-[-150px] h-[280px]"

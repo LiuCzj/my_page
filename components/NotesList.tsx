@@ -1,10 +1,19 @@
 'use client';
 
 /**
- * 笔记列表。
- * 每一项 = 标题 / 日期 + 阅读时长 / 一句话摘要 / 标签，四行竖排。
- * 不用卡片（不用 border + 圆角 + 背景）而用分割线：笔记列表是「一串条目」，
- * 每项都做成卡片会让页面变成一堆方块，反而看不清哪一条是哪一条。
+ * 笔记列表 —— 期刊式目录（2026-10-05 第二期改）。
+ *
+ * 【形态】每一项 = 左栏「日期 + 阅读时长」（等宽字，像卷期号）+ 右栏「标题 / 摘要 / 标签」。
+ * 两栏各有用途：想按时间找就只扫左栏，想按内容找就只扫右栏 —— 这是目录才有的读法。
+ * 改前四行叠在一个竖排块里，每条都长得一样、没有可比较的抓手。
+ *
+ * 【为什么不用卡片（不用 border + 圆角 + 背景）而用分割线】
+ * 笔记列表是「一串条目」，每项都做成卡片会让页面变成一堆方块，
+ * 反而看不清哪一条是哪一条。轻卡（只有分割线）是这套三级卡片语言里的第三级。
+ *
+ * 【标题为什么走 font-song 而不是 font-display】
+ * 标题是站长在后台随手写的**动态内容**，自托管宋体子集覆盖不到，
+ * 混排会出现「半行是自托管宋体、半行是系统宋体」。详见 globals.css 的 --font-song。
  *
  * 【整项是一条链接，不是只有标题可点】
  * 这是为手机做的决定。触屏上没有悬停，也没有光标提示「这里可点」，
@@ -31,7 +40,7 @@ import { motion } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 import { useReveal } from '@/lib/use-reveal';
 import type { NoteMeta } from '@/lib/content';
-import SectionHeader from './SectionHeader';
+import SectionBand from './SectionBand';
 
 interface NotesListProps {
   notes: NoteMeta[];
@@ -43,10 +52,12 @@ interface NotesListProps {
   /** 传了就渲染「查看全部笔记」入口，指向它 */
   viewAllHref?: string;
   /**
-   * 章节编号（如 "02"）。首页的笔记摘要是第二章，传 "02"；
+   * 章节编号（如 "03"）。首页的笔记摘要是第三页，传 "03"；
    * /notes 独立页只有一节，不传即不渲染编号。
    */
   index?: string;
+  /** 英文小标（如 "NOTES"）。窄屏不渲染 —— 那点宽度留给标题 */
+  latin?: string;
   /** 管理员才传：传了就在每条右侧渲染「编辑」按钮 */
   onEdit?: (note: NoteMeta) => void;
   /** 管理员才传：传了就在每条右侧渲染「删除」按钮 */
@@ -62,6 +73,7 @@ export default function NotesList({
   headingLevel = 2,
   viewAllHref,
   index,
+  latin,
   onEdit,
   onDelete,
 }: NotesListProps) {
@@ -70,9 +82,11 @@ export default function NotesList({
 
   return (
     <section aria-labelledby="notes-title">
-      <SectionHeader
+      <SectionBand
+        tone="notes"
         as={headingLevel === 1 ? 'h1' : 'h2'}
         index={index}
+        latin={latin}
         id="notes-title"
         title={d.notes.title}
         lead={d.notes.lead}
@@ -92,54 +106,69 @@ export default function NotesList({
         </motion.div>
       ) : (
         <>
-          <ul className="mt-6 divide-y divide-border border-t border-border">
+          <ul className="mt-10 divide-y divide-border border-y border-border">
             {notes.map((n, i) => (
               <motion.li
                 key={n.slug}
                 {...reveal(0.06 * (i + 1))}
                 className="flex items-start gap-2"
               >
+                {/*
+                  ── 期刊式目录（2026-10-05 第二期）──────────────────
+                  【改前】日期和标题挤在同一个竖排块里，四行叠着（标题／日期·时长／摘要／标签）。
+                  读起来是「一串条目」，但每条都长得一样、没有可比较的抓手。
+                  【改后】左边一栏专放日期和阅读时长（等宽字，像期刊的卷期号），
+                  右边一栏放标题和摘要。视线可以只扫左栏来找时间，或者只扫右栏来找标题 ——
+                  两栏各有各的用途，这是目录才有的读法。
+                  【为什么整条仍然是链接】手机上没有悬停，只有标题能点的话手指要瞄得很准。
+                  所以 <a> 是这两栏的容器，点哪儿都行，整条高度也天然超过 44px。
+                  【标题走 font-song】笔记标题是动态内容（站长在后台写的），
+                  自托管宋体子集覆盖不到，混排会出现半行换字 —— 详见 globals.css 的 --font-song。
+                */}
                 <Link
                   href={`/notes/${n.slug}`}
-                  className="group flex min-w-0 flex-1 flex-col gap-1.5 py-5 no-underline transition-colors hover:bg-secondary/40 sm:px-2"
+                  className="group grid min-w-0 flex-1 gap-x-6 gap-y-2 rounded-xl py-6 no-underline transition-colors hover:bg-foreground/[0.04] sm:grid-cols-[7rem_1fr] sm:px-3 sm:py-8"
                 >
-                  <span className="text-lg font-bold leading-snug break-words text-foreground transition-colors group-hover:text-accent">
-                    {n.title}
+                  {/* 左栏：日期 + 阅读时长 */}
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[13px] font-semibold text-muted-foreground sm:flex-col sm:items-start sm:gap-1">
+                    <time dateTime={n.date} className="tabular-nums">
+                      {n.date}
+                    </time>
+                    <span className="text-muted-foreground/60">
+                      {fill(d.notes.readTime, { minutes: n.readingMinutes })}
+                    </span>
                   </span>
 
-                  {/* 日期 + 阅读时长并排。whitespace-nowrap 防止在中间断成两行 */}
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
-                    <time dateTime={n.date}>{n.date}</time>
-                    <span aria-hidden="true">·</span>
-                    {fill(d.notes.readTime, { minutes: n.readingMinutes })}
-                    {/* 草稿只在管理员看得见的列表里出现，所以这里出现就一定要标出来 */}
-                    {n.draft && (
-                      <span className="rounded-full border border-accent/50 px-2 py-0.5 text-accent">
-                        {d.admin.draftBadge}
+                  {/* 右栏：标题 + 摘要 + 标签 */}
+                  <span className="flex min-w-0 flex-col gap-2">
+                    <span className="font-song text-2xl font-bold leading-snug break-words text-foreground transition-colors group-hover:text-accent sm:text-3xl">
+                      {n.title}
+                    </span>
+
+                    <span className="text-sm leading-relaxed break-words text-muted-foreground">
+                      {n.summary}
+                    </span>
+
+                    {/* 标签：从灰底胶囊改成「#标签」的纯文字 —— 它是元数据，不该长得像按钮 */}
+                    {(n.tags.length > 0 || n.draft) && (
+                      <span className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        {n.draft && (
+                          <span className="rounded-full border border-accent/50 px-2 py-0.5 text-[13px] font-semibold text-accent">
+                            {d.admin.draftBadge}
+                          </span>
+                        )}
+                        {n.tags.map((t) => (
+                          <span key={t} className="text-[13px] text-muted-foreground/80">
+                            #{t}
+                          </span>
+                        ))}
                       </span>
                     )}
                   </span>
-
-                  <span className="text-sm leading-relaxed break-words text-muted-foreground">
-                    {n.summary}
-                  </span>
-
-                  {n.tags.length > 0 && (
-                    <span className="mt-1 flex flex-wrap gap-1.5">
-                      {n.tags.map((t) => (
-                        <span
-                          key={t}
-                          className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-[13px] font-semibold text-secondary-foreground"
-                        >
-                          {t}
-                        </span>
-                      ))}
-                    </span>
-                  )}
                 </Link>
 
                 {(onEdit || onDelete) && (
-                  <div className="flex shrink-0 flex-col gap-1 pt-5 sm:flex-row">
+                  <div className="flex shrink-0 flex-col gap-1 pt-6 sm:flex-row">
                     {onEdit && (
                       <button type="button" onClick={() => onEdit(n)} className={ACTION}>
                         <Pencil size={13} aria-hidden="true" />

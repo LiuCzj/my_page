@@ -102,8 +102,13 @@ export interface SiteConfig {
     nameAccent: string;
     /** 头像（public/ 下的相对路径） */
     avatar: string;
-    /** 头像的替代文本，双语 */
-    avatarAlt: LocalizedText;
+    /**
+     * 「关于我」章节头那张作者小像（`public/images/hero-scene.jpg`）的替代文本，双语。
+     * 【写法要求】必须是**画面描述**而不是「这是一张插画」—— 读屏用户拿不到画面，
+     * 只有把画里的人、物、动作说出来，这张图才对他们存在。
+     * ⚠️ **换图必须回来改这一条**，否则读屏用户听到的是上一张画。
+     */
+    heroSceneAlt: LocalizedText;
     /** 一句话介绍 */
     tagline: LocalizedText;
     /** 兴趣 */
@@ -189,6 +194,22 @@ export interface SiteConfig {
     lang: Lang;
     theme: 'dark' | 'light';
   };
+  /**
+   * 背景音乐（2026-10-05 新增）。
+   *
+   * 【src 留空字符串会怎样】整个播放器**不渲染** —— 页面上不会出现一个点了没反应的按钮。
+   * 文件放好后把路径填上即可（`public/` 之后的相对路径，例如 `/audio/bgm.mp3`）。
+   * 路径填了但文件不在，播放控件会变成「不可用」态并在悬停提示里说明。
+   *
+   * 【播放器的默认状态】打开页面时是**暂停 + 静音**，永远不会自动出声。
+   * 详见 lib/music-context.tsx 的说明（那里也写了这个默认值带来的交互代价）。
+   */
+  music: {
+    /** public/ 下的相对路径。留空 = 不渲染播放器 */
+    src: string;
+    /** 曲名，鼠标悬停在播放按钮上时显示 */
+    title: LocalizedText;
+  };
   assistant: {
     /** 首屏欢迎语，不走网络，避免「聊天区一片空白」 */
     greeting: LocalizedText;
@@ -206,7 +227,10 @@ export const site: SiteConfig = {
     name: '锦创AI',
     nameAccent: 'AI',
     avatar: '/images/avatar.jpg',
-    avatarAlt: { zh: '锦创AI 的头像', en: 'Avatar of 锦创AI' },
+    heroSceneAlt: {
+      zh: 'Q 版插画：浅色背景上，黑发青年穿深色西装、系紫色领带，微笑着指向一台显示器，屏幕上写着「锦创AI」',
+      en: 'Chibi-style illustration on a light background: a young man in a dark suit and purple tie smiling and pointing at a monitor that reads 锦创AI',
+    },
     tagline: {
       zh: '分享 AI 技术、项目的个人网页',
       en: 'A personal page for sharing AI technology and projects',
@@ -467,7 +491,29 @@ export const site: SiteConfig = {
 
   defaults: {
     lang: 'zh',
-    theme: 'dark',
+    /**
+     * 首次访问的默认主题。
+     * 【2026-10-05 由 dark 改成 light】站长要求「以后打开网页默认是亮色模式」。
+     * 配套改动在 app/layout.tsx：ThemeProvider 上显式写了 enableSystem={false} ——
+     * 不写的话 next-themes 会去看系统的 prefers-color-scheme，
+     * 系统是深色的访客就还是拿到深色，「默认亮色」就不成立了。
+     * 访客自己点过右上角的主题开关后，选择存在 localStorage 里，不再受这个值影响。
+     */
+    theme: 'light',
+  },
+
+  music: {
+    /*
+      ⚠️ 这里填的是**预期路径**：文件要放在 public/audio/bgm.mp3。
+      站长还没放音乐文件时，播放控件会显示成「不可用」态（悬停有说明），
+      文件一放进去就自动可用 —— 不需要再改代码。
+      想换成别的文件名/格式，改这一行即可（mp3 / m4a / ogg / wav 都行，浏览器认哪个看设备）。
+    */
+    src: '/audio/bgm.mp3',
+    title: {
+      zh: '背景音乐',
+      en: 'Background music',
+    },
   },
 
   assistant: {

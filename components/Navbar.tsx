@@ -3,16 +3,42 @@
 /**
  * 顶部导航（全站唯一，滚动时固定不动）。
  *
+ * 【2026-10-05 视觉改版：这一排控件从「方框」改成「圆」】
+ * 站长反馈两点：「有些内容显得太小」「登录、换语言、切换模式干嘛用那么丑的框」。
+ * 改动：
+ *   ① 栏高 56 → **64px**（`--header-h`），一排 40px 的圆才呼吸得开；
+ *   ② 右侧所有控件从「40px 方框 + 边框 + 卡片底色」改成 **40px 圆形 + 极淡底色、无边框**
+ *      （样式统一在 lib/topbar.ts，四个组件共用，免得各写一份漂成「登录是方的、主题是圆的」）；
+ *   ③ 图标 18 → **20px**，logo 24 → **30px**，导航文字 14 → **15px** —— 这是「太小」的正面回应；
+ *   ④ 语言按钮去掉地球图标（「EN」本身已经说清是语言切换，前面再挂个地球是同一件事说两遍），
+ *      字放大到 15px 填满那个圆；
+ *   ⑤ 新增背景音乐控件（播放 + 静音两枚），见 components/MusicControls.tsx。
+ * 方框为什么丑：它把顶栏控件画成了「卡片」，而这一排是**工具**不是内容，
+ * 不该有卡片那样的实底和描边。
+ *
  * 【布局规则】
  * 名字、联系方式、语言切换、主题切换全部置于最顶部依次排开，页面滚动时不动。
- *   → header 用 sticky top-0 z-50：它在文档流里占位，滚动到任何位置都照常留在顶部。
- *     （fixed 也能固定，但会把下面内容顶上去或压在下面，需要额外补偿 padding；
- *      sticky 不用补偿，也更不容易出「切语言后布局跳动」。）
+ *   → header 用 fixed inset-x-0 top-0 z-50：脱离文档流、钉在视口顶端。
  *   → 桌面端一行排开：名字 | 页内导航 | GitHub/CSDN/知乎/微信/邮箱 | 语言 | 主题。
  *   → 窄屏只有这一行（名字 + 语言 + 主题 + 汉堡），联系方式收进抽屉。
  *     联系方式在窄屏上另起一行横滑是行不通的：640~1023 这段宽度上它会左边挂五个图标、
  *     右边空一大片，而且把顶栏撑成两行 —— 顶栏高度一改，凡是贴着它下沿定位的东西都要重对一次。
  *     同一份入口在磁贴区的「连接」那块和页脚都有，顶栏不必再占一行。
+ *
+ * 【2026-10-05 从 sticky 改成 fixed：修站长反馈的手机端「顶栏粘不住」】
+ * 【症状】手机上往下滑，顶栏会跟着往上挪一点、顶部的部分被切掉；往上滑又恢复正常。
+ * 【实测排除了 CSS 的可能】用 CDP 在 390×844 下滚到 0/150/400/900/1600/2600 六个位置量过：
+ *   computed position 是 sticky、top 0px、z-index 50，
+ *   header.getBoundingClientRect().top 在每一档都是 0，elementFromPoint 命中的也一直是顶栏内部的元素。
+ *   → **CSS 层没有任何问题，既没脱粘也没被盖住。**
+ * 【结论】这是 iOS/安卓「地址栏收放」那一层的行为：地址栏收起时布局视口顶端跑到可视区之外，
+ *   而 sticky 是吸附在**布局视口**上的，于是顶栏跟着跑上去、被状态栏/地址栏残影切掉一截。
+ *   fixed 在这件事上表现正常，这也是社区里「常驻顶栏」的通行做法。
+ * 【代价】fixed 脱离文档流，必须自己补回高度 —— 补偿加在 components/page-transition.tsx 的
+ *   <main> 上（`pt-[var(--header-h-total)]`），一处生效全站。之所以选 main 而不是每个页面各写一遍，
+ *   是因为页面里那些 `pt-*` 本来就是「顶栏已经占位」之后又加的呼吸位，改在 main 上等于原样平移。
+ * 【别给它加 transform】顶栏自己带 backdrop-blur-md，已经会让后代的 position:fixed 相对顶栏定位
+ *   （AuthMenu.tsx 踩过，现在靠 Portal 到 body 绕开）。再叠一个 transform 只会多一层同样的陷阱。
  *
  * 【顶栏高度只有一个来源】内容行写的是 h-[var(--header-h)]（定义在 app/globals.css）。
  *  聊天面板的顶边、锚点跳转的落点偏移都由那个变量算，不再各自写死一个像素数。
@@ -31,12 +57,14 @@ import { Menu, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ThemeToggle from './theme-toggle';
 import LanguageToggle from './LanguageToggle';
+import MusicControls from './MusicControls';
 import SocialLinks from './SocialLinks';
 import ContactModal, { type ContactModalVariant } from './ContactModal';
 import MobileNavDrawer from './MobileNavDrawer';
 import AuthMenu from './AuthMenu';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
+import { TOPBAR_CONTROL } from '@/lib/topbar';
 import { site } from '@/config/site';
 
 export default function Navbar() {
@@ -73,12 +101,11 @@ export default function Navbar() {
   const navLabelClass = (active: boolean) =>
     `transition-colors duration-200 ${active ? 'text-accent visited:text-accent' : 'text-muted-foreground visited:text-muted-foreground hover:text-foreground'}`;
 
-  const controlBtn =
-    'inline-flex size-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition duration-200 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+  const controlBtn = TOPBAR_CONTROL;
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur-md">
+      <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           {/* ── 唯一一行：名字 / 导航（桌面） / 联系方式（桌面） / 语言 / 主题 / 汉堡（手机） ──
               高度走 --header-h（定义在 app/globals.css），全站只有那一个来源：
@@ -86,7 +113,7 @@ export default function Navbar() {
           <div className="flex h-[var(--header-h)] items-center justify-between gap-3">
             <Link
               href="/"
-              className="inline-flex shrink-0 items-center self-stretch text-xl font-extrabold tracking-tight text-foreground no-underline sm:text-2xl"
+              className="inline-flex shrink-0 items-center self-stretch text-2xl font-extrabold tracking-tight text-foreground no-underline sm:text-3xl"
               aria-label={d.topbar.siteName}
             >
               {site.identity.name.replace(site.identity.nameAccent, '')}
@@ -94,7 +121,7 @@ export default function Navbar() {
             </Link>
 
             {/* 桌面导航：顺序排列，避免窄屏时与右侧图标叠在一起 */}
-            <ul className="hidden items-center gap-1 text-sm font-semibold lg:flex">
+            <ul className="hidden items-center gap-0.5 text-[15px] font-semibold lg:flex">
               {linkItems.map((item) => {
                 /**
                  * 高亮判断。旧写法是 `pathname === item.href`，有两个 bug：
@@ -142,12 +169,23 @@ export default function Navbar() {
               </li>
             </ul>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {/* 桌面端联系方式排在语言/主题之前，符合「依次排开」的顺序 */}
-              <div className="hidden items-center gap-1 lg:flex">
-                <SocialLinks size={18} qrPlacement="below" onOpenModal={setModal} />
+              <div className="hidden items-center gap-0.5 lg:flex">
+                <SocialLinks size={20} qrPlacement="below" onOpenModal={setModal} />
               </div>
               <span className="mx-1 hidden h-6 w-px bg-border lg:block" aria-hidden="true" />
+
+              {/*
+                背景音乐。桌面端和 ≥640px 的宽屏上直接摆在顶栏；
+                窄屏顶栏放不下（logo + 账号 + 语言 + 主题 + 汉堡已经占满），
+                所以那些宽度上它挪进手机抽屉 —— 见 MobileNavDrawer。
+                两处控件共用 lib/music-context.tsx 里那一份播放状态，不会各播各的。
+              */}
+              <div className="hidden sm:block">
+                <MusicControls />
+              </div>
+
               {/* 账号入口：登录/昵称，放在语言、主题旁边 —— 网页里最常见的位置 */}
               <AuthMenu />
               <LanguageToggle />

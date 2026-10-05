@@ -1,14 +1,29 @@
 'use client';
 
 /**
- * 首屏：桌面端「个人介绍 + 终端名片」双栏，手机端纵向单列。
- *   ① 问候和品牌名字（名字逐字解码，字体自托管）
- *   ② 简介与「查看项目 / AI 问答」入口
- *   ③ 头像名片与可交互终端，个人信息仍读取现有站点配置
+ * 首屏 = 这本册子的**封面**。
  *
- * 背景那张粒子网不在这一屏里 —— 它是全站一层 fixed 画布，挂在 app/layout.tsx，
- * 所以滚到磁贴区、项目区它也还在。这一屏自己不铺死黑底：
- * 颜色全部走主题令牌，亮色档和暗色档都由令牌切，切到亮色时不会出现「白字配白底」。
+ * 【2026-10-05 三版定稿的过程，留档以免反复】
+ * 一版：左右两栏（左文字、右插画），体量相当 —— 首屏没有主角。
+ * 二版：名字独占一行 128px，插画上抬压进名字行右侧空白。
+ * 三版（现在）：**插画整个撤掉**，画面感交给背景（这一页自己的紫光 + 透视网格）。
+ *
+ * 【为什么撤掉插画 —— 站长问「好端端的放张插画在那干嘛」，他问得对】
+ * 那张 Q 版插画（人物指着显示器）**不携带任何关于这个人的信息**：
+ * 换个人物、换个显示器，它可以是任何人的主页。它占着首屏最大的位置，
+ * 却在说一件谁都能说的话；画风（Q 版/二次元）还会把整页气质往「可爱」拉。
+ * 封面的分工应该是「背景负责画面、文字负责信息」—— 一张通用插画两头都不占。
+ * 插画没删，挪去了「关于我」那一页（见 components/Dashboard.tsx 的章节头），
+ * 那里才是「需要一张人像」的地方。
+ *
+ * 【现在这一屏有什么】问候 → 名字（128px，全宽）→ 左「我是谁」/ 右「我平时怎么说话」（终端卡）。
+ * 终端卡顶上来接替插画：它是首屏唯一会自己动、而且内容只关于这个人的东西。
+ *
+ * 【一屏里有三种字】名字走楷体（--font-xingkai，自托管霞鹜文楷子集）、
+ * 那句介绍走宋体（--font-display，自托管思源宋体子集）、其余走系统黑体。
+ * 三级声音是刻意排的：这一屏要立得住「不止一种字体」，靠的不是花哨，是分工。
+ * ⚠️ 两份字体都是**手工裁的子集**，往这两种字里加新文案必须回去补字并重新生成，
+ * 漏了不会报错，只会静默退回系统字体 —— 手机和电脑长得不一样。
  *
  * 首屏不放联系方式图标：磁贴区那块「连接」给的就是同一份入口，
  * 一处出现一次就够，两块一样的图标只会让人觉得页面在凑内容。
@@ -31,7 +46,7 @@ import { useTwinChat } from '@/lib/twin-chat-context';
 import { useHydrationSafeReducedMotion } from '@/lib/use-reveal';
 
 export default function Hero() {
-  const { d, pick } = useI18n();
+  const { d } = useI18n();
   /**
    * 必须走 hydration-safe 版本：这里的结果直接决定 initial 属性写不写，
    * 用裸的 useReducedMotion 会让服务端（null→false）和开了减少动态效果的手机（true）
@@ -42,28 +57,80 @@ export default function Hero() {
   const { open, toggleChat } = useTwinChat();
 
   return (
-    <section className="relative py-2 pb-10 sm:py-6 sm:pb-14">
-      <div className="relative z-10 mx-auto grid max-w-5xl items-center gap-9 lg:grid-cols-[1.04fr_0.96fr] lg:gap-12">
-        <div className="flex flex-col items-center text-center lg:items-start lg:text-left">
-          <motion.p
-            initial={reduceMotion ? false : { opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.48, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-6 text-sm font-bold tracking-[0.12em] text-muted-foreground sm:text-base"
-          >
-            {d.hero.greeting}
-          </motion.p>
+    /*
+      ── 封面（2026-10-05 重做两版）──────────────────────────────
+      【第一版】名字和插画各占一栏、体量相当 —— 首屏没有主角。
+      【第二版】名字独占一整行、字号 128px；插画上抬压进名字行右侧空白。
+      【第三版（现在）】**把插画整个撤掉**。
 
-          <h1 className="mt-1 text-6xl leading-[1.05] tracking-tight text-foreground sm:text-7xl lg:text-8xl">
-            <span className="sr-only">{identity.name}</span>
-            <AnimatedName text={identity.name} reduceMotion={!!reduceMotion} />
-          </h1>
+      【为什么撤掉插画】站长的原话是「好端端的放张插画在那干嘛」。这个问题问得对：
+      那张 Q 版插画（人物指着显示器）**不携带任何关于这个人的信息** ——
+      换个人物、换个显示器，它可以是任何人的主页。它占着首屏最大的那块位置，
+      却在说一件谁都能说的话；而且它的画风（Q 版/二次元）会把整页的气质往「可爱」拉。
+      封面的画面感不该由一张通用插画提供。
 
-          <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-xl">
+      【那画面感交给谁】交给**背景**：这一页自己的紫光（SectionBand 的 cover 光）+ 那层透视网格。
+      整页只有「光 + 网格 + 一个大字」，信息全部由文字承担，视觉全部由背景承担。
+      插画没有消失，它挪去了「关于我」那一页（它是「关于这个人」的一页，那里才需要一张人像）。
+    */
+    <section className="relative pb-2 sm:pb-4">
+      {/*
+        名字背后的一团冷光：让「锦创AI」读起来像浮在光里，而不是平铺在底色上。
+        · -z-10 压在文字之下、页面背景之上（外层 wrapper 有 z-10，自成一个层叠上下文）；
+        · 浅色主题把 opacity 压到 50：暖白底上这团紫光比深色底显眼得多，不压会显脏；
+        · 模糊 + 低透明度，只提供「有光」的感觉，不参与任何信息表达。
+        （SectionBand 的 cover 光在整页尺度上铺底，这一团是贴着名字的、更近的一层。）
+      */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 -top-6 -z-10 mx-auto h-64 max-w-[30rem] rounded-full opacity-50 blur-3xl dark:opacity-80"
+        style={{
+          background: 'radial-gradient(closest-side, hsl(var(--brand) / 0.26), transparent 72%)',
+        }}
+      />
+      <motion.p
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.48, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        className="text-sm font-bold tracking-[0.12em] text-muted-foreground sm:text-base"
+      >
+        {d.hero.greeting}
+      </motion.p>
+
+      {/*
+        名字：独占一行，字号 60 → 72 → 128px。
+        leading-[0.95] 是故意的 —— 行高压到比字号还小，让这一行读起来是「一块字」
+        而不是「一行带行距的文字」，这是海报式大标题的写法。
+      */}
+      <h1 className="mt-2 text-6xl leading-[0.95] tracking-tight text-foreground sm:text-7xl lg:text-[8rem]">
+        <span className="sr-only">{identity.name}</span>
+        <AnimatedName text={identity.name} reduceMotion={!!reduceMotion} />
+      </h1>
+
+      {/*
+        名字下面是两栏：左边「我是谁」，右边「我平时怎么说话」（终端卡）。
+        终端卡从「插画下面」挪到了这里 —— 它本来就是首屏唯一会自己动、
+        而且内容只关于这个人的东西，让它顶上来接替插画的位置，比一张通用插画合适得多。
+        手机上 order-1/2 把终端卡排到文字前面（名字 → 会动的那个 → 说明，读起来顺）。
+      */}
+      <div className="mt-10 grid gap-8 lg:mt-16 lg:grid-cols-12 lg:gap-12">
+        <motion.div
+          initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+          className="order-2 flex flex-col lg:order-1 lg:col-span-5"
+        >
+          {/*
+            这一句改走宋体（--font-display）。全站正文是系统黑体，只有名字是楷体 ——
+            首屏缺一个「中间声部」。宋体横细竖粗的对比在 24px 上刚好读得出，
+            名字（楷体）→ 这句话（宋体）→ 正文（黑体）三级声音就立住了。
+            ⚠️ 宋体那份是手工裁的子集，加新文案要回去补字（见 globals.css 的 @font-face 说明）。
+          */}
+          <p className="font-display max-w-lg text-xl leading-relaxed text-foreground/85 sm:text-2xl">
             {d.hero.bio}
           </p>
 
-          <div className="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
+          <div className="mt-7 flex flex-wrap gap-3">
             <motion.a
               href="#projects"
               whileHover={reduceMotion ? undefined : { y: -2 }}
@@ -87,69 +154,15 @@ export default function Hero() {
               {open ? d.chat.close : d.nav.chat}
             </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         <motion.div
           initial={reduceMotion ? false : { opacity: 0, y: 18, scale: 0.985 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.65, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
-          className="relative mx-auto w-full max-w-xl lg:ml-auto"
+          className="order-1 lg:order-2 lg:col-span-7"
         >
-          <div className="relative isolate overflow-hidden rounded-[1.75rem] border border-border bg-card p-4 shadow-[0_26px_70px_-42px_hsl(var(--foreground)/0.42)] sm:rounded-[2rem] sm:p-6">
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 -z-10 opacity-70"
-              style={{
-                backgroundImage:
-                  'linear-gradient(hsl(var(--border) / 0.45) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--border) / 0.45) 1px, transparent 1px)',
-                backgroundSize: '34px 34px',
-                maskImage: 'linear-gradient(to bottom, black, transparent 88%)',
-              }}
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -right-12 -top-14 -z-10 size-56 animate-hero-float rounded-full bg-[radial-gradient(circle,hsl(var(--warm)/0.25),hsl(var(--warm)/0.06)_48%,transparent_72%)] blur-2xl"
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute -bottom-12 -left-10 -z-10 size-48 rounded-full bg-[radial-gradient(circle,hsl(var(--accent)/0.19),transparent_70%)] blur-2xl"
-            />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute right-8 top-12 -z-10 size-36 animate-hero-orbit rounded-full border border-warm/30 sm:right-12 sm:top-10"
-            >
-              <span className="absolute left-1/2 top-0 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-warm shadow-[0_0_16px_hsl(var(--warm)/0.8)]" />
-            </span>
-
-            <div className="relative flex items-center gap-4 rounded-2xl border border-border/80 bg-background/85 p-3.5 backdrop-blur-sm sm:p-4">
-              <div className="animate-avatar-breathe motion-reduce:animate-none">
-                <div className="group/avatar relative size-[4.5rem] shrink-0 sm:size-20">
-                  <span aria-hidden="true" className="absolute -inset-1 rounded-full bg-warm/20 blur-md" />
-                  <div className="relative size-full overflow-hidden rounded-full border-2 border-card ring-1 ring-warm/50 transition-transform duration-300 group-hover/avatar:scale-[1.04]">
-                    <img
-                      src={identity.avatar}
-                      alt={pick(identity.avatarAlt)}
-                      width={144}
-                      height={144}
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="min-w-0">
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-warm sm:text-xs">
-                  PROFILE / PORTFOLIO
-                </p>
-                <p className="mt-2 line-clamp-2 text-sm font-semibold leading-relaxed text-foreground sm:text-base">
-                  {pick(identity.tagline)}
-                </p>
-              </div>
-            </div>
-
-            <div className="relative mt-4 sm:mt-5">
-              <TerminalCard />
-            </div>
-          </div>
+          <TerminalCard />
         </motion.div>
       </div>
     </section>
@@ -226,7 +239,23 @@ function AnimatedName({ text, reduceMotion }: { text: string; reduceMotion: bool
   const hostRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    if (reduceMotion) return;
+    if (reduceMotion) {
+      /*
+       * 减少动态效果：不播解码 —— 但**必须把字恢复成真字**，不能只 return。
+       *
+       * 【为什么不能只 return】useHydrationSafeReducedMotion() 在挂载前一律返回 false
+       * （两端首轮必须渲染一致，理由见 lib/use-reveal.ts）。所以上面那次 effect
+       * 已经按「有动画」跑过一遍，把 shown 设成了随机字、locked 全设成 false。
+       * 这里直接 return 的话，那串乱码就永远留在屏幕上 ——
+       * 2026-10-05 用 --rm=1 实测确认：名字显示成「锦索创语AZIQ」，刷新也不好。
+       *
+       * 【为什么 setState 在这里是安全的】effect 的依赖是 [reduceMotion, text, runId]，
+       * 恢复动作不会改动这三个值，所以不会自激成循环；最多多渲染一帧。
+       */
+      setShown(chars);
+      setLocked(chars.map(() => true));
+      return;
+    }
     const n = chars.length;
     const lockAt = (i: number) => LOCK_BASE + i * LOCK_STEP;
     const t0 = performance.now();

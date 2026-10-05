@@ -1,6 +1,6 @@
 {
   "name": "jinchuang-homepage",
-  "version": "0.16.0",
+  "version": "0.17.0",
   "private": true,
   "engines": {
     "node": ">=22.0.0"
@@ -31,6 +31,7 @@
     "remark-math": "^6.0.0",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "svg-captcha": "^1.4.0",
     "unified": "^11.0.5"
   },
   "devDependencies": {

@@ -22,32 +22,55 @@ import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { useAuth, type AuthUser } from '@/lib/auth-context';
 import EditorPanel from '@/components/admin/EditorPanel';
+import CaptchaField, { type CaptchaValue } from '@/components/CaptchaField';
+import { FIELD, HINT, LABEL, SEND_BTN } from '@/components/form-styles';
 
-type AuthTab = 'login' | 'register' | 'forgot';
+/** 浮层的三个页签。导出是因为 AuthMenu 要用它标注「点的是哪颗按钮」 */
+export type AuthTab = 'login' | 'register' | 'forgot';
 
-const FIELD =
-  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none';
-const LABEL = 'mb-1 block text-xs font-bold text-muted-foreground';
-/** 发送验证码按钮（次级按钮）。min-h-44：手机上它是紧挨输入框的主操作，得够手指点 */
-const SEND_BTN =
-  'inline-flex min-h-[44px] shrink-0 cursor-pointer items-center justify-center rounded-lg border border-accent px-3 text-xs font-semibold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
-
-export default function AuthPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function AuthPanel({
+  open,
+  onClose,
+  initialTab = 'login',
+}: {
+  open: boolean;
+  onClose: () => void;
+  /**
+   * 打开时停在哪个页签（2026-10-05 新增）。
+   * 顶栏现在有两颗按钮：点「登录」进登录页签，点「注册」直接进注册页签 ——
+   * 不传这个参数的话，点「注册」会先打开登录页签，用户还得再点一次 tab，白跑一步。
+   */
+  initialTab?: AuthTab;
+}) {
   const { d, fill } = useI18n();
   const { setUser } = useAuth();
   /** 登录后要 router.refresh() 让服务端组件重算（/notes、/projects 的管理员入口是服务端渲染的） */
   const router = useRouter();
 
-  const [tab, setTab] = useState<AuthTab>('login');
+  const [tab, setTab] = useState<AuthTab>(initialTab);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [code, setCode] = useState('');
   const [displayName, setDisplayName] = useState('');
+  /** 图形验证码：id 由服务端给，text 是用户填的（2026-10-05 新增） */
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ id: '', text: '' });
   const [busy, setBusy] = useState<null | 'auth' | 'code'>(null);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   /** 重发倒计时（秒）。0 = 可点 */
   const [cooldown, setCooldown] = useState(0);
+
+  /*
+    每次「打开」时按 initialTab 归位。
+    不能只用 useState 的初始值 —— 组件在关闭状态下是常驻挂载的（只是 return null），
+    useState 的初始值一辈子只在第一次渲染时取一次，
+    之后点「注册」再打开，页签还停在用户上次手动切到的地方。
+  */
+  useEffect(() => {
+    if (!open) return;
+    setTab(initialTab);
+    setNotice(null);
+  }, [open, initialTab]);
 
   /** 倒计时每秒减一 */
   useEffect(() => {
@@ -67,6 +90,12 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
     setPassword('');
     setConfirmPassword('');
     setCode('');
+    /*
+      图形验证码只清用户填的那半 —— id 留着，服务端那张图还在有效期内。
+      如果连 id 一起清，下次打开表单就得重新拉一张图，用户白等一次。
+      （id 对应的答案在 5 分钟后自然过期，不存在「留着一个永久可用的入口」。）
+    */
+    setCaptcha((c) => ({ ...c, text: '' }));
     setNotice(null);
     onClose();
   };
@@ -120,7 +149,15 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
       const payload =
         tab === 'login'
           ? { email, password }
-          : { email, code, password, confirmPassword, displayName };
+          : {
+              email,
+              code,
+              password,
+              confirmPassword,
+              displayName,
+              captchaId: captcha.id,
+              captchaText: captcha.text,
+            };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -201,6 +238,14 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
         </>
       }
     >
+      {/*
+        字段顺序按常见注册表单排（2026-10-05 调整）：
+          昵称 → 邮箱（+发码）→ 图形验证码 → 邮箱验证码 → 密码 → 再输一次密码
+        【为什么昵称提到最前】注册表单的第一个字段应该是「你在创建一个什么身份」，
+        而不是一串技术性的邮箱。原来的顺序（邮箱打头）读起来像在办业务而不是在开账号。
+        【为什么图形验证码排在邮箱验证码前面】两枚码都是「抄」，但图形码是当场看一眼就有的，
+        邮箱码要切到邮箱去取。把便宜的放前面，用户不会填完最费事的那个才发现前面写错了。
+      */}
       <form id="auth-form" onSubmit={submit} className="space-y-4">
         {tab !== 'forgot' && (
           <div className="flex items-center gap-1">
@@ -211,6 +256,22 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
 
         {tab === 'forgot' && (
           <p className="text-xs leading-relaxed text-muted-foreground">{d.comments.forgotHint}</p>
+        )}
+
+        {/* 昵称（只有注册要） */}
+        {tab === 'register' && (
+          <div>
+            <label className={LABEL} htmlFor="auth-name">
+              {d.comments.fieldName}
+            </label>
+            <input
+              id="auth-name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              className={FIELD}
+            />
+            <p className={HINT}>{d.comments.fieldNameHint}</p>
+          </div>
         )}
 
         {/* 邮箱。注册时右边挂「发送验证码」 */}
@@ -239,7 +300,10 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
           </div>
         </div>
 
-        {/* 验证码（只有注册要） */}
+        {/* 图形验证码（只有注册要） */}
+        {tab === 'register' && <CaptchaField value={captcha} onChange={setCaptcha} idPrefix="auth" />}
+
+        {/* 邮箱验证码（只有注册要） */}
         {tab === 'register' && (
           <div>
             <label className={LABEL} htmlFor="auth-code">
@@ -254,23 +318,7 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               className={`${FIELD} font-mono tracking-[0.4em]`}
             />
-            <p className="mt-1 text-xs text-muted-foreground">{d.comments.fieldCodeHint}</p>
-          </div>
-        )}
-
-        {/* 昵称（只有注册要） */}
-        {tab === 'register' && (
-          <div>
-            <label className={LABEL} htmlFor="auth-name">
-              {d.comments.fieldName}
-            </label>
-            <input
-              id="auth-name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className={FIELD}
-            />
-            <p className="mt-1 text-xs text-muted-foreground">{d.comments.fieldNameHint}</p>
+            <p className={HINT}>{d.comments.fieldCodeHint}</p>
           </div>
         )}
 
@@ -288,9 +336,7 @@ export default function AuthPanel({ open, onClose }: { open: boolean; onClose: (
               onChange={(e) => setPassword(e.target.value)}
               className={FIELD}
             />
-            {tab === 'register' && (
-              <p className="mt-1 text-xs text-muted-foreground">{d.comments.fieldPasswordHint}</p>
-            )}
+            {tab === 'register' && <p className={HINT}>{d.comments.fieldPasswordHint}</p>}
           </div>
         )}
 

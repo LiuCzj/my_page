@@ -6,8 +6,13 @@
  * 【机制】调用 next-themes 的 useTheme().setTheme()，切换 <html> 上的 .dark 类；
  * globals.css 的 @custom-variant dark (&:is(.dark *)) 认的就是这个类。
  *
- * 【为什么是 40px 纯图标而不是文字按钮】
- * 顶栏要同时放下 名字 + 5 个联系方式 + 语言 + 主题，横向空间紧张，
+ * 【外观走 lib/topbar.ts 的共享常量】
+ * 2026-10-05 改版：从「40px 方框 + 边框 + 卡片底色」改成「40px 圆形 + 极淡底色、无边框」。
+ * 站长反馈原来的方框「丑」—— 方框把顶栏控件画成了卡片，而它们是工具不是内容。
+ * 样式抽到共享常量是因为顶栏四个控件必须长得完全一样，各写一份早晚会漂。
+ *
+ * 【为什么是纯图标而不是文字按钮】
+ * 顶栏要同时放下 名字 + 5 个联系方式 + 音乐 + 语言 + 主题 + 账号，横向空间紧张，
  * 图标更省位置；含义交给 aria-label / title，文案取自字典（切英文后说明也跟着变）。
  *
  * 【disableTransitionOnChange】
@@ -19,8 +24,9 @@ import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { TOPBAR_CONTROL, TOPBAR_ICON_SIZE } from "@/lib/topbar";
 
-export default function ThemeToggle({ size = 18 }: { size?: number }) {
+export default function ThemeToggle({ size = TOPBAR_ICON_SIZE }: { size?: number }) {
   const { resolvedTheme, setTheme } = useTheme();
   const { d } = useI18n();
   const [mounted, setMounted] = useState(false);
@@ -30,14 +36,9 @@ export default function ThemeToggle({ size = 18 }: { size?: number }) {
   // React 会报 hydration 不匹配。
   useEffect(() => setMounted(true), []);
 
-  const btnClass =
-    "inline-flex cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
-
   if (!mounted) {
     // 占位：尺寸与真实按钮一致，切换时不会引起顶栏布局跳动
-    return (
-      <span className={`${btnClass} size-11`} aria-hidden="true" />
-    );
+    return <span className={TOPBAR_CONTROL} aria-hidden="true" />;
   }
 
   const isDark = resolvedTheme === "dark";
@@ -46,11 +47,11 @@ export default function ThemeToggle({ size = 18 }: { size?: number }) {
     <button
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
-      className={`${btnClass} size-11`}
+      className={TOPBAR_CONTROL}
       aria-label={isDark ? d.theme.ariaToLight : d.theme.ariaToDark}
       title={isDark ? d.theme.ariaToLight : d.theme.ariaToDark}
     >
-      {isDark ? <Sun size={size} /> : <Moon size={size} />}
+      {isDark ? <Sun size={size} aria-hidden="true" /> : <Moon size={size} aria-hidden="true" />}
     </button>
   );
 }

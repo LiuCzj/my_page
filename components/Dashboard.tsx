@@ -23,6 +23,7 @@ import { Brain, Globe2, Heart, Link2, Maximize2, Wrench, X } from 'lucide-react'
 import { createPortal } from 'react-dom';
 import DottedGlobe from '@/components/DottedGlobe';
 import Marquee from '@/components/Marquee';
+import SectionBand from '@/components/SectionBand';
 import SocialLinks from '@/components/SocialLinks';
 import ContactModal, { type ContactModalVariant } from '@/components/ContactModal';
 import ToolIcon from '@/components/ToolIcon';
@@ -91,6 +92,7 @@ function Tile({
   cursorEmoji,
   delay,
   tint = 'sky',
+  hero = false,
   action,
   children,
 }: {
@@ -106,6 +108,21 @@ function Tile({
   delay: number;
   /** 装饰色相，见上面的 TileTint 说明 */
   tint?: TileTint;
+  /**
+   * 是不是「主角卡」（2026-10-05 新增）。只有地球卡开这个开关。
+   *
+   * 【为什么需要它】磁贴区五块原来共用同一套外观，扫过去是一堵「一样大的方块墙」。
+   * 主角卡走 .card-hero（见 globals.css）：更大圆角 + 一圈蓝紫青的彩色描边 + 更重投影，
+   * 一眼就认得出来这是这一屏的重点。
+   *
+   * 【为什么主角卡还要顺便换 padding】大圆角配原来那圈 p-4 会显得「边很厚、内容很挤」。
+   * 圆角和内边距是同一件事的两面，一起放大才成立。
+   *
+   * 【为什么主角卡不挂 hover:border-accent/70】它的边框已经被那圈彩色描边占用
+   * （border-color 是 transparent，彩边画在边框内侧）。再叠一层悬停变色，
+   * 悬停瞬间会变成「外圈蓝 + 内圈彩」两层边，比不悬停还乱。
+   */
+  hero?: boolean;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
@@ -205,7 +222,9 @@ function Tile({
         // 浏览器接管了纵向下滚（pointercancel）—— 这一下是划页面，不是在点球
         pending.current = null;
       }}
-      className={`card group/tile relative flex list-none flex-col overflow-hidden p-4 transition-[border-color] duration-200 ease-out hover:border-accent/70 sm:p-5 ${span}`}
+      className={`card ${
+        hero ? 'card-hero p-5 sm:p-6' : 'p-4 sm:p-5 hover:border-accent/70'
+      } group/tile relative flex list-none flex-col overflow-hidden transition-[border-color] duration-200 ease-out ${span}`}
     >
       {/* 右上角那团晕染：色相跟着 tint 走。透明度压在 0.14，
           再高就会把标题行那串 12px 的灰字压得发闷（原来只有暖色一档时是 0.16）。 */}
@@ -373,27 +392,19 @@ function GlobeZoomDialog({
 }
 
 /**
- * 技能条目。
+ * 技能条目的样式常量原来在这里（SKILL_TAG），2026-10-05 第二期删掉了。
  *
- * 【改前它和工具条里的标签是同一套】圆角药丸 + 边框 + 内嵌一枚 accent 色小点。
- * 一屏三十来枚同款，读起来就是「一堵墙」—— 分不出哪是组名、哪是条目。
- * 改成更轻的标签：去边框、去每枚小点、底色压淡一档、字号收一档，
- * 把「重量」整个让给组标题，层级才立得起来。
+ * 【为什么删】技术栈从「标签云」改成了「目录」：条目不再是灰底胶囊，
+ * 而是一串用「·」隔开的纯文字（见下面技能那块 JSX 里的说明）。
+ * 样式类直接写在 <li> 上，不再需要这个常量。
+ * 留这段说明是为了让以后翻历史的人知道「这里曾经有个 SKILL_TAG」，而不是以为它丢了。
  *
- * 【为什么没有 whitespace-nowrap】原来照抄了工具条的写法（那是给跑马灯用的，条目必须单行）。
- * 但技能里有「表格数据专用深度学习模型（TabNet、FT-Transformer、TabTransformer 等）」
- * 这种超长条目 —— nowrap 会让它顶出卡片右边缘、被 overflow-hidden 切掉
- * （2026-10-04 用 390 视口实测被切 101px，用户反馈「手机上内容被挡住」）。
- * 所以这里允许换行，长条目在自己那一格里折成两三行。
+ * 它当年的两条结论仍然有效，改那串文字时照做：
+ *   ① 条目**必须允许换行** —— 技能里有「表格数据专用深度学习模型（TabNet、FT-Transformer、
+ *      TabTransformer 等）」这种超长条目，nowrap 会顶出容器右边缘被 overflow-hidden 切掉
+ *      （2026-10-04 用 390 视口实测被切 101px，站长反馈过「手机上内容被挡住」）；
+ *   ② 正文色不要用 --muted-foreground 那一档 —— 三十来条挤在一起会读得发虚。
  */
-const SKILL_TAG =
-  /*
-   * 【2026-10-04 改】字号 12px → 13px、底色由半透明改不透明。
-   * 12px 是这套标签最挤的一档，一屏三十来枚读起来发虚；
-   * bg-secondary/50 的半透明底压在近白背景上会和背景糊在一起（亮色档尤其明显），
-   * 改成不透明的 bg-secondary，边界立刻清楚，深浅两档都成立。
-   */
-  'inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-[13px] font-medium break-words text-muted-foreground';
 
 /** 触屏弹印活多久。比 emoji-pop 那条 1.1s 的动画略长，让它淡完再被摘掉 */
 const STAMP_MS = 1150;
@@ -538,8 +549,58 @@ export default function Dashboard({
   const closeGlobeZoom = useCallback(() => setGlobeZoomed(false), []);
 
   return (
-    <div className="pb-2">
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+    <div>
+      {/*
+        ── 这一页的章节名（2026-10-05 新增）────────────────────────
+        磁贴区在此之前**没有任何标题** —— 它是首页上一块「没有名字的内容」，
+        读者看到五块磁贴却不知道这一节在讲什么。
+        现在它是「关于我」这一页（编号 01），章节名走宋体、页眉线走青（这一页的主导色）。
+
+        【编号为什么是 01】编号跟着跨页走：01 关于我 / 02 项目 / 03 笔记。
+        改前首页的编号是从「项目 = 01」开始的，因为那时磁贴区还没被立成一页。
+      */}
+      <SectionBand
+        tone="about"
+        index="01"
+        latin="ABOUT"
+        id="about-title"
+        title={d.about.title}
+        lead={d.about.lead}
+        /*
+          ── 那张插画挪到了这里（2026-10-05）────────────────────
+          它原来是首屏主视觉，站长问「好端端的放张插画在那干嘛」—— 问得对：
+          它不携带任何关于这个人的信息，占着封面最大的位置却在说谁都能说的话。
+          但它本身没问题，只是**放错了页**：这是「关于我」的一页，一张人像在这里才有意义 ——
+          像杂志栏目页右上角那张作者小像。
+
+          【2026-10-05 换了图】新图沿用同一个人物，但背景从深蓝紫改成浅色、
+          屏幕上的内容改成「锦创AI」。旧图是深色底，压在亮色主题的页面上是一块突兀的深色方块；
+          新图两套主题下都成立，屏幕上那三个字也才看得清。
+          旧图没删，留在 `Outbox/Images/hero-scene.深色底版.20261005.jpg`。
+          配套改了两处：`identity.heroSceneAlt`（替代文本必须跟着换）和 `DOWNLOADS.md` 的尺寸记录。
+
+          【尺寸为什么这么小】它是「栏目页的作者小像」，不是主视觉 ——
+          只负责让这一页有个人，撑场面的是左边那颗地球。桌面 160px 是能看清屏幕上那三个字的下限，
+          再小「锦创AI」就糊成一团了。
+
+          【object-cover 就够了，不要写 object-position】图和容器都是正方形，
+          cover 会把整张图完整显示、根本不裁 —— 这时候写 object-[x%_y%] 是无效的，
+          只会让后面读代码的人以为这里有取景逻辑。真要取景得先把图裁成非正方形。
+        */
+        aside={
+          <img
+            src="/images/hero-scene.jpg"
+            alt={pick(site.identity.heroSceneAlt)}
+            width={640}
+            height={640}
+            loading="lazy"
+            decoding="async"
+            className="size-28 rounded-2xl object-cover ring-1 ring-border sm:size-40"
+          />
+        }
+      />
+
+      <ul className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {/* ① 籍贯：地名摆在标题行（左边），地球占满下面一块。
             地名一旦放到球的右侧，这块就读成了「一张图 + 一段说明」的两栏排版；
             它要的是一行标题 + 一颗球。
@@ -569,6 +630,9 @@ export default function Dashboard({
           cursorEmoji="✈️"
           delay={0}
           tint="sky"
+          /* 地球卡是首屏以下第一块、也是面积最大的一块，让它当「主角卡」：
+             更大圆角 + 一圈彩色描边 + 更重投影，页面从此有了视觉重心。 */
+          hero
           action={
             <button
               ref={globeZoomButtonRef}
@@ -639,39 +703,52 @@ export default function Dashboard({
           /* action 槽放「编辑技术栈」，只有管理员看得到。Tile 的 action 本来就渲染在标题行右侧 */
           action={canEditSkills ? <SkillAdmin groups={skillGroups} /> : undefined}
         >
-          <div className="space-y-4">
+          <div className="space-y-6">
             {skillGroups.map((g) => (
+              /*
+                ── 技术栈：从「标签云」改成「目录」（2026-10-05 第二期）──────
+                【改前是什么】每一组下面铺一屏灰底小胶囊，三十来枚挤在一起。
+                它读起来是「一坨」，而且是整页视觉最重的一块 —— 但它只是技术栈，
+                不该是这一屏的重点。
+                【改后】左边组名、右边条目，条目之间用「·」隔开，**胶囊全部去掉**。
+                读起来从「标签云」变成「一份目录」：组名先被看到，条目再被读。
+                【为什么用 grid 而不是 flex】左栏要固定宽度（组名长度不一，
+                用 flex 会让每组的条目起点参差不齐），10rem 是量过最长的组名定的。
+              */
               <div
                 key={g.id}
-                className="flex flex-col gap-2 border-t border-border/40 pt-3 first:border-t-0 first:pt-0"
+                className="grid gap-2 border-t border-border/40 pt-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-6"
               >
-                {/* 组标题：改前是 12px 灰色大写，和下面的标签同色同重，扫读时分不出
-                    「组名」和「条目」。现在加粗、换成主文字色，左边加一枚 accent 短竖条当标记 ——
-                    一屏看下去，先看到各组，再看到每组下面的条目，层级才立得住。 */}
-                <span className="flex items-center gap-2 text-sm font-bold text-foreground">
-                  <span aria-hidden="true" className="h-3.5 w-0.5 rounded-full bg-accent" />
+                {/*
+                  组名走 font-song（系统宋体栈）而不是 font-display —— 组名是
+                  站长在后台随手写的动态内容，自托管子集覆盖不到，混排会出现半行换字。
+                  详见 globals.css 里 --font-song 的说明。
+                */}
+                <span className="font-song text-lg font-bold leading-snug text-foreground">
                   {pick(g.title)}
                 </span>
 
-                {/*
-                  小节。label 为空串时不画小标题 —— 渲染层不该强制数据必须带小标题，
-                  否则「只想平铺几个标签」的组存进库之后就会平白多出一行空白。
-                  （pick('') 返回空串，React 渲染空串等于什么都不画，所以这里不用额外判断。）
-                */}
-                {g.sections.map((s, si) => (
-                  <div key={si} className="flex flex-col gap-1.5">
-                    {pick(s.label) && (
-                      <span className="text-[13px] font-semibold text-muted-foreground">{pick(s.label)}</span>
-                    )}
-                    <div className="flex flex-wrap gap-x-2 gap-y-1.5">
-                      {s.items.map((item, i) => (
-                        <span key={i} className={SKILL_TAG}>
-                          {pick(item)}
-                        </span>
-                      ))}
+                <div className="flex flex-col gap-3">
+                  {g.sections.map((s, si) => (
+                    <div key={si} className="flex flex-col gap-1">
+                      {pick(s.label) && (
+                        <span className="text-[13px] font-semibold text-muted-foreground">{pick(s.label)}</span>
+                      )}
+                      <ul className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+                        {s.items.map((item, i) => (
+                          <li key={i} className="text-[15px] leading-relaxed break-words text-foreground/85">
+                            {i > 0 && (
+                              <span aria-hidden="true" className="mr-2.5 text-muted-foreground/50">
+                                ·
+                              </span>
+                            )}
+                            {pick(item)}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             ))}
           </div>

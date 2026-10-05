@@ -17,6 +17,7 @@ import { getDb } from '@/lib/db';
 import { hashPassword, createSession, toPublicUser, type UserRow } from '@/lib/auth';
 import { canReceiveMail, isDisposableEmail, isEmailShapeOk } from '@/lib/email-guard';
 import { verifyCode, consumeCode } from '@/lib/codes';
+import { verifyCaptcha, consumeCaptcha } from '@/lib/captcha';
 
 /** Node 运行时：要用 node:crypto / node:dns / better-sqlite3，都不能跑在 Edge 上 */
 export const runtime = 'nodejs';
@@ -40,6 +41,9 @@ export type RegisterErrorCode =
   | 'invalid_code'
   | 'expired_code'
   | 'too_many_attempts'
+  | 'captcha_invalid'
+  | 'captcha_expired'
+  | 'captcha_too_many'
   | 'email_taken'
   | 'name_taken'
   | 'rate_limited';
@@ -96,6 +100,8 @@ export async function POST(request: Request): Promise<NextResponse> {
     password?: string;
     confirmPassword?: string;
     displayName?: string;
+    captchaId?: string;
+    captchaText?: string;
   };
   try {
     body = await request.json();
@@ -108,6 +114,20 @@ export async function POST(request: Request): Promise<NextResponse> {
   const password = body.password ?? '';
   const confirmPassword = body.confirmPassword ?? '';
   const displayName = (body.displayName ?? '').trim();
+  const captchaId = (body.captchaId ?? '').trim();
+  const captchaText = (body.captchaText ?? '').trim();
+
+  /*
+    ── 图形验证码：放在最前面 ──────────────────────────────────
+    【为什么排第一】它是这一整条链路上唯一专门用来挡脚本的一环。
+    后面的邮箱 DNS 查询（canReceiveMail）会真的往外发 DNS 请求，
+    是被刷时最贵的操作 —— 让它排在验证码后面，脚本连这一关都过不去。
+    【对正常用户的影响】他本来就要读图再填，先报这一项不额外增加负担。
+  */
+  const captchaVerdict = verifyCaptcha(captchaId, captchaText);
+  if (captchaVerdict === 'expired') return fail('captcha_expired');
+  if (captchaVerdict === 'too_many') return fail('captcha_too_many');
+  if (captchaVerdict !== 'ok') return fail('captcha_invalid');
 
   if (!isEmailShapeOk(email)) return fail('invalid_email');
 
@@ -174,6 +194,13 @@ export async function POST(request: Request): Promise<NextResponse> {
 
   // 码用完即弃：同一枚码不该能注册第二个账号
   consumeCode(email, 'register');
+
+  /*
+    图形验证码也在这里才销毁（不是校验通过就销毁）。
+    上面任何一步失败都不会走到这里，所以用户「图形码填对了、邮箱码填错了」时，
+    重试不用重新读图 —— 见 lib/captcha.ts 文件头对这个取舍的说明。
+  */
+  consumeCaptcha(captchaId);
 
   // 注册即登录：省掉「注册完还得再登一次」
   await createSession(userId);

@@ -8,6 +8,12 @@
  * 这样在顶栏这种窄空间里不用写「中文 / English」两个词也能看懂，
  * 完整含义放在 aria-label 与 title 里（读屏用户听到的是「切换到 English」而不是「EN」）。
  *
+ * 【2026-10-05 改版：去掉地球图标，只留 EN / 中】
+ * 改前是「地球图标 + EN」挤在一个 44px 方框里，两样东西都小。站长反馈顶栏「有些内容显得太小」。
+ * 现在整枚按钮就是一个圆，里面只有 EN 或 中 —— 字能放大到 15px，
+ * 而且「EN」本身已经说清了这是语言切换，前面再挂个地球是同一件事说两遍。
+ * 外观走 lib/topbar.ts 的共享常量（和主题、音乐那几枚完全同款）。
+ *
  * 【为什么按钮里的字不参与翻译】
  * 「EN」「中」是两个语言的名字本身，翻译成当前语言就失去切换提示的意义，
  * 这是多语言站点的通行做法，不是漏接字典。
@@ -17,10 +23,10 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Languages } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { TOPBAR_CONTROL } from '@/lib/topbar';
 
-export default function LanguageToggle({ size = 18 }: { size?: number }) {
+export default function LanguageToggle() {
   const { lang, toggleLang, d } = useI18n();
   const [mounted, setMounted] = useState(false);
 
@@ -28,11 +34,8 @@ export default function LanguageToggle({ size = 18 }: { size?: number }) {
   // 用 mounted 挡掉这一帧的差异，避免 hydration 报错。
   useEffect(() => setMounted(true), []);
 
-  const btnClass =
-    'inline-flex size-11 cursor-pointer items-center justify-center gap-1 rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
-
   if (!mounted) {
-    return <span className={`${btnClass}`} aria-hidden="true" />;
+    return <span className={TOPBAR_CONTROL} aria-hidden="true" />;
   }
 
   const nextLabel = lang === 'zh' ? 'EN' : '中';
@@ -41,12 +44,13 @@ export default function LanguageToggle({ size = 18 }: { size?: number }) {
     <button
       type="button"
       onClick={toggleLang}
-      className={btnClass}
+      className={TOPBAR_CONTROL}
       aria-label={d.language.switchTo}
       title={d.language.switchTo}
     >
-      <Languages size={size} aria-hidden="true" />
-      <span className="text-xs font-bold leading-none">{nextLabel}</span>
+      <span className="text-[15px] font-bold leading-none tracking-tight" aria-hidden="true">
+        {nextLabel}
+      </span>
     </button>
   );
 }

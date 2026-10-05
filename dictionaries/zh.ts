@@ -41,6 +41,17 @@ const zh = {
     ariaToLight: '切换到明亮模式',
     ariaToDark: '切换到暗黑模式',
   },
+  /**
+   * 顶栏的背景音乐控件（2026-10-05 新增）。
+   * 【为什么没有「打开时自动播放」这类文案】播放器默认就是暂停 + 静音，
+   * 不存在自动播放这个状态，也就没有对应的提示语。
+   */
+  music: {
+    play: '播放背景音乐',
+    pause: '暂停背景音乐',
+    mute: '静音',
+    unmute: '取消静音',
+  },
   contact: {
     wechatTitle: '微信公众号',
     wechatHint: '扫码关注「{account}」',
@@ -74,6 +85,17 @@ const zh = {
     zoomTitle: '旋转查看家乡',
     zoomHint: '拖动地球，查看不同方向',
     closeZoom: '关闭放大地球',
+  },
+  /**
+   * 「关于我」这一页的章节名与引言。
+   * 【2026-10-05 新增】首页拆成五个跨页之后，磁贴区（籍贯/最喜欢的工具/技术栈/工具/连接）
+   * 被立成独立的一页，需要一个章节名 —— 在此之前它没有标题，是一块「没有名字的内容」。
+   * ⚠️ title 走宋体（--font-display）渲染，是手工裁的子集：
+   * 改这几个字必须回去补字形并重新生成，命令见 DOWNLOADS.md。
+   */
+  about: {
+    title: '关于我',
+    lead: '老家、常用的工具，和我在用的技术栈。',
   },
   favorite: {
     title: '最喜欢的工具',
@@ -198,7 +220,14 @@ const zh = {
     fieldEmail: '邮箱',
     fieldPassword: '密码',
     fieldName: '昵称',
-    fieldNameHint: '显示在评论旁边，1–24 个字',
+    /*
+      昵称的说明（2026-10-05 改）。
+      【为什么写「不区分大小写」而不写「区分大小写」】站长要的是：
+      填进去是什么就存什么（Tom 不会变成 tom），但 Tom / tom / TOM 只能存在一个。
+      前半句对应「原样保留」，后半句对应「不区分大小写」，两句都得说，
+      否则用户看到自己填的 Tom 被拒绝时会以为「那我把 T 改大写不就行了」—— 改几次都一样被拒。
+    */
+    fieldNameHint: '1–24 位，支持中文等文字；不区分大小写，Tom 与 tom 算同一个',
     fieldPasswordHint: '至少 8 位',
     /** 验证码流程（2026-10-04 新增：注册与注销都改成「收码填回」） */
     fieldCode: '验证码',
@@ -208,6 +237,16 @@ const zh = {
     codeSending: '发送中…',
     codeSent: `验证码已发出，请查收邮箱（${EMAIL_CODE_TTL_MINUTES} 分钟内有效）。`,
     codeCountdown: '{seconds} 秒后可重发',
+    /**
+     * 图形验证码（2026-10-05 新增）。
+     * 和上面那枚「邮箱验证码」是两回事，措辞上要能区分开：
+     * 这一枚是**看着图片抄**，那一枚是**去邮箱找**。
+     */
+    fieldCaptcha: '图形验证码',
+    fieldCaptchaPlaceholder: '请输入图片中的 5 位字符',
+    captchaRefresh: '换一张',
+    captchaLoading: '加载中…',
+    captchaFailed: '验证码加载失败，点「换一张」重试',
     doLogin: '登录',
     doRegister: '注册',
     doLogout: '登出',
@@ -267,7 +306,20 @@ const zh = {
       too_many_attempts: '验证码试太多次已作废，重新发一个吧。',
       invalid_name: '昵称请填 1–24 个字。',
       email_taken: '这个邮箱已经注册过了，直接登录吧。',
-      name_taken: '这个昵称被别人用了，换一个吧。',
+      /*
+        【2026-10-05 改口径】站长要求：锦创AI / 锦创Ai / 锦创ai / 锦创aI 只能存在一个，
+        其余三种填进来时统一回「该账户已存在」。
+        实测确认这条已经成立 —— SQLite 的 COLLATE NOCASE 会把 ASCII 字母折成小写、
+        中文按字节原样比，所以这四种写法在唯一索引下就是同一个值。
+        这里只是把提示语从「昵称被别人用了」换成站长指定的说法。
+      */
+      name_taken: '该账户已存在，换一个吧。',
+      /** 图形验证码的三种失败。分开是为了让前端说清「下一步该干什么」 */
+      captcha_invalid: '图形验证码不对，再对着图片输一次。',
+      captcha_expired: '图形验证码过期了，点「换一张」重新来。',
+      captcha_too_many: '图形验证码试太多次已作废，点「换一张」。',
+      /** 注销时密码填错 */
+      wrong_password: '密码不对。',
       bad_credentials: '邮箱或密码不对。',
       invalid_parent: '要回复的那条评论已经不在了。',
       invalid_token: '这个链接无效，请重新申请。',
@@ -291,6 +343,9 @@ const zh = {
    */
   auth: {
     login: '登录',
+    /** 顶栏那颗「注册」按钮（2026-10-05 新增）。和 auth.registerTitle 分开：
+     *  按钮上的字要短，浮层标题可以用完整说法 */
+    register: '注册',
     logout: '登出',
     loginTitle: '登录',
     registerTitle: '注册',

@@ -7,11 +7,12 @@ import type { Metadata, Viewport } from 'next'
 import { ThemeProvider } from 'next-themes'
 import { I18nProvider } from '@/lib/i18n'
 import { TwinChatProvider } from '@/lib/twin-chat-context'
+import { MusicProvider } from '@/lib/music-context'
 import { AuthProvider } from '@/lib/auth-context'
 import Navbar from '@/components/Navbar'
 import CustomCursor from '@/components/CustomCursor'
 import CursorFx from '@/components/CursorFx'
-import ParticleField from '@/components/ParticleField'
+import ThemeColorSync from '@/components/ThemeColorSync'
 import Footer from '@/components/footer'
 import PageTransition from '@/components/page-transition'
 import ShortcutLayer from '@/components/ShortcutLayer'
@@ -76,11 +77,15 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   // 深色/明亮模式的主题色：手机浏览器地址栏跟着变，切模式时不会有突兀的白边。
-  // 这两个值必须等于 --background 的实际混色结果，改了令牌就要跟着改：
-  // 明亮 hsl(220 16% 98%) = #f9fafb、暗黑 hsl(222 14% 6%) = #0d0e11。
+  // ⚠️ 这个颜色一共存了**三处**，改一处必须三处一起改：
+  //   ① 这里（服务端首帧用的 meta，带媒体查询，只能读系统偏好）
+  //   ② globals.css 的 --band-cover（页面最顶端的实际底色）
+  //   ③ components/ThemeColorSync.tsx 的 BAR_COLOR（挂载后按站内主题覆盖 ①）
+  // 取的必须是 --band-cover 而不是 --background：地址栏压在页面最顶端，
+  // 而最顶端是「封面」那一页。（明亮 #f3f4f9、暗黑 #0c0e16。）
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f9fafb' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d0e11' },
+    { media: '(prefers-color-scheme: light)', color: '#f3f4f9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0c0e16' },
   ],
 }
 
@@ -132,8 +137,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="zh" suppressHydrationWarning>
       <body className="antialiased">
-        {/* ThemeProvider 负责给 <html> 加/去 .dark 类，globals.css 里的 @custom-variant dark 认的就是这个类 */}
-        <ThemeProvider attribute="class" defaultTheme={site.defaults.theme} disableTransitionOnChange>
+        {/*
+          ThemeProvider 负责给 <html> 加/去 .dark 类，globals.css 里的 @custom-variant dark 认的就是这个类。
+
+          【enableSystem={false} 是必须的】默认主题是亮色（见 config/site.ts 的 defaults.theme）。
+          next-themes 默认 enableSystem 为 true —— 那样它会去读系统的 prefers-color-scheme，
+          系统是深色的访客拿到的还是深色，「默认亮色」就不成立了。
+          关掉之后：没存过偏好的访客一律亮色，自己点过主题开关的按存下来的走。
+        */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme={site.defaults.theme}
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          {/*
+            手机地址栏颜色的同步件。不渲染任何东西，只把上面 viewport.themeColor 那两条
+            带媒体查询的 meta 改成跟着**页面主题**走 —— 默认主题改成亮色之后，
+            「系统深色 + 页面亮色」的访客会看到一条不属于这个页面的深色地址栏。见组件内说明。
+          */}
+          <ThemeColorSync />
           {/*
             AuthProvider：全站登录态。
             顶栏的账号入口与笔记页评论区的登录框共用同一份 —— 否则会出现
@@ -150,18 +173,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             */}
             <TwinChatProvider>
               {/*
-                全站粒子层：一张 fixed 的画布铺满视口，压在 z-0，所有内容包在 z-10 里。
-                它是背景而不是装饰贴片 —— 卡片是不透明的，所以粒子只在卡片之间的缝和
-                页面留白处露出来，滚到哪儿都在。
-                【h-full w-full 不能省】canvas 是替换元素，光给 inset-0 不会像 div 那样被拉伸，
-                它会保持自己 300×150 的固有尺寸停在左上角（实测过）。必须显式给宽高。
+                【2026-10-05 移除星空层】这里原来挂着一个 ParticleField
+                （最早是「粒子连线网」，后来改成三层景深的「星尘」）。
+                撤掉它的原因是：**它属于「噪点」，不属于「设计」**——
+                满屏细碎光点会让页面读起来像通用科技风模板，而气质来自克制，不来自叠加。
+                组件文件 `components/ParticleField.tsx` **保留在仓库里没有删**，
+                哪天想恢复，把这一层加回来即可。
               */}
-              <ParticleField
-                className="pointer-events-none fixed inset-0 z-0 h-full w-full"
-                desktopDots={110}
-                mobileDots={46}
-              />
 
+              {/*
+                MusicProvider：背景音乐的**唯一**播放状态与 <audio> 元素。
+                顶栏和手机抽屉里的播放控件都读这一份 —— 各自渲染 <audio> 会同时播两条音轨。
+                放在这一层而不是 Navbar 里，是因为抽屉不在 Navbar 的子树里。
+              */}
+              <MusicProvider>
               <div className="relative z-10">
                 <Navbar />
                 <PageTransition>{children}</PageTransition>
@@ -214,6 +239,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 */}
                 <VerifyNotice />
               </div>
+              </MusicProvider>
               {/* 表情光标：只在真鼠标设备上挂载，负责把带 data-cursor-emoji 的磁贴
                   上方那枚系统箭头换成对应表情（地球块是 ✈️）。它自己会判断设备，
                   触屏上整个组件不生效。 */}

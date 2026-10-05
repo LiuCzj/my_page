@@ -1,11 +1,13 @@
 'use client';
 
 /**
- * 注销账号浮层：先把验证码发到**本人邮箱**，填回来才真的删。
+ * 注销账号浮层：图形验证码 + 当前密码 + 邮箱验证码，三层都过才真的删。
  *
- * 【为什么注销也要验证码】这个操作不可逆（账号 + 全部评论一起没）。
- * 光靠一个已登录的会话不够 —— 那可能只是别人趁你离开电脑时点的。
- * 码发到账号自己的邮箱，等于「只有能收这封信的人才能注销这个账号」。
+ * 【为什么是三层】这个操作不可逆（账号 + 全部评论一起没），挡的是三种不同的东西：
+ *   · 图形验证码 → 挡脚本（批量提交、拿泄漏的会话列表去撞）
+ *   · 当前密码   → 挡「拿到会话但不知道密码的人」（共用电脑、会话被偷）
+ *   · 邮箱验证码 → 挡「连邮箱也被拿到」，同时留一条「你确定吗」的缓冲
+ * 顺序按验证成本从低到高：图形码看一眼就填，密码要回忆，邮箱码得切到邮箱去抄。
  *
  * 【邮箱为什么是只读的】注销的收件人只能是当前登录用户自己的邮箱。
  * 服务端也是这个口径（不收请求体里的邮箱），前端把邮箱显示出来只是让用户确认「发到哪儿了」。
@@ -19,12 +21,8 @@ import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth-context';
 import EditorPanel from '@/components/admin/EditorPanel';
-
-const FIELD =
-  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-ring focus:outline-none';
-const LABEL = 'mb-1 block text-xs font-bold text-muted-foreground';
-const SEND_BTN =
-  'inline-flex min-h-[44px] shrink-0 cursor-pointer items-center justify-center rounded-lg border border-accent px-3 text-xs font-semibold text-accent transition hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-50';
+import CaptchaField, { type CaptchaValue } from '@/components/CaptchaField';
+import { FIELD, HINT, LABEL, SEND_BTN } from '@/components/form-styles';
 
 export default function DeleteAccountPanel({
   open,
@@ -38,6 +36,10 @@ export default function DeleteAccountPanel({
   const { user, setUser } = useAuth();
 
   const [code, setCode] = useState('');
+  /** 当前密码。注销要重新证明「你是本人」，不能只靠已登录的会话 */
+  const [password, setPassword] = useState('');
+  /** 图形验证码 */
+  const [captcha, setCaptcha] = useState<CaptchaValue>({ id: '', text: '' });
   const [busy, setBusy] = useState<null | 'code' | 'delete'>(null);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [cooldown, setCooldown] = useState(0);
@@ -55,6 +57,9 @@ export default function DeleteAccountPanel({
 
   const close = () => {
     setCode('');
+    setPassword('');
+    // 图形验证码只清用户填的那半，id 留着（服务端那张图还在有效期内）—— 同 AuthPanel 的处理
+    setCaptcha((c) => ({ ...c, text: '' }));
     setNotice(null);
     onClose();
   };
@@ -92,7 +97,12 @@ export default function DeleteAccountPanel({
       const res = await fetch('/api/auth/account', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+        body: JSON.stringify({
+          code,
+          password,
+          captchaId: captcha.id,
+          captchaText: captcha.text,
+        }),
       });
       const data = await res.json();
       if (!data.ok) {
@@ -168,6 +178,9 @@ export default function DeleteAccountPanel({
           </div>
         </div>
 
+        {/* 图形验证码：第一层，最便宜的一道 */}
+        <CaptchaField value={captcha} onChange={setCaptcha} idPrefix="delete" />
+
         <div>
           <label className={LABEL} htmlFor="delete-code">
             {d.comments.fieldCode}
@@ -181,7 +194,27 @@ export default function DeleteAccountPanel({
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
             className={`${FIELD} font-mono tracking-[0.4em]`}
           />
-          <p className="mt-1 text-xs text-muted-foreground">{d.comments.fieldCodeHint}</p>
+          <p className={HINT}>{d.comments.fieldCodeHint}</p>
+        </div>
+
+        {/*
+          当前密码：第三层。
+          【为什么放在最后】它是三层里唯一「用户可能想不起来」的一道。
+          放在末尾，用户先做完确定能做完的两步，卡在密码上时前面的填写不会白费。
+          autoComplete="current-password" 让密码管理器认得这是「已有密码」而不是「新密码」。
+        */}
+        <div>
+          <label className={LABEL} htmlFor="delete-password">
+            {d.comments.fieldPassword}
+          </label>
+          <input
+            id="delete-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={FIELD}
+          />
         </div>
       </form>
     </EditorPanel>
