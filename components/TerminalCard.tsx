@@ -100,12 +100,24 @@ function buildCommands(pick: (text: LocalizedText) => string): TerminalCommand[]
       cmd: 'whoami',
       output: [identity.name, pick(identity.signature)],
     },
-    // ② 技能：只列每个分组的组名，用 · 串成一行。
-    //    不展开条目 —— 六组、每组四五条，铺开会把这张首屏卡撑成一面墙。
-    //    组名已经足够让人知道「他会哪几个方向」，细节留给下面真正的技术栈区块。
+    /*
+      ② 技能：一个分组一行，后面跟它的小节名（如果有）。
+      不展开到具体条目 —— 五组、每组三四条，铺开会把这张首屏卡撑成一面墙；
+      「组名 + 小节名」已经够说清他覆盖哪几个方向，细节留给下面真正的技术栈区块。
+
+      【2026-10-04 适配三层结构】技术栈多了小节这一层（深度学习框架 / 传统机器学习…），
+      所以这里从「一行组名」改成「一组一行的层级摘要」，终端显示的内容跟着技术栈走。
+      小节名留空的组（大模型开发 / Vibe Coding / Agent）只显示组名，不会多出一对空括号。
+    */
     {
       cmd: 'cat skills.txt',
-      output: [skills.map((group) => pick(group.title)).join(SEP)],
+      output: skills.map((group) => {
+        const sub = group.sections
+          .map((s) => pick(s.label))
+          .filter(Boolean)
+          .join(' / ');
+        return sub ? `${pick(group.title)} — ${sub}` : pick(group.title);
+      }),
     },
     // ③ 作品：一个项目一行，slug 在前、标题在后，读起来就是一次 ls 的输出。
     //    条目直接来自 config，连第三条占位项目也照原样列出 —— 不替站长筛内容。

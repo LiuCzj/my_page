@@ -1,10 +1,15 @@
 /**
- * 邮件发送：注册后的验证邮件。
+ * 邮件发送：验证码邮件（注册 / 注销）、重置密码邮件，以及遗留的验证链接邮件。
+ *
+ * 【现役的是哪几封】`sendCodeEmail`（注册 / 注销的 6 位码）与 `sendResetEmail`（重置密码）。
+ * 2026-10-04 起注册改用验证码，「点链接激活」那条链路已退役 ——
+ * `buildVerifyUrl` / `sendVerificationEmail` 因此**当前没有任何调用方**，
+ * 只是保留给 `app/api/auth/verify/route.ts`（遗留账号的兜底落点）用。见那两个函数的说明。
  *
  * 【它是「挡临时邮箱」这条链上的关键一环】
  * 域名黑名单只能挡已知的那些，MX 检查只能挡瞎编的域名 —— 临时邮箱服务大多两者都能通过。
- * 真正让临时邮箱失效的是这一步：注册后必须点开邮件里的链接才算激活，
- * 而临时邮箱要么根本收不到（发信被拒），要么用户不会去点（那邮箱十分钟后就没了）。
+ * 真正让临时邮箱失效的是「必须拿到邮箱里的那串码才能完成注册」这一步，
+ * 而临时邮箱要么根本收不到（发信被拒），要么用户不会去抄（那邮箱十分钟后就没了）。
  *
  * 【为什么 SMTP 没配就拒绝注册，而不是静默放行】
  * 如果 SMTP 没配却允许注册，用户会得到一个「注册成功但永远收不到验证邮件」的账号 ——
@@ -17,10 +22,11 @@
  *   SMTP_USER   登录用户名（通常是完整邮箱）
  *   SMTP_PASS   授权码 / 应用专用密码（**不是**邮箱登录密码）
  *   SMTP_FROM   发件人显示地址，不填则用 SMTP_USER
- *   SITE_URL    站点根地址，用来拼验证链接，例如 https://www.jinc.de5.net
+ *   SITE_URL    站点根地址，用来拼链接，例如 https://www.jinc.de5.net
  */
 
 import nodemailer, { type Transporter } from 'nodemailer';
+import { EMAIL_CODE_TTL_MINUTES } from './auth-ttl';
 
 /** 模块级缓存：transporter 内部维持连接池，每次重建会浪费握手开销 */
 let cached: Transporter | null = null;
@@ -56,6 +62,10 @@ function getTransporter(): Transporter | null {
 /**
  * 拼验证链接。
  *
+ * 【遗留：当前无调用方】这条链路是 2026-10-04 前的注册激活方式，已被验证码取代。
+ * 保留它是为了 `app/api/auth/verify/route.ts` 那个兜底落点 —— 要复活整条流程，
+ * 请先读那个文件头部列出的三个前置条件，别只把这里接回去。
+ *
  * 优先用环境变量 SITE_URL；没配时退回请求头里的 host（由调用方传入），
  * 这样本地开发不配 SITE_URL 也能点开链接。
  *
@@ -70,6 +80,9 @@ export function buildVerifyUrl(fallbackOrigin: string, token: string): string {
 
 /**
  * 发验证邮件。
+ *
+ * 【遗留：当前无调用方】同 `buildVerifyUrl` —— 注册激活已改用 6 位验证码
+ * （`sendCodeEmail`）。保留它只为遗留账号的兜底链路，删掉它等于把那条链路彻底断掉。
  *
  * @param to 收件邮箱
  * @param verifyUrl 验证链接
@@ -94,7 +107,6 @@ export async function sendVerificationEmail(
     // 纯文本兜底：部分客户端（或用户设置）不渲染 HTML，没有这一份会看到空白
     text: `${displayName}，你好：\n\n请点开下面的链接确认邮箱，之后就能在笔记下留言了：\n\n${verifyUrl}\n\n如果不是你本人操作，忽略这封邮件即可。\n\n—— 锦创AI`,
     html: renderHtml(displayName, verifyUrl, {
-      heading: '确认邮箱',
       body: '请点下面的按钮确认邮箱，之后就能在笔记下面留言了。',
       button: '确认邮箱',
       footer: '如果不是你本人操作，忽略这封邮件即可。',
@@ -106,7 +118,6 @@ export async function sendVerificationEmail(
 
 /** 邮件模板的可变文案（验证信与重置信共用同一套骨架） */
 interface MailCopy {
-  heading: string;
   body: string;
   button: string;
   footer: string;
@@ -132,7 +143,7 @@ interface MailCopy {
  * @returns 邮件 HTML
  */
 function renderHtml(displayName: string, actionUrl: string, copy: MailCopy): string {
-  const { heading, body, button, footer } = copy;
+  const { body, button, footer } = copy;
   return `<!doctype html>
 <html lang="zh-CN"><body style="margin:0;padding:24px;background:#f4f4f6;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
@@ -203,7 +214,6 @@ export async function sendResetEmail(
     subject: '重置你的密码 · 锦创AI',
     text: `${displayName}，你好：\n\n有人请求重置这个邮箱在锦创AI的登录密码。\n点开下面的链接设置新密码（1 小时内有效）：\n\n${resetUrl}\n\n如果不是你本人操作，忽略这封邮件即可 —— 你的密码不会被改动。\n\n—— 锦创AI`,
     html: renderHtml(displayName, resetUrl, {
-      heading: '重置密码',
       body: '有人请求重置这个邮箱在锦创AI的登录密码。点下面的按钮设置新密码，链接 1 小时内有效。',
       button: '设置新密码',
       footer: '如果不是你本人操作，忽略这封邮件即可 —— 你的密码不会被改动。',
@@ -241,6 +251,12 @@ export async function sendCodeEmail(
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
   const isDelete = purpose === 'delete';
   const who = displayName ? `${displayName}，你好：` : '你好：';
+  /*
+    有效期分钟数从 lib/auth-ttl.ts 推导，不在文案里硬写「10」。
+    以前这里（正文 + HTML 各一处）和 lib/codes.ts 的常量是三份独立的「10」，
+    改 TTL 时必然漏改文案 —— 那属于「给用户的承诺与代码行为不一致」，比编译错误更难发现。
+  */
+  const codeMinutes = EMAIL_CODE_TTL_MINUTES;
 
   const action = isDelete ? '注销账号' : '注册账号';
   const bodyText = isDelete
@@ -254,12 +270,13 @@ export async function sendCodeEmail(
     from: `"锦创AI" <${from}>`,
     to,
     subject: `${code} 是你的${action}验证码 · 锦创AI`,
-    text: `${who}\n\n${bodyText}\n\n验证码：${code}\n\n10 分钟内有效。\n\n${footer}\n\n—— 锦创AI`,
+    text: `${who}\n\n${bodyText}\n\n验证码：${code}\n\n${codeMinutes} 分钟内有效。\n\n${footer}\n\n—— 锦创AI`,
     html: renderCodeHtml(code, {
       who,
       heading: `${action}验证码`,
       body: bodyText.replace(/\*\*/g, ''),
       footer,
+      minutes: codeMinutes,
     }),
   });
 
@@ -273,14 +290,14 @@ export async function sendCodeEmail(
  * 验证码用等宽字体、大字号、加字距 —— 用户要照着抄，字符必须一眼分清（0 和 O、1 和 l）。
  *
  * @param code 验证码
- * @param copy 文案
+ * @param copy 文案（`minutes` 为有效期分钟数，由 lib/auth-ttl.ts 推导，勿在模板里写死）
  * @returns 邮件 HTML
  */
 function renderCodeHtml(
   code: string,
-  copy: { who: string; heading: string; body: string; footer: string },
+  copy: { who: string; heading: string; body: string; footer: string; minutes: number },
 ): string {
-  const { who, heading, body, footer } = copy;
+  const { who, heading, body, footer, minutes } = copy;
   return `<!doctype html>
 <html lang="zh-CN"><body style="margin:0;padding:24px;background:#f4f4f6;font-family:-apple-system,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
   <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;">
@@ -298,7 +315,7 @@ function renderCodeHtml(
       </div>
     </td></tr>
     <tr><td style="padding:0 28px 24px;">
-      <p style="margin:0;font-size:12px;line-height:1.7;color:#888780;">验证码 10 分钟内有效，请勿转发给他人。</p>
+      <p style="margin:0;font-size:12px;line-height:1.7;color:#888780;">验证码 ${minutes} 分钟内有效，请勿转发给他人。</p>
     </td></tr>
     <tr><td style="padding:16px 28px 24px;border-top:1px solid #eceae4;">
       <p style="margin:0;font-size:12px;line-height:1.7;color:#888780;">${escapeHtml(footer)}</p>

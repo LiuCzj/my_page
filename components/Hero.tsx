@@ -68,7 +68,7 @@ export default function Hero() {
               href="#projects"
               whileHover={reduceMotion ? undefined : { y: -2 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground shadow-[0_10px_26px_-14px_hsl(var(--accent)/0.8)] transition-shadow hover:shadow-[0_14px_30px_-13px_hsl(var(--accent)/0.7)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-bold text-accent-foreground shadow-[0_10px_26px_-14px_hsl(var(--accent)/0.8)] transition-shadow duration-200 hover:shadow-[0_14px_30px_-13px_hsl(var(--accent)/0.7)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               {d.hero.viewProjects}
               <ArrowRight size={16} aria-hidden="true" />
@@ -81,7 +81,7 @@ export default function Hero() {
               aria-label={open ? d.chat.close : d.nav.chat}
               whileHover={reduceMotion ? undefined : { y: -2 }}
               whileTap={reduceMotion ? undefined : { scale: 0.98 }}
-              className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${open ? 'border-accent/50 bg-accent/10 text-accent' : 'border-border bg-card text-foreground hover:border-accent/50 hover:bg-accent/5'}`}
+              className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-bold transition-colors duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring ${open ? 'border-accent/50 bg-accent/10 text-accent' : 'border-border bg-card text-foreground hover:border-accent/50 hover:bg-accent/5'}`}
             >
               {open ? <X size={16} aria-hidden="true" /> : <MessageCircle size={16} aria-hidden="true" className="text-accent" />}
               {open ? d.chat.close : d.nav.chat}
@@ -144,20 +144,10 @@ export default function Hero() {
                   {pick(identity.tagline)}
                 </p>
               </div>
-              <span aria-hidden="true" className="ml-auto hidden size-10 shrink-0 items-center justify-center rounded-xl bg-warm/10 text-warm sm:flex">
-                <MessageCircle size={19} />
-              </span>
             </div>
 
             <div className="relative mt-4 sm:mt-5">
               <TerminalCard />
-            </div>
-            <div className="mt-4 flex items-center justify-between gap-3 px-1 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground sm:text-xs">
-              <span className="inline-flex items-center gap-2">
-                <span aria-hidden="true" className="size-1.5 rounded-full bg-warm" />
-                {d.terminal.title}
-              </span>
-              <span>AI · DATA · PROJECTS</span>
             </div>
           </div>
         </motion.div>

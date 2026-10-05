@@ -71,10 +71,10 @@ export default function Navbar() {
   /** 导航项文字配色：当前页用 accent，其余用灰并在悬停时提亮。
    *  visited: 一条防止 Chrome 把点过的导航项换成它自己的访问色（详见 SocialLinks 同处注释） */
   const navLabelClass = (active: boolean) =>
-    `transition-colors ${active ? 'text-accent visited:text-accent' : 'text-muted-foreground visited:text-muted-foreground hover:text-foreground'}`;
+    `transition-colors duration-200 ${active ? 'text-accent visited:text-accent' : 'text-muted-foreground visited:text-muted-foreground hover:text-foreground'}`;
 
   const controlBtn =
-    'inline-flex size-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+    'inline-flex size-11 cursor-pointer items-center justify-center rounded-lg border border-border bg-card text-foreground transition duration-200 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
   return (
     <>
@@ -145,7 +145,7 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               {/* 桌面端联系方式排在语言/主题之前，符合「依次排开」的顺序 */}
               <div className="hidden items-center gap-1 lg:flex">
-                <SocialLinks size={18} onOpenModal={setModal} />
+                <SocialLinks size={18} qrPlacement="below" onOpenModal={setModal} />
               </div>
               <span className="mx-1 hidden h-6 w-px bg-border lg:block" aria-hidden="true" />
               {/* 账号入口：登录/昵称，放在语言、主题旁边 —— 网页里最常见的位置 */}

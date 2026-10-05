@@ -19,7 +19,7 @@
  */
 
 import { getDb } from './db';
-import type { LocalizedText } from '@/config/site';
+import type { LocalizedText, SkillSection } from '@/config/site';
 
 /** 一篇笔记的完整记录（含正文） */
 export interface NoteRecord {
@@ -319,4 +319,138 @@ export function saveProject(input: ProjectInput): ProjectRecord {
 export function deleteProject(slug: string): boolean {
   if (!SLUG_RE.test(slug)) return false;
   return getDb().prepare('DELETE FROM projects WHERE slug = ?').run(slug).changes > 0;
+}
+
+// ── 技术栈分组（2026-10-04 新增：站长可在网页上自己编辑）──────────────────
+
+/**
+ * 分组在**存储层**的形状。
+ *
+ * 【为什么不直接用 config 的 SkillGroup】那个是「人写配置」的形状（没有 sort / updatedAt）；
+ * 这个是从库里读出来的形状。混用会让「配置里的初始值」和「库里的当前值」在类型上无法区分，
+ * 编辑时很容易写错数据来源。
+ */
+export interface SkillGroupRecord {
+  id: string;
+  title: LocalizedText;
+  sections: SkillSection[];
+  /** 页面上的显示顺序 */
+  sort: number;
+  updatedAt: number;
+}
+
+/** 数据库里的行 */
+interface SkillGroupRow {
+  id: string;
+  title_zh: string;
+  title_en: string;
+  sections: string;
+  sort: number;
+  updated_at: number;
+}
+
+/**
+ * 宽松解析 sections 那个 JSON 列。
+ *
+ * 【为什么不像 parseList 那样只接受字符串数组】这里存的是**嵌套对象**，
+ * 必须逐层取值再校验。库里万一躺着一份半截坏 JSON（手工改过库、旧版本写进去的），
+ * 渲染层一旦读到 undefined 就会崩在 .map 上 —— 整个磁贴区白屏。
+ * 所以解析失败或字段缺失一律降级成空值，宁可少显示，也不要让页面打不开。
+ */
+function parseSections(json: string): SkillSection[] {
+  try {
+    const v: unknown = JSON.parse(json);
+    if (!Array.isArray(v)) return [];
+    return (v as Array<Record<string, unknown>>).map((s) => {
+      const label = (s?.label ?? {}) as Record<string, unknown>;
+      const rawItems = Array.isArray(s?.items) ? (s.items as Array<Record<string, unknown>>) : [];
+      return {
+        label: { zh: String(label.zh ?? ''), en: String(label.en ?? '') },
+        items: rawItems
+          .map((it) => ({ zh: String(it?.zh ?? ''), en: String(it?.en ?? '') }))
+          .filter((it) => it.zh || it.en),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+function toSkillGroupRecord(r: SkillGroupRow): SkillGroupRecord {
+  return {
+    id: r.id,
+    title: { zh: r.title_zh, en: r.title_en || r.title_zh },
+    sections: parseSections(r.sections),
+    sort: r.sort,
+    updatedAt: r.updated_at,
+  };
+}
+
+/** 技术栈分组列表，按 sort 升序 —— 这个顺序就是页面上的显示顺序 */
+export function listSkillGroups(): SkillGroupRecord[] {
+  const rows = getDb()
+    .prepare('SELECT * FROM skill_groups ORDER BY sort ASC, updated_at ASC')
+    .all() as SkillGroupRow[];
+  return rows.map(toSkillGroupRecord);
+}
+
+/**
+ * 一个小节（编辑界面的输入形状）。
+ *
+ * 【为什么中英各给一串字符串，而不是「每项一对」】
+ * 编辑界面用两个多行文本域（中文条目一行一个 / 英文条目一行一个），
+ * 比让管理员逐条填「中英对照」的表单快得多，条目多的时候差别很明显。
+ * 代价是两串长度可能不一致 —— 按下标配对，英文缺行时回落到中文（见 replaceSkillGroups）。
+ */
+export interface SkillSectionInput {
+  labelZh: string;
+  labelEn: string;
+  itemsZh: string[];
+  itemsEn: string[];
+}
+
+/** 一个分组（编辑界面的输入形状） */
+export interface SkillGroupInput {
+  id: string;
+  titleZh: string;
+  titleEn: string;
+  sections: SkillSectionInput[];
+}
+
+/**
+ * 整体替换技术栈分组。
+ *
+ * 【为什么是「整份替换」而不是逐组增删改】编辑界面本来就把所有分组放在同一张面板里、
+ * 一次性提交；分组只有个位数。整份替换让「调顺序、删一组、加一组」全部退化成
+ * 「换掉整张表」，不需要 diff，也不会出现「先删后插」中途失败留下的排序错乱。
+ * 整个替换包在一个事务里，失败时回滚，不会出现"删干净了但没插进去"的空表。
+ *
+ * @param groups 已由 lib/admin-guard.ts 校验过的输入
+ */
+export function replaceSkillGroups(groups: SkillGroupInput[]): void {
+  const d = getDb();
+  const now = Date.now();
+  const insert = d.prepare(
+    `INSERT INTO skill_groups (id, title_zh, title_en, sections, sort, updated_at)
+     VALUES (@id, @title_zh, @title_en, @sections, @sort, @updated_at)`,
+  );
+
+  d.transaction(() => {
+    d.prepare('DELETE FROM skill_groups').run();
+    groups.forEach((g, i) => {
+      // 中英条目按下标配对；英文那串短了就回落到中文，绝不留下空标签
+      const sections: SkillSection[] = g.sections.map((s) => ({
+        label: { zh: s.labelZh, en: s.labelEn || s.labelZh },
+        items: s.itemsZh.map((zh, idx) => ({ zh, en: s.itemsEn[idx] || zh })),
+      }));
+      insert.run({
+        id: g.id,
+        title_zh: g.titleZh,
+        title_en: g.titleEn || g.titleZh,
+        sections: JSON.stringify(sections),
+        sort: i,
+        updated_at: now,
+      });
+    });
+  })();
 }

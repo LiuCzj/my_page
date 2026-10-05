@@ -60,17 +60,39 @@ export default function ReadingProgress({ className }: { className?: string }) {
     let raf = 0;
 
     /**
-     * 把「已滚动距离 / 可滚动总距离」写进 transform。
+     * 把「这篇文章读了百分之几」写进 transform。
      *
-     * 用 documentElement（<html>）而不是 body 量高度：body 的 scrollHeight 在部分
-     * 浏览器里不包含溢出内容，量出来会偏小，进度条会提前满格。
-     * max 为 0 表示这一页根本滚不动（内容比视口短），此时给 0 而不是 NaN。
+     * 【2026-10-04 修：分母从整页改成文章本身】
+     * 改前用的是 `documentElement.scrollHeight - clientHeight`，也就是**整页**的可滚动距离。
+     * 但笔记详情页在正文下面还有评论区和页脚 —— 按整页算的话，
+     * 读到正文最后一个字时进度条才走到一半出头，剩下那一截全是在滚评论和页脚，
+     * 跟「这篇文章读了多少」根本不是一回事。
+     *
+     * 【范围从哪来】笔记页给「标题 + 正文」那一层打了 data-reading-progress
+     * （见 app/notes/[slug]/page.tsx），这里只认它。
+     * 找不到就打 0，**不退回按整页算** —— 那正是这次要修掉的错误行为。
+     *
+     * 【起止点怎么定】
+     *   起点 = 这一层的顶部滚到视口顶部那一刻；
+     *   终点 = 这一层的底部滚到视口底部那一刻（最后一个字刚露出来的位置）。
+     *   两者之间的滚动距离就是「通读一遍」的行程，分母取 `层高 - 视口高`。
+     *   层比视口还短时（一眼看完的短文）分母 <= 0，直接给 0：
+     *   它没有「读完的过程」可言，留一条会动的线反而是噪音。
+     *
+     * 【为什么每帧现量 getBoundingClientRect，不缓存 offsetTop】
+     * 图片解码、字体替换、评论区异步拉取都会改变文档高度；缓存一次会让后续全部算偏。
+     * 现量的代价只是一次布局读取，而这个函数本来就被上面那道 rAF 闸门限成每帧最多一次。
      */
     const update = () => {
       raf = 0;
-      const doc = document.documentElement;
-      const max = doc.scrollHeight - doc.clientHeight;
-      const progress = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0;
+      const target = document.querySelector<HTMLElement>('[data-reading-progress]');
+      if (!target) {
+        bar.style.transform = 'scaleX(0)';
+        return;
+      }
+      const startY = target.getBoundingClientRect().top + window.scrollY;
+      const span = target.offsetHeight - window.innerHeight;
+      const progress = span > 0 ? Math.min(1, Math.max(0, (window.scrollY - startY) / span)) : 0;
       bar.style.transform = `scaleX(${progress})`;
     };
 

@@ -26,10 +26,33 @@ export interface LocalizedText {
   en: string;
 }
 
-/** 技术栈的一个分组：组名 + 组内条目 */
-export interface SkillGroup {
-  title: LocalizedText;
+/**
+ * 技术栈里的一个小节：小标题 + 条目。
+ *
+ * 【为什么要有小节这一层】「深度学习 / 机器学习」底下本来分两类东西
+ * （深度学习框架 / 传统机器学习），平铺成一串标签就读不出这层区别；
+ * 「数据处理与业务分析」同理。小标题留空 = 这一组只有一段、不需要小标题。
+ */
+export interface SkillSection {
+  /** 小节名。留空表示这一组不分子节，条目直接铺开 */
+  label: LocalizedText;
   items: LocalizedText[];
+}
+
+/**
+ * 技术栈的一个分组。
+ *
+ * 【为什么带 id】分组与条目现在可以在网页上编辑（存在数据库里），编辑时要给每一组一个
+ * 稳定标识：既是「这次改的是哪一组」，也当 React 的 key。它不参与展示。
+ *
+ * 【为什么统一成 sections，而不是「要么 items、要么 sections」两种形态】
+ * 两种形态会让渲染、编辑、存储三处各写一遍分支；统一成「至少一个小节」之后只有一套逻辑。
+ * 不想要小标题，把 label 留空即可。
+ */
+export interface SkillGroup {
+  id: string;
+  title: LocalizedText;
+  sections: SkillSection[];
 }
 
 /**
@@ -219,75 +242,112 @@ export const site: SiteConfig = {
   },
 
   /**
-   * 以下三份清单逐条来自你本人给的那段话，我没有添加、也没有替换成更「好听」的说法。
+   * 以下清单逐条来自你本人给的内容，我没有添加、也没有替换成更「好听」的说法。
    * 英文一栏是同一含义的翻译，不是另一份内容。
    */
   skills: [
     {
+      id: 'dl-ml',
       title: { zh: '深度学习 / 机器学习', en: 'Deep learning / ML' },
-      items: [
-        { zh: 'PyTorch 框架', en: 'PyTorch' },
+      sections: [
         {
-          zh: '表格数据专用深度学习模型（TabNet、FT-Transformer、TabTransformer 等）',
-          en: 'Tabular deep models (TabNet, FT-Transformer, TabTransformer)',
+          label: { zh: '深度学习框架', en: 'Deep learning frameworks' },
+          items: [
+            { zh: 'PyTorch', en: 'PyTorch' },
+            {
+              zh: '深度学习模型（MLP、CNN、RNN、Transformer、LSTM）',
+              en: 'Deep learning models (MLP, CNN, RNN, Transformer, LSTM)',
+            },
+            { zh: '表格深度学习（TabNet、FT-Transformer）', en: 'Tabular deep learning (TabNet, FT-Transformer)' },
+          ],
         },
         {
-          zh: '深度学习模型（MLP、CNN、RNN、Transformer、LSTM）',
-          en: 'Neural architectures (MLP, CNN, RNN, Transformer, LSTM)',
+          label: { zh: '传统机器学习', en: 'Classical machine learning' },
+          items: [
+            { zh: 'XGBoost', en: 'XGBoost' },
+            { zh: 'LightGBM', en: 'LightGBM' },
+            { zh: '随机森林', en: 'Random forest' },
+            { zh: '模型融合（Stacking / 加权平均）', en: 'Model ensembling (stacking / weighted average)' },
+          ],
         },
-        {
-          zh: '传统机器学习算法（XGBoost、LightGBM、随机森林等）',
-          en: 'Classical ML (XGBoost, LightGBM, random forest)',
-        },
-        { zh: '模型融合（Stacking / 加权平均）', en: 'Ensembling (stacking / weighted average)' },
       ],
     },
-    /**
-     * 下面三组是 2026-10-01 他点名要加的。组名照他给的原话，
-     * 条目我先只用了站里已经出现过的东西（工具条、最喜欢的工具里那些），
-     * 没有替他新编任何一项技能 —— 要增删直接改这三段的 items 就行。
+    /*
+     * 【2026-10-04 按站长的原话重写】
+     * 分组名、小节名、条目全部照他给的那份清单写，没有改写措辞、也没有添油加醋。
+     * 结构上多了「小节」这一层：他给的是「深度学习框架：…」「传统机器学习：…」这种写法，
+     * 本身就是两个小标题，而旧结构只有「组 → 条目」两层，塞不进去。
+     *
+     * 【这些值只是种子】它们只在**数据库里那张表还空着的时候**灌进去一次
+     * （见 lib/seed.ts 的 seedSkills）。灌过之后以库里的为准 ——
+     * 站长在网页上改过之后，再改这里不会覆盖他的内容，正合预期。
      */
     {
+      id: 'llm',
       title: { zh: '大模型开发', en: 'LLM development' },
-      items: [
-        { zh: 'Prompt 工程（ReAct / Plan-and-Solve / Reflection）', en: 'Prompting (ReAct / Plan-and-Solve / Reflection)' },
-        { zh: 'RAG 检索增强', en: 'RAG' },
-        { zh: 'LangGraph 流程编排', en: 'LangGraph orchestration' },
-        { zh: 'OpenAI 等模型接入', en: 'Model APIs (OpenAI etc.)' },
+      sections: [
+        {
+          // label 留空 = 这一组不分子节，条目直接铺开（渲染层据此不画小标题）
+          label: { zh: '', en: '' },
+          items: [
+            { zh: 'Prompt 工程', en: 'Prompt engineering' },
+            { zh: 'RAG 检索增强', en: 'RAG' },
+            {
+              zh: '开源模型接入与微调（OpenAI / Qwen / Llama / vLLM）',
+              en: 'Open-source model integration & fine-tuning (OpenAI / Qwen / Llama / vLLM)',
+            },
+          ],
+        },
       ],
     },
     {
+      id: 'vibe-coding',
       title: { zh: 'Vibe Coding', en: 'Vibe coding' },
-      items: [
-        { zh: 'Codex', en: 'Codex' },
-        { zh: 'Qoder', en: 'Qoder' },
-        { zh: 'GitHub 协作', en: 'GitHub workflow' },
+      sections: [
+        {
+          label: { zh: '', en: '' },
+          items: [{ zh: 'AI 辅助编码（Codex / Qoder 等）', en: 'AI-assisted coding (Codex / Qoder etc.)' }],
+        },
       ],
     },
     {
+      id: 'agent',
       title: { zh: 'Agent', en: 'Agent' },
-      items: [
-        { zh: '工具调用（Function Calling）', en: 'Tool / function calling' },
-        { zh: '多轮任务编排', en: 'Multi-step task orchestration' },
-        { zh: '数字分身问答', en: 'Avatar Q&A agent' },
+      sections: [
+        {
+          label: { zh: '', en: '' },
+          items: [
+            { zh: 'ReAct / Plan-and-Solve / Reflection', en: 'ReAct / Plan-and-Solve / Reflection' },
+            { zh: 'Function Calling', en: 'Function calling' },
+            { zh: 'LangGraph 流程编排', en: 'LangGraph orchestration' },
+            { zh: '多智能体协作', en: 'Multi-agent collaboration' },
+            { zh: '专属知识库问答', en: 'Private knowledge-base Q&A' },
+          ],
+        },
       ],
     },
     {
-      title: { zh: '数据处理与特征工程', en: 'Data & feature engineering' },
-      items: [
-        { zh: 'SQL', en: 'SQL' },
-        { zh: 'Python（Pandas / NumPy / Scikit-learn）', en: 'Python (Pandas / NumPy / Scikit-learn)' },
-        { zh: '数据清洗', en: 'Data cleaning' },
-        { zh: '特征构建', en: 'Feature construction' },
-      ],
-    },
-    {
-      title: { zh: '业务分析与可视化', en: 'Analytics & visualization' },
-      items: [
-        { zh: '漏斗分析', en: 'Funnel analysis' },
-        { zh: 'A/B 测试', en: 'A/B testing' },
-        { zh: '归因分析', en: 'Attribution analysis' },
-        { zh: 'Power BI / Tableau', en: 'Power BI / Tableau' },
+      id: 'data-biz',
+      title: { zh: '数据处理与业务分析', en: 'Data & business analytics' },
+      sections: [
+        {
+          label: { zh: '数据处理', en: 'Data processing' },
+          items: [
+            { zh: 'SQL', en: 'SQL' },
+            { zh: 'Python（Pandas / NumPy / Scikit-learn）', en: 'Python (Pandas / NumPy / Scikit-learn)' },
+            { zh: '数据清洗', en: 'Data cleaning' },
+            { zh: '特征构建', en: 'Feature construction' },
+          ],
+        },
+        {
+          label: { zh: '业务分析', en: 'Business analytics' },
+          items: [
+            { zh: '漏斗分析', en: 'Funnel analysis' },
+            { zh: 'A/B 测试', en: 'A/B testing' },
+            { zh: '归因分析', en: 'Attribution analysis' },
+            { zh: 'Power BI / Tableau', en: 'Power BI / Tableau' },
+          ],
+        },
       ],
     },
   ],

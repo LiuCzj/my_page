@@ -28,7 +28,7 @@ import { Keyboard } from 'lucide-react';
 import { useHotkeys } from '@/lib/use-hotkeys';
 import { useI18n } from '@/lib/i18n';
 import ShortcutHelp from './ShortcutHelp';
-import SiteSearch, { type SearchNote, type SearchProject } from './SiteSearch';
+import SiteSearch, { type SearchNote, type SearchProject, type SearchSkillGroup } from './SiteSearch';
 
 interface ShortcutLayerProps {
   /**
@@ -38,6 +38,12 @@ interface ShortcutLayerProps {
   notes: SearchNote[];
   /** 服务端读好的项目列表。站内搜索用它建「项目」那一组的条目。 */
   projects: SearchProject[];
+  /**
+   * 服务端读好的技术栈分组。
+   * 【为什么现在也要传】技术栈可以在网页上编辑、存在数据库里了，
+   * 而搜索跑在客户端（碰不到数据库）—— 再让索引去读配置文件就会出现「改了技术栈、搜索里还是旧的」。
+   */
+  skills: SearchSkillGroup[];
 }
 
 /**
@@ -45,9 +51,10 @@ interface ShortcutLayerProps {
  *
  * @param props.notes    服务端传下来的笔记索引
  * @param props.projects 服务端传下来的项目列表
+ * @param props.skills   服务端传下来的技术栈分组
  * @returns 一个常驻小按钮 + 两个浮层；除按钮外不产生可见布局
  */
-export default function ShortcutLayer({ notes, projects }: ShortcutLayerProps) {
+export default function ShortcutLayer({ notes, projects, skills }: ShortcutLayerProps) {
   const { d } = useI18n();
 
   /** 搜索面板的开合。唯一的真实来源在这里，键盘与（将来的）顶栏按钮都改它 */
@@ -106,6 +113,7 @@ export default function ShortcutLayer({ notes, projects }: ShortcutLayerProps) {
         onOpenChange={setSearchOpen}
         notes={notes}
         projects={projects}
+        skills={skills}
       />
     </>
   );

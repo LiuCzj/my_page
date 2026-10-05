@@ -4,13 +4,17 @@
  * 【它做什么】
  * 把散落在各处的站点内容拍平成一张「可搜索条目」表，供 components/SiteSearch.tsx
  * 直接过滤、分组、渲染。来源分别是：
- *   1. config/site.ts —— 技术栈 / 工具 / 页面（纯数据，客户端可读）
- *   2. 项目与笔记 —— 存在 SQLite 里（lib/content.ts），由服务端读好后当 props 传进来
+ *   1. config/site.ts —— 工具 / 页面（纯数据，客户端可读）
+ *   2. 项目、笔记、技术栈 —— 存在 SQLite 里（lib/content.ts），由服务端读好后当 props 传进来
  *
- * 【为什么项目和笔记必须从外部传入，这个文件不自己去读】lib/content.ts 依赖 better-sqlite3。
+ * 【为什么数据必须从外部传入，这个文件不自己去读】lib/content.ts 依赖 better-sqlite3。
  * 它一旦被 'use client' 组件（或本文件）静态 import，原生模块会被打进浏览器包，构建直接失败。
  * 所以数据只能由服务端组件（app/layout.tsx）读好后，以纯数据 props 传进搜索面板。
  * 本文件只认它被传进来的形状。
+ *
+ * 【技术栈为什么也走这条路（2026-10-04 补）】技术栈改成可在网页上编辑、存进数据库之后，
+ * 它就不再是构建期静态的了。改之前这里直接读 config，结果是
+ * 「后台改过技术栈、搜索里还是旧的那一份」。
  *
  * 【为什么每条的匹配文本里中英文都要有】
  * 站点数据里大量字段是 LocalizedText（{ zh, en }）。访客可能用中文关键词搜
@@ -162,17 +166,36 @@ function rank(entry: SearchEntry, query: string): number {
  * 【参数】
  * @param notes    由服务端读好并传入的笔记元数据（本文件不碰数据库，见文件头说明）
  * @param projects 同上：由服务端从数据库读好的项目列表
+ * @param skills   同上：由服务端从数据库读好的技术栈分组
  * @param lang     当前界面语言，决定每条 entry 的展示文案用中文还是英文
  *
  * 【返回】按 GROUP_ORDER 顺序排好的条目数组：项目 → 笔记 → 技术栈 → 工具 → 页面
  */
+/**
+ * 技术栈分组的搜索形状（2026-10-04 新增）。
+ *
+ * 【为什么现在要由外面传进来】技术栈改成可在网页上编辑、存进数据库之后，
+ * 它就不再是「构建期静态」的了。而这个文件跑在客户端（搜索面板在这里），
+ * 碰不到数据库 —— 所以和笔记、项目一样，必须由服务端读好传进来。
+ * 改之前这里直接读 config/site.ts，导致「后台改过技术栈，搜索里还是旧的那份」。
+ *
+ * 【为什么只要 title + sections】匹配只用到「组名 + 小节名 + 条目名」这三个文本；
+ * id / sort / updatedAt 传过来只会多一份会过期的副本。
+ */
+export interface SearchSkillGroup {
+  title: LocalizedText;
+  sections: { label: LocalizedText; items: LocalizedText[] }[];
+}
+
 export function buildSearchIndex({
   notes,
   projects,
+  skills,
   lang,
 }: {
   notes: SearchNote[];
   projects: SearchProject[];
+  skills: SearchSkillGroup[];
   lang: Lang;
 }): SearchEntry[] {
   const entries: SearchEntry[] = [];
@@ -214,17 +237,31 @@ export function buildSearchIndex({
   // 一条技能 = 一个条目（而不是一个分组一个条目）：搜索的价值在于精确到「TabNet」
   // 这一项，而不是「深度学习」那一组。所属组名放进副标题，保留上下文。
   // 技术栈展示在首页磁贴区，没有独立路由，所以跳回首页 '/'.
-  site.skills.forEach((group, groupIndex) => {
-    group.items.forEach((item, itemIndex) => {
-      entries.push({
-        id: `skill:${groupIndex}:${itemIndex}`,
-        group: 'skills',
-        title: display(item, lang),
-        subtitle: display(group.title, lang),
-        // 条目名和组名都要能被搜到：搜「大模型」既该命中组名，也该命中组里的条目
-        haystack: buildHaystack(bothLanguages(item), bothLanguages(group.title)),
-        href: '/',
-        external: false,
+  //
+  // 【数据来自数据库】由 app/layout.tsx 读好当 props 一路传下来（本文件在客户端跑，碰不到库）。
+  // 这样管理员在网页上改过技术栈之后，搜索里立刻是新内容。
+  // 分组 → 小节 → 条目是三层，所以这里套两层循环；小节名一起进副标题与 haystack，
+  // 搜「传统机器学习」也能命中小节下面的条目。
+  skills.forEach((group, groupIndex) => {
+    group.sections.forEach((section, sectionIndex) => {
+      const hasLabel = Boolean(section.label.zh || section.label.en);
+      section.items.forEach((item, itemIndex) => {
+        entries.push({
+          id: `skill:${groupIndex}:${sectionIndex}:${itemIndex}`,
+          group: 'skills',
+          title: display(item, lang),
+          subtitle: hasLabel
+            ? `${display(group.title, lang)} · ${display(section.label, lang)}`
+            : display(group.title, lang),
+          // 条目名、组名、小节名都要能被搜到：搜「大模型」既该命中组名，也该命中组里的条目
+          haystack: buildHaystack(
+            bothLanguages(item),
+            bothLanguages(group.title),
+            bothLanguages(section.label),
+          ),
+          href: '/',
+          external: false,
+        });
       });
     });
   });

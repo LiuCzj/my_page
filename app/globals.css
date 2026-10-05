@@ -138,8 +138,13 @@
    * 亮色主题下白卡上的内高光看不见，故 --card-hi 取 0，靠边框 + 投影分离。
    */
   --card-hi: 0;
-  --shadow-1: 0.05;
-  --shadow-2: 0.06;
+  /*
+   * 【2026-10-04 调重】亮色档原来是 0.05 / 0.06，实测白卡压在近白底上时
+   * 「卡片边界」几乎看不见 —— 整页像一张平的白纸，分不出哪里是一块内容。
+   * 提到 0.10 / 0.14 之后，靠投影就能把卡片从底上分出来，不必再去加边框颜色。
+   */
+  --shadow-1: 0.10;
+  --shadow-2: 0.14;
   --card-hover: 0 0% 100%;
   --radius-card: 0.75rem;
 
@@ -549,6 +554,32 @@
     }
   }
 
+  /*
+   * ── 交互动效的统一时长与缓动（2026-10-04 新增）──────────────
+   * 【为什么要统一】改前全站时长是散的：卡片悬停 0.2s、链接下划线 0.25s、
+   * 磁贴边框 duration-200、工具图标 duration-200、工具名浮现 duration-150、
+   * 项目卡箭头 duration-200、卡片顶光带 duration-300……
+   * 数值彼此接近但都不一样，读起来「有的快一点、有的慢一点」，页面显得不稳。
+   * 现在收敛成三档，全站引用同一组变量；以后要整体调快调慢，只改这三行。
+   *
+   * 【三档各管什么】
+   *   --dur-1  指针反馈：悬停变色、按下位移、图标位移。要跟手，所以最快。
+   *   --dur-2  出现与切换：标签浮现、边框高亮、状态切换。比跟手慢一档，看得出过程。
+   *   --dur-3  入场与展开：区块/卡片进场、弹层展开。最慢，避免一眼扫过看不见。
+   *
+   * 【只统一时长还不够，幅度也要够】
+   * 时长短、位移又只有 1~2px 时，肉眼基本读不到 —— 那会变成「统一地看不见」。
+   * 所以这次同时把幅度提上来：卡片悬停位移 2px → 4px、悬停边框高亮 50% → 70%、
+   * 项目卡箭头位移 0.5（2px）→ 1（4px）。缓动也统一成两条：
+   *   --ease-out-soft  进场用，先快后慢，收尾干净
+   *   --ease-even      往复用，两头速度一样，循环不顿
+   */
+  --dur-1: 200ms;
+  --dur-2: 320ms;
+  --dur-3: 700ms;
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-even: cubic-bezier(0.45, 0, 0.55, 1);
+
   --radius: 0.5rem;
 }
 
@@ -809,17 +840,24 @@
   }
 
   .card-hoverable {
+    /*
+     * 四项统一用同一个时长、同一条缓动（令牌见文件顶部 @theme 的 --dur-1 / --ease-out-soft）。
+     * 改前四项各写一条 0.2s ease：值虽然相同，但写法重复，且和全站其它地方的
+     * 0.15s / 0.25s / 0.3s 不成体系。收敛成变量后，指针反馈只有一个速度来源。
+     */
     transition:
-      border-color 0.2s ease,
-      background-color 0.2s ease,
-      box-shadow 0.2s ease,
-      transform 0.2s ease;
+      border-color var(--dur-1) var(--ease-out-soft),
+      background-color var(--dur-1) var(--ease-out-soft),
+      box-shadow var(--dur-1) var(--ease-out-soft),
+      transform var(--dur-1) var(--ease-out-soft);
   }
 
   .card-hoverable:hover {
-    border-color: hsl(var(--accent) / 0.5);
+    /* 边框高亮 50% → 70%：50% 在深色卡面上几乎看不出「这一张被指到了」 */
+    border-color: hsl(var(--accent) / 0.7);
     background-color: hsl(var(--card-hover));
-    transform: translateY(-2px);
+    /* 位移 2px → 4px：2px 在 1 倍屏上不到半个字高，肉眼读不出来 */
+    transform: translateY(-4px);
     box-shadow:
       inset 0 1px 0 0 hsl(0 0% 100% / var(--card-hi)),
       0 2px 4px -1px hsl(220 45% 2% / var(--shadow-1)),
@@ -846,7 +884,8 @@
     background-repeat: no-repeat;
     background-position: 0 100%;
     background-size: 0% 1px;
-    transition: background-size 0.25s ease;
+    /* 与全站指针反馈同一个时长（原来是单独写的 0.25s，和卡片那条 0.2s 不一致） */
+    transition: background-size var(--dur-1) var(--ease-out-soft);
   }
 
   .link-underline:hover,
@@ -859,6 +898,36 @@
    * 【为什么不在这里写 transition】元素自身已经有 Tailwind 的 transition
    * （它包含 transform），这里再写一条会互相覆盖。这里只声明按下时的位移。
    */
+  /*
+   * ── 「连接」磁贴里的微信公众号二维码浮层（2026-10-04 新增）──────────────
+   *
+   * 【问题】.card 带 overflow-hidden（卡片的角落晕染与圆角需要它），
+   * 绝对定位的浮层一旦伸出卡片边界就被裁掉 ——
+   * 站长反馈的「鼠标停在公众号图标上、二维码看不见」正是这个原因。
+   *
+   * 【别以为顶栏就没问题】2026-10-05 实测：顶栏确实没有 overflow-hidden，
+   * 但顶栏里的浮层是**垂直居中**的，而顶栏只有 56px 高 —— 浮层高 153px，
+   * 于是上面 48px 跑到视口外，二维码的上半截被屏幕顶边切掉（站长第二次反馈的
+   * 「二维码被挡住了」）。裁剪和视口越界是两个不同的问题，只查一个会漏。
+   * 现在顶栏改用 `qrPlacement="below"`（往下挂），不再越界。见 components/SocialLinks.tsx。
+   *
+   * 【为什么用 :has()】浮层挂在卡片内部，而「悬停」发生在卡片里的某个子元素上；
+   * 只有 :has() 能让祖先响应后代的悬停。Chrome 105+ / Safari 15.4+ / Firefox 121+ 都支持；
+   * 万一不支持，后果只是「这块磁贴里仍旧看不见浮层」，不会破坏任何布局。
+   *
+   * 【为什么只在悬停那一下放开裁剪】常开会让卡片右上角那团彩色晕染漏到卡片外面。
+   * 只在这枚图标被悬停期间放开，其余时间照旧裁得干干净净。
+   */
+  .card:has([data-wechat-qr]:hover) {
+    overflow: visible;
+  }
+
+  /*
+   * 二维码浮层的位置由组件自己定（图标左侧、垂直居中），窄屏不需要再翻边：
+   * 浮层宽 132px，手机上卡片也有 300px 以上，贴左侧同样整块落在屏内。
+   * 这里只留下 .wechat-qr-panel 这个类名，方便以后需要额外样式时有个抓手。
+   */
+
   .press:active {
     transform: translateY(1px);
   }

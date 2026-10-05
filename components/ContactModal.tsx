@@ -35,7 +35,7 @@ const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 export default function ContactModal({ open, variant, onClose }: ContactModalProps) {
-  const { d, pick, fill } = useI18n();
+  const { d, fill } = useI18n();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);

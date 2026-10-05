@@ -2,8 +2,6 @@
 
 /**
  * 笔记列表。
- *
- * 【列表项排版对齐参考站 shivypatel.com/blog】
  * 每一项 = 标题 / 日期 + 阅读时长 / 一句话摘要 / 标签，四行竖排。
  * 不用卡片（不用 border + 圆角 + 背景）而用分割线：笔记列表是「一串条目」，
  * 每项都做成卡片会让页面变成一堆方块，反而看不清哪一条是哪一条。
@@ -110,7 +108,7 @@ export default function NotesList({
                   </span>
 
                   {/* 日期 + 阅读时长并排。whitespace-nowrap 防止在中间断成两行 */}
-                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold whitespace-nowrap text-muted-foreground">
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-semibold whitespace-nowrap text-muted-foreground">
                     <time dateTime={n.date}>{n.date}</time>
                     <span aria-hidden="true">·</span>
                     {fill(d.notes.readTime, { minutes: n.readingMinutes })}
@@ -131,7 +129,7 @@ export default function NotesList({
                       {n.tags.map((t) => (
                         <span
                           key={t}
-                          className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground"
+                          className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-[13px] font-semibold text-secondary-foreground"
                         >
                           {t}
                         </span>

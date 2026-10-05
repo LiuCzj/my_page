@@ -161,6 +161,28 @@ function migrate(d: Database.Database): void {
     );
 
     /*
+      ── 2026-10-04 新增：技术栈分组 ────────────────────────────────
+      「技术栈」原来只是 config/site.ts 里的常量，网页上改不了。
+      站长要求能自己在线编辑，于是和笔记、项目一样搬进库。
+
+      【为什么 sections 存 JSON，而不是再开「小节表 + 条目表」】
+      分组 → 小节 → 条目是三层嵌套，而且**只能整体读、整体写**（编辑界面一次提交全部）——
+      没有「查出所有含某关键词的条目」这类需求。拆成三张表就要处理外键级联、逐行排序与
+      事务拼装，换来的是零查询收益。条目本身已经是 {zh, en} 双语对象，JSON 正好原样承载。
+
+      【两个字段的分工】sort 决定分组在页面上的先后（管理员可调）；id 只用于
+      「这次改的是哪一组」，不参与展示。
+    */
+    CREATE TABLE IF NOT EXISTS skill_groups (
+      id         TEXT    PRIMARY KEY,
+      title_zh   TEXT    NOT NULL,
+      title_en   TEXT    NOT NULL DEFAULT '',
+      sections   TEXT    NOT NULL DEFAULT '[]',
+      sort       INTEGER NOT NULL DEFAULT 0,
+      updated_at INTEGER NOT NULL
+    );
+
+    /*
       ── 2026-10-04 新增：邮箱验证码 ────────────────────────────────
       注册与注销都要「往邮箱发一个 6 位码、填回来确认」。码存哈希不存明文 ——
       和 session token 一个道理：库万一泄漏，拿到哈希也反推不出可用的码。

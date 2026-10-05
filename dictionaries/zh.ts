@@ -6,7 +6,14 @@
  * 文章正文不进字典 —— 见 lib/i18n.tsx 的说明，正文只有中文，不参与翻译。
  * dictionaries/en.ts 被声明成 `const en: Dict`，所以两边键必须完全一致，
  * 少一个就编译不过 —— 这是故意的，避免英文界面漏出中文或 undefined。
+ *
+ * 【为什么这里会有 import】`fieldCodeHint` / `codeSent` / `forgotHint` 三条文案里
+ * 带着「10 分钟」「1 小时」这类**与代码常量绑定的时长**。以前它们是手写死的字符串，
+ * 改 `lib/auth-ttl.ts` 的 TTL 时必然漏改界面 —— 用户看到的是过期时间与实际不符。
+ * 现在从常量推导，文案与行为不会再分叉。
  */
+import { EMAIL_CODE_TTL_MINUTES, RESET_TTL_HOURS } from '@/lib/auth-ttl';
+
 const zh = {
   nav: {
     home: '首页',
@@ -195,11 +202,11 @@ const zh = {
     fieldPasswordHint: '至少 8 位',
     /** 验证码流程（2026-10-04 新增：注册与注销都改成「收码填回」） */
     fieldCode: '验证码',
-    fieldCodeHint: '6 位数字，10 分钟内有效',
+    fieldCodeHint: `6 位数字，${EMAIL_CODE_TTL_MINUTES} 分钟内有效`,
     sendCode: '发送验证码',
     resendCode: '重新发送',
     codeSending: '发送中…',
-    codeSent: '验证码已发出，请查收邮箱（10 分钟内有效）。',
+    codeSent: `验证码已发出，请查收邮箱（${EMAIL_CODE_TTL_MINUTES} 分钟内有效）。`,
     codeCountdown: '{seconds} 秒后可重发',
     doLogin: '登录',
     doRegister: '注册',
@@ -224,7 +231,7 @@ const zh = {
     /** 找回密码 */
     forgot: '忘记密码？',
     forgotTitle: '找回密码',
-    forgotHint: '填写注册时用的邮箱，我们会寄一封重置链接过去（1 小时内有效）。',
+    forgotHint: `填写注册时用的邮箱，我们会寄一封重置链接过去（${RESET_TTL_HOURS} 小时内有效）。`,
     forgotSubmit: '发送重置邮件',
     forgotSent: '如果这个邮箱注册过，重置邮件已经发出，请查收（也看看垃圾邮件箱）。',
     backToLogin: '返回登录',
@@ -236,10 +243,18 @@ const zh = {
     fieldPasswordConfirm: '再输一次密码',
     /** 管理员标记（自己看得到，用来确认权限生效） */
     adminBadge: '管理员',
-    /** 验证链接跳回首页时的提示 */
+    /** 验证链接跳回首页时的提示（消费者：components/VerifyNotice.tsx） */
     verifiedOk: '邮箱确认好了，现在可以留言了。',
-    verifiedExpired: '这个确认链接过期了，请重新发一封。',
+    /**
+     * 2026-10-05 改：原文是「请重新发一封」，但**全站没有重发验证邮件的入口** ——
+     * 那句话在承诺一个不存在的功能，用户照着做只会找不到地方。
+     * 现在指向真正走得通的那条路：找回密码。重置成功会顺带把邮箱标记为已验证
+     * （见 app/api/auth/reset/route.ts 的说明）。
+     */
+    verifiedExpired: '这个确认链接过期了。用「忘记密码」重设一次密码，邮箱会一并确认。',
     verifiedInvalid: '这个确认链接无效或已经用过。',
+    /** 提示条的关闭按钮 */
+    verifiedDismiss: '知道了',
     /** 错误码 → 中文。键名与 API 的 code 一一对应 */
     errors: {
       invalid_email: '邮箱格式不太对。',
@@ -324,6 +339,22 @@ const zh = {
     stack: '技术栈',
     featured: '首页优先',
     sort: '排序（数字小的在前）',
+    /** 技术栈编辑器（2026-10-04 新增：站长可在网页上编辑技术栈） */
+    editSkills: '编辑技术栈',
+    skillsHint:
+      '条目一行一个。中英两栏按行配对：英文那栏留空、或者行数比中文少时，英文页面会回落到对应的中文，不会出现空标签。空行会被忽略。',
+    skillGroup: '分组',
+    skillTitleZh: '分组名（中文）',
+    skillTitleEn: '分组名（英文，可留空）',
+    sectionLabelZh: '小节名（中文，可留空）',
+    sectionLabelEn: '小节名（英文，可留空）',
+    itemsZh: '条目（中文，一行一个）',
+    itemsEn: '条目（英文，一行一个，可留空）',
+    addSection: '添加小节',
+    removeSection: '删除这个小节',
+    addGroup: '添加分组',
+    moveUp: '上移',
+    moveDown: '下移',
     errors: {
       not_logged_in: '登录已过期，请重新登录。',
       forbidden: '这个账号没有管理权限。',
@@ -332,6 +363,10 @@ const zh = {
       invalid_date: '日期格式不对（笔记 YYYY-MM-DD，项目 YYYY-MM）。',
       invalid_summary: '摘要不能为空。',
       invalid_body: '正文不能为空。',
+      invalid_skill_id: '分组标识不合规：只能小写字母、数字、连字符，且以字母或数字开头。',
+      duplicate_skill_id: '有两个分组的标识重复了，改掉其中一个。',
+      invalid_skill_title: '分组名（中文）不能为空。',
+      empty_skill_group: '每个分组至少要有一个小节，且小节里至少有一个条目。',
       not_found: '这条内容已经不在了。',
       bad_request: '请求格式不对。',
       network: '网络不太顺，再试一次。',

@@ -48,10 +48,21 @@
  *
  * 【参数】mapSamples 22000、mapBrightness 1.4、diffuse 0.5、theta 0.4、每帧 phi += 0.005。
  *
- * 【可以拖】按住左右拖动能手动转球，拖的时候自动停，松手后弹簧把余速走完。
- * 这也让「邵阳」这个点变得可寻：拖到正面就看得见。
- * 手机上只吃掉横向手势（touch-pan-y），竖着划仍然照常滚页面 ——
- * 这颗球占掉首屏近一屏高，把它做成整块不可滚动区域会让人以为网页卡住了。
+ * 【可以拖】按住可以手动转球：**左右转经度、上下调倾角**，拖的时候自动停，
+ * 松手后弹簧把余速走完。这也让「邵阳」这个点变得可寻：拖到正面就看得见。
+ *
+ * 【2026-10-04：手机上也给了上下拖动，代价是球面上不再能竖划翻页】
+ * canvas 的 touch-action 由 pan-y 改成 none —— 站长反馈「手机上地球不能上下转动」。
+ * 取舍很明确：手指落在球上时，竖划转的是球、不是页面；想滚页面得从球外面划。
+ * 为什么可以接受：这颗球只占磁贴里 190~210px 高的一条，不是整屏，
+ * 页面其它任何位置都能正常滚动，而且转动本身有明确反馈（球跟着手指走），
+ * 不会像「整块不可滚动区」那样让人以为网页卡住了。
+ * 反过来说：如果哪天觉得手机滚页面被挡住，把 touch-none 改回 touch-pan-y 即可，
+ * 桌面端不受影响 —— touch-action 对鼠标输入本来就不起作用。
+ *
+ * 【手机上的另外两处交互（本次一并确认过）】
+ * · 悬停出二维码只在桌面成立：触屏没有 hover，所以点击开弹窗那条路一直留着（点公众号图标弹二维码）。
+ * · 工具条的名字：桌面上鼠标停靠显示，手机上改成点一下钉住 2.8 秒（见 Dashboard 的 ToolRow）。
  *
  * 【三条不能省的边界】
  * 1. SSR 只输出两个空 canvas，不含任何主题相关的 class 或内联样式 → 无 hydration 报错。
@@ -120,6 +131,15 @@ const OCEAN_SHADOW =
   'inset -24px -18px 36px rgba(2, 8, 23, 0.62), inset 10px 8px 24px rgba(186, 230, 253, 0.18), 0 0 38px rgba(59, 130, 246, 0.22)';
 
 const THETA = 0.4;
+/**
+ * 上下拖动的倾角范围（弧度）。
+ *
+ * 【为什么必须夹住】不夹的话能把球一路翻过头顶，露出「南极朝天」那个角度。
+ * 这颗球是靠上半球的陆地点阵撑起来的（见文件头的 dark=1 说明），翻过去就是一大片空球壳，
+ * 手感像把球弄丢了。±1.15 弧度（约 ±66°）足够看到南北半球，又不会翻过头。
+ */
+const THETA_MIN = -1.15;
+const THETA_MAX = 1.15;
 /** 每帧自转角（弧度）。0.005 约 21 秒一圈，慢到不抢注意力 */
 const SPIN = 0.005;
 /**
@@ -138,16 +158,25 @@ function toVec([lat, lng]: LatLng) {
   return { x: cosLat * Math.cos(ln), y: Math.sin(la), z: -cosLat * Math.sin(ln) };
 }
 
-/** 与 cobe 一致的旋转：先绕 Y 转 phi，再绕 X 转 theta */
-function project(p: { x: number; y: number; z: number }, phi: number) {
+/**
+ * 与 cobe 一致的旋转：先绕 Y 转 phi，再绕 X 转 theta。
+ *
+ * 【为什么 theta 要当参数传进来，不再读模块常量】
+ * 改前 theta 恒等于 THETA，写死成常量没问题；现在上下可以拖，倾角是个变量。
+ * 小人那层 overlay 必须用**和 cobe 同一时刻的倾角**投影，否则球转了、人还按老角度站着，
+ * 会明显错位（转到南北极附近时差得最厉害）。
+ */
+function project(p: { x: number; y: number; z: number }, phi: number, theta: number) {
   const cosP = Math.cos(phi);
   const sinP = Math.sin(phi);
   const x1 = cosP * p.x + sinP * p.z;
   const z1 = -sinP * p.x + cosP * p.z;
+  const cosT = Math.cos(theta);
+  const sinT = Math.sin(theta);
   return {
     x: x1,
-    y: Math.cos(THETA) * p.y - Math.sin(THETA) * z1,
-    z: Math.sin(THETA) * p.y + Math.cos(THETA) * z1,
+    y: cosT * p.y - sinT * z1,
+    z: sinT * p.y + cosT * z1,
   };
 }
 
@@ -178,8 +207,12 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
   /** 探测结果放 state，才能在渲染阶段决定要不要走降级图形 */
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
 
-  /** 拖拽中的指针 x；null 表示没在拖 */
-  const dragging = useRef<number | null>(null);
+  /**
+   * 拖拽中的指针位置；null 表示没在拖。
+   * 【为什么两个轴都存】原来只记 clientX（只能左右转球）；上下拖动要同时看纵向位移，
+   * 所以改成一个坐标对。存的是上一帧的位置、用差值当增量，避免累加漂移。
+   */
+  const dragging = useRef<{ x: number; y: number } | null>(null);
   /**
    * 拖拽量走 motion value + 弹簧，而不是直接累加到 phi：
    * 直接改的话手一停球就硬停，手感像在拖一张图；弹簧会在松手后把余速走完，
@@ -187,8 +220,17 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
    */
   const dragTarget = useMotionValue(0);
   const dragAngle = useSpring(dragTarget, { mass: 1, damping: 50, stiffness: 500 });
+  /**
+   * 纵向（倾角）的拖动量，**存的是相对 THETA 的偏移**，不是绝对倾角。
+   * 两个轴各给一套同参数弹簧：一套用弹簧、另一套直接累加的话，
+   * 松手后会「一个在滑、一个硬停」，手感割裂。
+   */
+  const tiltTarget = useMotionValue(0);
+  const tiltAngle = useSpring(tiltTarget, { mass: 1, damping: 50, stiffness: 500 });
   /** cobe 每帧把当前 phi 写到这里，overlay 用它投影，两张画布才严格同步 */
   const phiRef = useRef(0);
+  /** 当前倾角（THETA + 拖动偏移）。理由同 phiRef：overlay 必须用同一时刻的值投影 */
+  const thetaRef = useRef(THETA);
 
   useEffect(() => {
     setWebglOk(hasWebGL());
@@ -228,10 +270,19 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       markers: [],
       onRender: (state) => {
         if (!reduceMotion && dragging.current === null) phi += SPIN;
+        /*
+         * 倾角 = 基准值 + 拖动偏移。基准值 THETA 是初始视角（略俯视北半球），
+         * 偏移由弹簧给出，所以松手后那一下回弹也一并带走。
+         * 这里只做加法、不再夹范围 —— 夹的是**写入拖动量的那一刻**（见 onPointerMove）；
+         * 弹簧在两次夹取之间允许轻微过冲，那点过冲正是「能拨动」的手感来源。
+         */
+        const theta = THETA + tiltAngle.get();
         state.phi = phi + dragAngle.get();
+        state.theta = theta;
         state.width = width * 2;
         state.height = width * 2;
         phiRef.current = state.phi;
+        thetaRef.current = theta;
       },
     });
 
@@ -255,7 +306,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, width);
 
-        const pr = project(point, phiRef.current);
+        const pr = project(point, phiRef.current, thetaRef.current);
         if (pr.z > -0.02) {
           const radius = (width / 2) * 0.8;
           const sx = width / 2 + pr.x * radius;
@@ -301,17 +352,32 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       ro.disconnect();
       globe.destroy();
     };
-  }, [resolvedTheme, webglOk, reduceMotion, coordinates, dragAngle]);
+  }, [resolvedTheme, webglOk, reduceMotion, coordinates, dragAngle, tiltAngle]);
 
   /** 拖拽转球。不做成键盘操作 —— 它只是好玩，不承载信息 */
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    dragging.current = e.clientX;
+    dragging.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
+  /**
+   * 拖动：横向改经度（phi），纵向改倾角（theta）。
+   *
+   * 【纵向为什么必须夹范围】不夹就能把球翻过头顶、露出南极朝天的角度（见 THETA_MIN/MAX）。
+   * 夹的是**偏移量**（相对 THETA），所以边界写成 THETA_MIN - THETA 与 THETA_MAX - THETA。
+   *
+   * 【纵向的符号】往下拖（clientY 变大）把北半球转过来 ——
+   * 和「手指按住球面往下搓」一致；反过来手指和球面会朝相反方向跑，很别扭。
+   *
+   * 【灵敏度】两轴共用 DRAG_DAMPING（300px 对应一整圈经度、约 1 弧度倾角）。
+   * 纵向可用行程只有磁贴那两百来像素，一次拖动约 40°，够看出转动。
+   */
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (dragging.current === null) return;
-    dragTarget.set(dragTarget.get() + (e.clientX - dragging.current) / DRAG_DAMPING);
-    dragging.current = e.clientX;
+    const from = dragging.current;
+    if (!from) return;
+    dragTarget.set(dragTarget.get() + (e.clientX - from.x) / DRAG_DAMPING);
+    const nextTilt = tiltTarget.get() + (e.clientY - from.y) / DRAG_DAMPING;
+    tiltTarget.set(Math.max(THETA_MIN - THETA, Math.min(THETA_MAX - THETA, nextTilt)));
+    dragging.current = { x: e.clientX, y: e.clientY };
   };
   const endDrag = () => {
     dragging.current = null;
@@ -338,10 +404,35 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
   }
 
   /**
-   * 主题未解析出来时不铺底衬色 —— 否则会先按浅色画一帧深蓝，再跳成深色版，
-   * 而下面那个 effect 也是等 resolvedTheme 有了才建球，两者一起等，闪不出现。
+   * 挂载标记：hydration 那一帧必须和服务器渲染的一模一样，主题颜色只能等挂载之后再上。
+   *
+   * 【为什么第一次修没修掉】我先只用 resolvedTheme 判断「有没有解析出主题」，
+   * 结果服务端那侧确实变成了「没有底色」，客户端却仍然带着底色 —— 因为
+   * **next-themes 在客户端的首次渲染里就同步读出了 localStorage 的主题**，
+   * 所以 hydration 那一帧 resolvedTheme 已经有值，而服务端永远拿不到。
+   * 必须自己加一个「挂载后才为 true」的开关，把 hydration 那一帧挡在外面。
    */
-  const ocean = resolvedTheme === 'dark' ? OCEAN.dark : OCEAN.light;
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  /**
+   * 海洋底衬颜色，**挂载之前必须是「没有」**。
+   *
+   * 【2026-10-04 修 hydration mismatch】原来这一行是
+   * `resolvedTheme === 'dark' ? OCEAN.dark : OCEAN.light` ——
+   * 服务端输出浅色那套、客户端算出深色那套，两者不一致，
+   * React 每次访问都报 hydration mismatch，而且**不会自行修正**这一处。
+   * 现在服务端与客户端渲染的都是「没有底色」，完全一致；
+   * 挂载后才补上颜色 —— 那是一次普通更新，不再是 hydration。
+   *
+   * 这样也才真正实现了原来注释想表达的效果：不会先按浅色画一帧深蓝、再跳成深色版。
+   * 下面那个 effect 同样是等主题有了才建球，两者一起等，闪不出来。
+   */
+  const ocean = mounted
+    ? resolvedTheme === 'dark'
+      ? OCEAN.dark
+      : OCEAN.light
+    : null;
 
   return (
     /*
@@ -357,7 +448,8 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       <span
         aria-hidden="true"
         className="absolute inset-[10%] z-0 rounded-full border border-sky-200/40"
-        style={{ background: ocean, boxShadow: OCEAN_SHADOW }}
+        /* 主题没解析出来时只给阴影、不给渐变 —— 服务端与客户端首帧必须一模一样，见上面 ocean 的说明 */
+        style={ocean ? { background: ocean, boxShadow: OCEAN_SHADOW } : { boxShadow: OCEAN_SHADOW }}
       />
       {/* ② 球面高光。和海洋渐变同一个光源方向（左上 28%/22%），压在海面之上、点阵之下 */}
       <span
@@ -372,7 +464,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       <canvas
         ref={globeRef}
         aria-hidden="true"
-        className="relative z-10 h-full w-full cursor-grab touch-pan-y mix-blend-lighten active:cursor-grabbing"
+        className="relative z-10 h-full w-full cursor-grab touch-none mix-blend-lighten active:cursor-grabbing"
         style={{ visibility: webglOk === true ? 'visible' : 'hidden' }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}

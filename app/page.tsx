@@ -5,7 +5,8 @@ import Projects from '@/components/Projects';
 import NotesList from '@/components/NotesList';
 import ChatInset from '@/components/ChatInset';
 import { homePreview } from '@/config/site';
-import { listNoteMetas, listProjects } from '@/lib/content';
+import { listNoteMetas, listProjects, listSkillGroups } from '@/lib/content';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 
 /**
  * 首页，从上到下五块可见内容：
@@ -28,13 +29,26 @@ import { listNoteMetas, listProjects } from '@/lib/content';
  */
 export const dynamic = 'force-dynamic';
 
-export default function Home() {
+export default async function Home() {
   /**
    * 首页只展示最近几篇笔记、前几个项目，条数见 config/site.ts 的 homePreview。
-   * 这两个函数读的是数据库；库里没内容时返回空数组，首页会显示空态而不是崩掉。
+   * 这几个函数读的都是数据库；库里没内容时返回空数组，首页会显示空态而不是崩掉。
    */
   const notes = listNoteMetas().slice(0, homePreview.notes);
   const projects = listProjects();
+
+  /**
+   * 技术栈分组。
+   *
+   * 【为什么在这一层读】Dashboard 是客户端组件，不能 import lib/content
+   * （那边依赖 better-sqlite3 原生模块，进浏览器包会直接构建失败）。所以由这里读好当 props 下去。
+   *
+   * 【为什么首页要变成 async】判断「是不是管理员」要 await getCurrentUser()，
+   * 而它是异步的。这一页本来就是 force-dynamic，多一次本地会话查询是毫秒级，无影响。
+   */
+  const skillGroups = listSkillGroups();
+  const me = await getCurrentUser();
+  const canEditSkills = !!me && isAdmin(me.email);
 
   return (
     <>
@@ -56,7 +70,7 @@ export default function Home() {
           */}
           <FlowLink />
 
-          <Dashboard />
+          <Dashboard skillGroups={skillGroups} canEditSkills={canEditSkills} />
 
           <FlowLink />
 

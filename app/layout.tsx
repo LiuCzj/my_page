@@ -17,9 +17,10 @@ import PageTransition from '@/components/page-transition'
 import ShortcutLayer from '@/components/ShortcutLayer'
 import TwinEntry from '@/components/TwinEntry'
 import ResetPasswordPanel from '@/components/ResetPasswordPanel'
+import VerifyNotice from '@/components/VerifyNotice'
 import DigitalTwinChat from '@/components/DigitalTwinChat'
 import { site } from '@/config/site'
-import { listNoteMetas, listProjects } from '@/lib/content'
+import { listNoteMetas, listProjects, listSkillGroups } from '@/lib/content'
 import { getCurrentUser } from '@/lib/auth'
 
 /**
@@ -45,7 +46,24 @@ export const metadata: Metadata = {
     template: `%s · ${site.identity.name}`,
   },
   description: `${site.identity.tagline.zh} · ${site.identity.tagline.en}`,
-  icons: { icon: '/favicon.svg' },
+  /*
+    图标三件套（2026-10-05 补）。
+    · favicon.svg —— 桌面浏览器，矢量、任意尺寸都清晰
+    · icon-192.png —— 不支持 SVG favicon 的浏览器兜底
+    · apple-touch-icon.png —— **iOS Safari 专用**：它直接忽略 SVG 图标，
+      没有这一条时手机标签页/书签上显示的是系统默认图标
+      （站长反馈的「手机上显示的不是这个图标」就是这个原因）。
+    两个 PNG 由 temp/make-icons.mjs 从 favicon.svg 生成 —— 改了 SVG 的四个色值后要重跑它。
+    生成时特意去掉了源图自带的圆角（满幅方形）：iOS 会自己套圆角遮罩，
+    源图再带一层圆角就成了「小圆角方块套在大圆角方块里」。
+  */
+  icons: {
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 }
 
 /**
@@ -90,6 +108,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     summary: p.summary,
     url: p.url,
     stack: p.stack,
+  }));
+
+  /**
+   * 技术栈分组（只挑搜索用得到的字段：组名 + 小节 + 条目）。
+   *
+   * 【为什么也要在这一层读】技术栈现在可以在网页上编辑、存在数据库里，
+   * 而搜索面板跑在客户端（碰不到 better-sqlite3）——
+   * 它原来直接读 config/site.ts，于是「后台改过技术栈，搜索里还是旧的那份」。
+   * 和 notes / projects 走同一条路：服务端读好，当纯数据往下传。
+   */
+  const skills = listSkillGroups().map((g) => ({
+    title: g.title,
+    sections: g.sections.map((s) => ({ label: s.label, items: s.items })),
   }));
 
   /**
@@ -149,7 +180,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   它的浮层用 z-[100]，要和聊天面板 z-[80]、抽屉 z-[90]
                   在同一个层叠上下文里比较才有意义。
                 */}
-                <ShortcutLayer notes={notes} projects={projects} />
+                <ShortcutLayer notes={notes} projects={projects} skills={skills} />
 
                 {/*
                   数字分身的常驻入口：右下角一颗浮动头像。
@@ -175,6 +206,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   落到首页、笔记页、任何页面都应该能弹出重置框，而不是只有某一页才行。
                 */}
                 <ResetPasswordPanel />
+
+                {/*
+                  邮箱验证链接的结果提示：接管 `?verified=ok|expired|invalid`。
+                  和上面那个重置浮层同理 —— 验证链接的落点也是全局的，
+                  而且它只在「从老邮件点回来」时才出现，属于一次性结果提示。
+                */}
+                <VerifyNotice />
               </div>
               {/* 表情光标：只在真鼠标设备上挂载，负责把带 data-cursor-emoji 的磁贴
                   上方那枚系统箭头换成对应表情（地球块是 ✈️）。它自己会判断设备，

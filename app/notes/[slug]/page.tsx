@@ -54,32 +54,40 @@ export default async function NotePage({ params }: NotePageProps) {
 
       <NoteBackLink />
 
-      <header className="mt-2 border-b border-border pb-6">
-        {/* break-words：中文长标题没有空格，不打断行会把容器撑宽 */}
-        <h1 className="text-2xl leading-tight font-black tracking-tight break-words text-foreground sm:text-4xl">
-          {note.title}
-        </h1>
-
-        <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs font-semibold text-muted-foreground">
-          <time dateTime={note.date}>{note.date}</time>
-          {note.tags.length > 0 && <span aria-hidden="true">·</span>}
-          {note.tags.map((t) => (
-            <span
-              key={t}
-              className="rounded-full border border-border bg-secondary px-2.5 py-0.5 font-semibold text-secondary-foreground"
-            >
-              {t}
-            </span>
-          ))}
-        </p>
-      </header>
-
       {/*
-        正文排版走 .prose-site（定义在 globals.css）。
-        【为什么用 dangerouslySetInnerHTML】HTML 由 lib/markdown.ts 在服务端生成，
-        内容只有管理员能写，属可信来源（该文件头有详细说明）。
+        阅读进度条统计的范围：**标题 + 正文**，不含下面的评论区与页脚。
+        所以这里单独包一层并打上 data-reading-progress —— ReadingProgress 按这一层量长度。
+        按整页量的话，读到正文末尾时进度条才走了一半出头，剩下那截是在滚评论和页脚。
+        这层是纯 div、不加任何类：block 包裹不改变内部元素的盒模型，原有排版不受影响。
       */}
-      <div className="prose-site mt-8" dangerouslySetInnerHTML={{ __html: html }} />
+      <div data-reading-progress>
+        <header className="mt-2 border-b border-border pb-6">
+          {/* break-words：中文长标题没有空格，不打断行会把容器撑宽 */}
+          <h1 className="text-2xl leading-tight font-black tracking-tight break-words text-foreground sm:text-4xl">
+            {note.title}
+          </h1>
+
+          <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-[13px] font-semibold text-muted-foreground">
+            <time dateTime={note.date}>{note.date}</time>
+            {note.tags.length > 0 && <span aria-hidden="true">·</span>}
+            {note.tags.map((t) => (
+              <span
+                key={t}
+                className="rounded-full border border-border bg-secondary px-2.5 py-0.5 font-semibold text-secondary-foreground"
+              >
+                {t}
+              </span>
+            ))}
+          </p>
+        </header>
+
+        {/*
+          正文排版走 .prose-site（定义在 globals.css）。
+          【为什么用 dangerouslySetInnerHTML】HTML 由 lib/markdown.ts 在服务端生成，
+          内容只有管理员能写，属可信来源（该文件头有详细说明）。
+        */}
+        <div className="prose-site mt-8" dangerouslySetInnerHTML={{ __html: html }} />
+      </div>
 
       {/*
         评论区。放在正文之后、article 之内，理由：

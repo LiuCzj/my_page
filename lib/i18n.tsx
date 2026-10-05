@@ -4,9 +4,9 @@
  * 轻量中英切换（自建，不引入 next-intl / i18next）。
  *
  * 【为什么不装 next-intl】
- * next-intl 的标准做法是加 middleware + /[locale] 路由段，会连带改动
- * app/page.tsx 的 searchParams 读取和 app/posts/[slug]/page.tsx 的 generateStaticParams，
- * 并让所有 URL 变成 /zh/... /en/...。而 content/ 下的文章只有中文一种，
+ * next-intl 的标准做法是加 middleware + /[locale] 路由段，会连带改动现有的路由结构
+ * （app/page.tsx 与 app/notes/[slug]/page.tsx），并让所有 URL 变成 /zh/... /en/...。
+ * 而 content/ 下的文章只有中文一种，
  * 加语言前缀反而让访客以为英文站有内容。第一版要的是「点一下就换、刷新不丢」，
  * 一个 Context + 两份字典就够了，新增依赖为 0。
  *

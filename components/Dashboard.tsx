@@ -19,13 +19,15 @@
  */
 
 import { motion } from 'framer-motion';
-import { Brain, Heart, Link2, MapPin, Maximize2, Wrench, X } from 'lucide-react';
+import { Brain, Globe2, Heart, Link2, Maximize2, Wrench, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import DottedGlobe from '@/components/DottedGlobe';
 import Marquee from '@/components/Marquee';
 import SocialLinks from '@/components/SocialLinks';
 import ContactModal, { type ContactModalVariant } from '@/components/ContactModal';
 import ToolIcon from '@/components/ToolIcon';
+import SkillAdmin from '@/components/admin/SkillAdmin';
+import type { SkillGroupRecord } from '@/lib/content';
 import { site, type ToolGlyph } from '@/config/site';
 import { useI18n } from '@/lib/i18n';
 import { useReveal, CARD_REVEAL, CARD_STAGGER } from '@/lib/use-reveal';
@@ -93,7 +95,12 @@ function Tile({
   children,
 }: {
   span: string;
-  icon: React.ReactNode;
+  /**
+   * 标题左侧那枚小图标。
+   * 【2026-10-04 改成可选】籍贯那块去掉了定位针 —— 标题行已经是「籍贯 · 中国湖南省邵阳市」，
+   * 前面再挂一枚地图针只是把同一件事说第三遍。不传即为纯文字标题。
+   */
+  icon?: React.ReactNode;
   title: string;
   cursorEmoji: string;
   delay: number;
@@ -198,7 +205,7 @@ function Tile({
         // 浏览器接管了纵向下滚（pointercancel）—— 这一下是划页面，不是在点球
         pending.current = null;
       }}
-      className={`card group/tile relative flex list-none flex-col overflow-hidden p-4 transition-[border-color] duration-200 ease-out hover:border-accent/50 sm:p-5 ${span}`}
+      className={`card group/tile relative flex list-none flex-col overflow-hidden p-4 transition-[border-color] duration-200 ease-out hover:border-accent/70 sm:p-5 ${span}`}
     >
       {/* 右上角那团晕染：色相跟着 tint 走。透明度压在 0.14，
           再高就会把标题行那串 12px 的灰字压得发闷（原来只有暖色一档时是 0.16）。 */}
@@ -251,7 +258,7 @@ function Tile({
       )}
       {/* 标题图标、类别名与可选快捷操作共用一行，避免缩放按钮覆盖卡片内容。 */}
       <h3 className="relative flex items-center justify-between gap-x-2">
-        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
           <span className={`self-center ${TINT_ICON[tint]}`}>{icon}</span>
           {title}
         </span>
@@ -380,7 +387,13 @@ function GlobeZoomDialog({
  * 所以这里允许换行，长条目在自己那一格里折成两三行。
  */
 const SKILL_TAG =
-  'inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 text-xs font-medium break-words text-muted-foreground';
+  /*
+   * 【2026-10-04 改】字号 12px → 13px、底色由半透明改不透明。
+   * 12px 是这套标签最挤的一档，一屏三十来枚读起来发虚；
+   * bg-secondary/50 的半透明底压在近白背景上会和背景糊在一起（亮色档尤其明显），
+   * 改成不透明的 bg-secondary，边界立刻清楚，深浅两档都成立。
+   */
+  'inline-flex items-center rounded-md bg-secondary px-2 py-0.5 text-[13px] font-medium break-words text-muted-foreground';
 
 /** 触屏弹印活多久。比 emoji-pop 那条 1.1s 的动画略长，让它淡完再被摘掉 */
 const STAMP_MS = 1150;
@@ -483,13 +496,13 @@ function ToolRow({
             }}
             className="group/tool relative flex h-[58px] w-9 shrink-0 flex-col items-center"
           >
-            <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-secondary/70 transition-colors duration-200 group-hover/tool:border-accent/60 group-data-[tool-pin=1]/tool:border-accent/60">
+            <span className="flex size-9 items-center justify-center rounded-lg border border-border bg-secondary/70 transition-colors duration-200 group-hover/tool:border-accent/80 group-data-[tool-pin=1]/tool:border-accent/80">
               <span className="sr-only">{name}</span>
               <ToolIcon glyph={t.icon} label={name} size={20} />
             </span>
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-10 -translate-x-1/2 whitespace-nowrap rounded bg-card px-1 text-[11px] font-semibold leading-4 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/tool:opacity-100 group-data-[tool-pin=1]/tool:opacity-100"
+              className="pointer-events-none absolute left-1/2 top-10 -translate-x-1/2 whitespace-nowrap rounded bg-card px-1 text-[11px] font-semibold leading-4 text-muted-foreground opacity-0 transition-opacity duration-200 group-hover/tool:opacity-100 group-data-[tool-pin=1]/tool:opacity-100"
             >
               {name}
             </span>
@@ -500,10 +513,23 @@ function ToolRow({
   );
 }
 
-export default function Dashboard() {
+/**
+ * @param props.skillGroups 技术栈分组。**必须从数据库读好当 props 传进来** ——
+ *   本文件是客户端组件，直接 import lib/content 会把 better-sqlite3 打进浏览器包、构建直接失败。
+ * @param props.canEditSkills 当前访问者是不是管理员，决定技术栈那块要不要出现「编辑技术栈」。
+ *   这只是体验优化：真正的闸门在 /api/admin/skills（未登录 401、非管理员 403），
+ *   绕过界面直接打接口一样会被挡。
+ */
+export default function Dashboard({
+  skillGroups,
+  canEditSkills = false,
+}: {
+  skillGroups: SkillGroupRecord[];
+  canEditSkills?: boolean;
+}) {
   const { d, pick } = useI18n();
   const { location } = site.identity;
-  const { favoriteTools, skills, tools } = site;
+  const { favoriteTools, tools } = site;
   const [modal, setModal] = useState<ContactModalVariant | null>(null);
   const [globeZoomed, setGlobeZoomed] = useState(false);
   const globeZoomButtonRef = useRef<HTMLButtonElement>(null);
@@ -514,9 +540,17 @@ export default function Dashboard() {
   return (
     <div className="pb-2">
       <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-        {/* ① 籍贯：地名就摆在标题行（左边），地球占满下面一块。
+        {/* ① 籍贯：地名摆在标题行（左边），地球占满下面一块。
             地名一旦放到球的右侧，这块就读成了「一张图 + 一段说明」的两栏排版；
             它要的是一行标题 + 一颗球。
+
+            【2026-10-04 改：地名并进标题行、去掉地图图标、删掉球上的浮标】
+            原来标题只写「籍贯」，地名做成一枚浮在球左下角的胶囊 ——
+            同一件事在一小块里出现两次；那枚胶囊还压在海面，窄屏下会和小人抢位置
+            （代码里已经为它挪过两次位置）。
+            现在标题写成「籍贯 · 中国湖南省邵阳市」。保留「籍贯」二字是因为它是这一格的含义，
+            去掉就只剩一串地名、读不出这是「老家」；图标一并去掉，标题行已经有字。
+            浮标删除后，那块位置归还给球面。
 
             【为什么占 2 列 2 行】右侧那一列要能同时放下「最喜欢的工具」和「连接」两块。
             地球只占一行的话，右边那一格会被地球的高度拉成一条 400 多像素的空柱 ——
@@ -524,8 +558,14 @@ export default function Dashboard() {
             让地球跨两行、右侧两格各占一行，两边高度就对上了。 */}
         <Tile
           span="sm:col-span-2 sm:row-span-2"
-          icon={<MapPin size={13} />}
-          title={d.location.label}
+          /*
+           * 标题图标用 Globe2（地球），不用原来那枚 MapPin（地图针）。
+           * 【为什么】站长先说过「不要那个地图图标」，后来又要「其他卡片都有图标，籍贯也得有」——
+           * 所以换成和这一格内容（一颗点阵地球）直接对应的地球图标：
+           * 既补回了图标，又和他明确否掉的那枚不是同一个。
+           */
+          icon={<Globe2 size={13} />}
+          title={`${d.location.label} · ${pick(location.label)}`}
           cursorEmoji="✈️"
           delay={0}
           tint="sky"
@@ -555,17 +595,6 @@ export default function Dashboard() {
                 <DottedGlobe coordinates={location.coordinates} className="w-[460px]" />
               </div>
             )}
-            {/*
-              地名标签。原来居中放在窗口底部（left-1/2 + -translate-x-1/2），
-              2026-10-04 重做地球后暴露了问题：小人站在湖南（球心偏右），
-              手机窄屏上球被裁得更靠右，小人的腿正好被这块居中的标签压住。
-              改成钉在左下角 —— 那里是海面，不会和任何内容重叠，
-              读起来也更像一张地图的角标。
-            */}
-            <span className="pointer-events-none absolute bottom-2 left-3 z-10 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-border/80 bg-card/90 px-3 py-1 text-xs font-semibold text-foreground shadow-sm backdrop-blur-sm">
-              <MapPin size={12} aria-hidden="true" className="text-warm" />
-              {pick(location.label)}
-            </span>
           </div>
         </Tile>
 
@@ -594,33 +623,55 @@ export default function Dashboard() {
           </div>
         </Tile>
 
-        {/* ④ 技术栈：整条铺开，六个组各自一行，组名和它自己的条目钉在一起。
-            【为什么不用一条长带混滚】六个组的条目首尾相接一起滚，
+        {/* ④ 技术栈：整条铺开，每组各自一行，组名和它自己的条目钉在一起。
+            【为什么不用一条长带混滚】各组的条目首尾相接一起滚，
             滚起来之后完全看不出「SQL」属于哪一组、这一串到哪儿换组 ——
             图例那行组名和带子里的内容对不上号，等于把六份信息搅成一份。
             每组单独配一条滚动带也不行：条目少的组会同时露出两份一样的标签。
             静态换行同时避开这两个问题。 */}
-        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Brain size={13} />} title={d.skills.title} cursorEmoji="🧠" delay={CARD_STAGGER * 3} tint="violet">
+        <Tile
+          span="sm:col-span-3 sm:row-span-1"
+          icon={<Brain size={13} />}
+          title={d.skills.title}
+          cursorEmoji="🧠"
+          delay={CARD_STAGGER * 3}
+          tint="violet"
+          /* action 槽放「编辑技术栈」，只有管理员看得到。Tile 的 action 本来就渲染在标题行右侧 */
+          action={canEditSkills ? <SkillAdmin groups={skillGroups} /> : undefined}
+        >
           <div className="space-y-4">
-            {skills.map((g, gi) => (
+            {skillGroups.map((g) => (
               <div
-                key={gi}
+                key={g.id}
                 className="flex flex-col gap-2 border-t border-border/40 pt-3 first:border-t-0 first:pt-0"
               >
                 {/* 组标题：改前是 12px 灰色大写，和下面的标签同色同重，扫读时分不出
                     「组名」和「条目」。现在加粗、换成主文字色，左边加一枚 accent 短竖条当标记 ——
-                    一屏看下去，先看到六个组，再看到每组下面的条目，层级才立得住。 */}
+                    一屏看下去，先看到各组，再看到每组下面的条目，层级才立得住。 */}
                 <span className="flex items-center gap-2 text-sm font-bold text-foreground">
                   <span aria-hidden="true" className="h-3.5 w-0.5 rounded-full bg-accent" />
                   {pick(g.title)}
                 </span>
-                <div className="flex flex-wrap gap-x-2 gap-y-1.5">
-                  {g.items.map((item, i) => (
-                    <span key={i} className={SKILL_TAG}>
-                      {pick(item)}
-                    </span>
-                  ))}
-                </div>
+
+                {/*
+                  小节。label 为空串时不画小标题 —— 渲染层不该强制数据必须带小标题，
+                  否则「只想平铺几个标签」的组存进库之后就会平白多出一行空白。
+                  （pick('') 返回空串，React 渲染空串等于什么都不画，所以这里不用额外判断。）
+                */}
+                {g.sections.map((s, si) => (
+                  <div key={si} className="flex flex-col gap-1.5">
+                    {pick(s.label) && (
+                      <span className="text-[13px] font-semibold text-muted-foreground">{pick(s.label)}</span>
+                    )}
+                    <div className="flex flex-wrap gap-x-2 gap-y-1.5">
+                      {s.items.map((item, i) => (
+                        <span key={i} className={SKILL_TAG}>
+                          {pick(item)}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             ))}
           </div>

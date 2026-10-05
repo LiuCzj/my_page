@@ -1,4 +1,5 @@
 import type { Dict } from './zh';
+import { EMAIL_CODE_TTL_MINUTES, RESET_TTL_HOURS } from '@/lib/auth-ttl';
 
 /**
  * 英文界面文案字典。
@@ -180,11 +181,11 @@ const en: Dict = {
     fieldPasswordHint: 'At least 8 characters',
     /** Verification-code flow (2026-10-04): both sign-up and deletion now use a code. */
     fieldCode: 'Code',
-    fieldCodeHint: '6 digits, valid for 10 minutes',
+    fieldCodeHint: `6 digits, valid for ${EMAIL_CODE_TTL_MINUTES} minutes`,
     sendCode: 'Send code',
     resendCode: 'Resend',
     codeSending: 'Sending…',
-    codeSent: 'Code sent — check your inbox (valid for 10 minutes).',
+    codeSent: `Code sent — check your inbox (valid for ${EMAIL_CODE_TTL_MINUTES} minutes).`,
     codeCountdown: 'Resend in {seconds}s',
     doLogin: 'Sign in',
     doRegister: 'Sign up',
@@ -204,7 +205,7 @@ const en: Dict = {
     accountDeleted: 'Account deleted.',
     forgot: 'Forgot password?',
     forgotTitle: 'Reset password',
-    forgotHint: 'Enter the email you signed up with and we will send a reset link (valid for 1 hour).',
+    forgotHint: `Enter the email you signed up with and we will send a reset link (valid for ${RESET_TTL_HOURS} hour${RESET_TTL_HOURS === 1 ? '' : 's'}).`,
     forgotSubmit: 'Send reset link',
     forgotSent: 'If that email is registered, a reset link is on its way. Check the spam folder too.',
     backToLogin: 'Back to sign in',
@@ -216,8 +217,10 @@ const en: Dict = {
     fieldPasswordConfirm: 'Repeat password',
     adminBadge: 'Admin',
     verifiedOk: 'Email confirmed. You can comment now.',
-    verifiedExpired: 'That confirmation link expired. Please request a new one.',
+    verifiedExpired:
+      'That confirmation link expired. Use “Forgot password” to set a new one — your email gets confirmed at the same time.',
     verifiedInvalid: 'That confirmation link is invalid or already used.',
+    verifiedDismiss: 'Got it',
     errors: {
       invalid_email: 'That email address looks off.',
       disposable_email: 'Disposable email addresses are not accepted here.',
@@ -291,6 +294,22 @@ const en: Dict = {
     stack: 'Tech stack',
     featured: 'Pin to homepage',
     sort: 'Order (lower comes first)',
+    /** Tech-stack editor (added 2026-10-04: the admin can edit the stack in the browser) */
+    editSkills: 'Edit tech stack',
+    skillsHint:
+      'One item per line. The Chinese and English boxes are paired line by line: where the English box is empty or shorter, the English page falls back to the matching Chinese item — no blank tags. Empty lines are ignored.',
+    skillGroup: 'Group',
+    skillTitleZh: 'Group name (Chinese)',
+    skillTitleEn: 'Group name (English, optional)',
+    sectionLabelZh: 'Section label (Chinese, optional)',
+    sectionLabelEn: 'Section label (English, optional)',
+    itemsZh: 'Items (Chinese, one per line)',
+    itemsEn: 'Items (English, one per line, optional)',
+    addSection: 'Add section',
+    removeSection: 'Remove this section',
+    addGroup: 'Add group',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
     errors: {
       not_logged_in: 'Your session expired — please sign in again.',
       forbidden: 'This account has no admin permission.',
@@ -299,6 +318,10 @@ const en: Dict = {
       invalid_date: 'Wrong date format (notes YYYY-MM-DD, projects YYYY-MM).',
       invalid_summary: 'Summary cannot be empty.',
       invalid_body: 'Body cannot be empty.',
+      invalid_skill_id: 'Invalid group id: lowercase letters, digits and hyphens only, starting with a letter or digit.',
+      duplicate_skill_id: 'Two groups share the same id — change one of them.',
+      invalid_skill_title: 'The group name (Chinese) cannot be empty.',
+      empty_skill_group: 'Every group needs at least one section, and each section at least one item.',
       not_found: 'That item no longer exists.',
       bad_request: 'Malformed request.',
       network: 'Network hiccup — try again.',

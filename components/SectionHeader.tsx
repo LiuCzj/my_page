@@ -9,7 +9,6 @@
  * 而且三份样式早晚会漂移。抽成一个组件后，标题只有一处定义。
  *
  * 【为什么加「编号」】
- * 参考 huyml.co 一类获奖作品集的做法：给区块一个 01 / 02 的章节号，
  * 配合首页那几条 FlowLink 流光连接线，整页就有了「第几章」的顺序感 ——
  * 编号本身不承载信息，它承担的是「这是一份被编排过的文档」这个印象。
  * 编号可选：独立页（/projects、/notes）只有一节，编号就没有意义，传空即不渲染。
@@ -70,7 +69,7 @@ export default function SectionHeader({ index, title, lead, id, as = 'h2' }: Sec
       {lead && (
         <motion.p
           {...reveal(0.08)}
-          className="mt-3 max-w-2xl text-base leading-relaxed text-muted-foreground"
+          className="mt-4 max-w-2xl text-lg leading-relaxed text-muted-foreground"
         >
           {lead}
         </motion.p>

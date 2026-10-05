@@ -10,6 +10,11 @@
  * 【为什么重置 token 只存 1 小时】
  * 重置链接的杀伤力比验证链接大（能直接改密码）。有效期越短，
  * 邮件在收件箱里躺久了被人翻出来利用的机会越小。
+ *
+ * 【注意：本文件不负责「过期」这件事】这里只负责发信与写入 token，
+ * 有效期常量在 `lib/auth-ttl.ts` 的 RESET_TTL_MS，真正做校验的是
+ * `app/api/auth/reset/route.ts`。2026-10-05 之前本文件里也有一份同名的
+ * RESET_TTL_MS 副本（从未被引用），已删除 —— 别再在这里写第二份。
  */
 
 import { NextResponse } from 'next/server';
@@ -19,9 +24,6 @@ import { buildResetUrl, isMailConfigured, sendResetEmail } from '@/lib/mailer';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-/** 重置 token 有效期：1 小时 */
-const RESET_TTL_MS = 60 * 60 * 1000;
 
 /** 忘记密码接口的错误码 */
 export type ForgotErrorCode = 'bad_request' | 'mail_not_configured' | 'rate_limited';

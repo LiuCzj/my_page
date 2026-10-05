@@ -30,6 +30,7 @@ const NOTES_DIR = path.join(process.cwd(), 'content', 'notes');
 export function seedContent(d: Database.Database): void {
   seedNotes(d);
   seedProjects(d);
+  seedSkills(d);
 }
 
 /**
@@ -118,4 +119,41 @@ function seedProjects(d: Database.Database): void {
   })();
 
   console.log(`[seed] 已把 ${site.projects.length} 个项目迁移进数据库`);
+}
+
+/**
+ * 把 config/site.ts 的 skills 迁进 skill_groups 表。
+ *
+ * 【为什么整组的 sections 直接存 JSON】见 lib/db.ts 里 skill_groups 建表处的说明：
+ * 这层数据只能整体读写，拆表只会多出级联与排序的复杂度。
+ *
+ * 【为什么 id 一起落库、而且写死在 config 里】编辑界面靠它区分「这次改的是哪一组」，
+ * 也当 React 的 key。它是 config 里手写的稳定短名（如 'dl-ml'），不是运行时随机生成 ——
+ * 这样重复灌库、或者配置与库对比时，都不会出现「同一组换了个身份」的错位。
+ */
+function seedSkills(d: Database.Database): void {
+  const { c } = d.prepare('SELECT COUNT(*) AS c FROM skill_groups').get() as { c: number };
+  if (c > 0) return;
+  if (site.skills.length === 0) return;
+
+  const insert = d.prepare(
+    `INSERT INTO skill_groups (id, title_zh, title_en, sections, sort, updated_at)
+     VALUES (@id, @title_zh, @title_en, @sections, @sort, @updated_at)`,
+  );
+  const now = Date.now();
+
+  d.transaction(() => {
+    site.skills.forEach((g, i) => {
+      insert.run({
+        id: g.id,
+        title_zh: g.title.zh,
+        title_en: g.title.en,
+        sections: JSON.stringify(g.sections),
+        sort: i,
+        updated_at: now,
+      });
+    });
+  })();
+
+  console.log(`[seed] 已把 ${site.skills.length} 组技术栈迁移进数据库`);
 }

@@ -48,6 +48,7 @@ import {
   type SearchGroup,
   type SearchNote,
   type SearchProject,
+  type SearchSkillGroup,
 } from '@/lib/search-index';
 
 /**
@@ -55,7 +56,7 @@ import {
  * 服务端组件从 lib/content.ts 拿到 NoteMeta / ProjectRecord 后，
  * 只需挑出对应字段即可满足本组件的 notes / projects 属性。
  */
-export type { SearchNote, SearchProject };
+export type { SearchNote, SearchProject, SearchSkillGroup };
 
 /** 搜索面板的属性 */
 export interface SiteSearchProps {
@@ -67,6 +68,8 @@ export interface SiteSearchProps {
   notes: SearchNote[];
   /** 服务端读好的项目列表 */
   projects: SearchProject[];
+  /** 服务端读好的技术栈分组（技术栈可在网页上编辑，所以只能从库里来） */
+  skills: SearchSkillGroup[];
   /** 追加在浮层根节点上的类名，供调用方做位置微调 */
   className?: string;
 }
@@ -213,7 +216,7 @@ function ResultRow({ entry, index, active, onHover, onActivate, registerRef }: R
  * @param props.notes        服务端传入的笔记元数据
  * @param props.className    追加到浮层根节点的类名
  */
-export default function SiteSearch({ open, onOpenChange, notes, projects, className }: SiteSearchProps) {
+export default function SiteSearch({ open, onOpenChange, notes, projects, skills, className }: SiteSearchProps) {
   const { d, lang } = useI18n();
   /** 系统开了「减少动态效果」时不做任何动画 */
   const reduceMotion = useReducedMotion();
@@ -233,7 +236,10 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, classN
    * 随「语言」或「笔记/项目数据」变化重建：切中英文时每条条目的展示文案要跟着换，
    * 而匹配文本里始终带着双语，所以切换语言不会丢失另一种语言的可搜性。
    */
-  const index = useMemo(() => buildSearchIndex({ notes, projects, lang }), [notes, projects, lang]);
+  const index = useMemo(
+    () => buildSearchIndex({ notes, projects, skills, lang }),
+    [notes, projects, skills, lang],
+  );
 
   /**
    * 过滤 + 分组，并给每条打上全局序号。

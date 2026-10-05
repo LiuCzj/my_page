@@ -93,7 +93,7 @@ function ProjectCard({
           </span>
           <ArrowUpRight
             size={17}
-            className="shrink-0 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-accent motion-reduce:transition-none"
+            className="shrink-0 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-accent motion-reduce:transition-none"
             aria-hidden="true"
           />
         </span>
@@ -112,7 +112,7 @@ function ProjectCard({
             {project.stack.map((s) => (
               <span
                 key={s}
-                className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-semibold text-secondary-foreground"
+                className="rounded-full border border-border bg-secondary px-2.5 py-0.5 text-[13px] font-semibold text-secondary-foreground"
               >
                 {s}
               </span>
@@ -122,7 +122,7 @@ function ProjectCard({
 
         {/* mt-auto 把日期推到卡片底部：同一行的两张卡高度不同时，日期仍然对齐 */}
         {project.date && (
-          <span className="mt-auto pt-3 text-xs font-semibold text-muted-foreground">
+          <span className="mt-auto pt-3 text-[13px] font-semibold text-muted-foreground">
             {project.date}
           </span>
         )}

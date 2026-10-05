@@ -19,12 +19,11 @@
 
 import { createHash, randomInt } from 'node:crypto';
 import { getDb } from './db';
+import { EMAIL_CODE_TTL_MS } from './auth-ttl';
 
 /** 验证码用途：注册 / 注销 */
 export type CodePurpose = 'register' | 'delete';
 
-/** 有效期：10 分钟。够用户切到邮箱抄码，又不至于留着大半天 */
-const TTL_MS = 10 * 60 * 1000;
 /** 同一枚码最多被试几次 */
 const MAX_ATTEMPTS = 5;
 
@@ -66,7 +65,7 @@ export function issueCode(email: string, purpose: CodePurpose): string {
          attempts   = 0,
          created_at = excluded.created_at`,
     )
-    .run(email, purpose, hashCode(code), now + TTL_MS, now);
+    .run(email, purpose, hashCode(code), now + EMAIL_CODE_TTL_MS, now);
 
   return code;
 }

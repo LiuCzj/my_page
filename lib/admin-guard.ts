@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from './auth';
-import { SLUG_RE, type NoteInput, type ProjectInput } from './content';
+import { SLUG_RE, type NoteInput, type ProjectInput, type SkillGroupInput, type SkillSectionInput } from './content';
 
 /** 错误响应：{ ok: false, code }，状态码按需给 */
 function fail(code: string, status: number): NextResponse {
@@ -138,4 +138,61 @@ export async function readJson(request: Request): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+/** 把提交体里的小节数组规整成 SkillSectionInput[]（缺字段一律给空值，不抛错） */
+function skillSections(v: unknown): SkillSectionInput[] {
+  if (!Array.isArray(v)) return [];
+  return v.map((raw) => {
+    const s = (raw ?? {}) as Record<string, unknown>;
+    return {
+      labelZh: str(s.labelZh),
+      labelEn: str(s.labelEn),
+      itemsZh: strList(s.itemsZh),
+      itemsEn: strList(s.itemsEn),
+    };
+  });
+}
+
+/**
+ * 校验并规整技术栈的提交体。
+ *
+ * 【为什么整份提交，而不是一次改一组】编辑面板把所有分组放在同一张面板里、一次性提交，
+ * 所以提交体天然就是一个数组；接口据此做「整体替换」
+ * （见 lib/content.ts 的 replaceSkillGroups）。
+ *
+ * 【必填与拒收规则，以及为什么】
+ * · 组标题（中文）必填 —— 空标题在页面上就是一个空白分组，看起来像坏了。
+ * · 分组 id 必须过 SLUG_RE —— 它要当数据库主键、也会当 React key，
+ *   放行任意字符串等于把主键交给输入。
+ * · id 不许重复 —— 主键冲突会让整份保存失败在半路。
+ * · 每个分组至少要有一个「有条目」的小节 —— 只有标题、没有任何内容的分组没有意义。
+ * · 空小节（文本域留空）**直接丢掉、不报错** —— 管理员清空一个文本域是很自然的动作，
+ *   为这个弹错误只会烦人。
+ */
+export function parseSkillGroupsInput(raw: unknown): Parsed<SkillGroupInput[]> {
+  if (!Array.isArray(raw)) return { error: 'bad_request' };
+
+  const groups: SkillGroupInput[] = [];
+  const seen = new Set<string>();
+
+  for (const item of raw) {
+    const b = (item ?? {}) as Record<string, unknown>;
+
+    const id = str(b.id);
+    if (!SLUG_RE.test(id)) return { error: 'invalid_skill_id' };
+    if (seen.has(id)) return { error: 'duplicate_skill_id' };
+    seen.add(id);
+
+    const titleZh = str(b.titleZh);
+    if (!titleZh) return { error: 'invalid_skill_title' };
+
+    const sections = skillSections(b.sections).filter((s) => s.itemsZh.length > 0);
+    if (sections.length === 0) return { error: 'empty_skill_group' };
+
+    groups.push({ id, titleZh, titleEn: str(b.titleEn), sections });
+  }
+
+  if (groups.length === 0) return { error: 'empty_skill_group' };
+  return { value: groups };
 }
