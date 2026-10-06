@@ -99,13 +99,26 @@ export default function AuthMenu() {
         <button type="button" onClick={() => openPanel('login')} className={btn}>
           {d.auth.login}
         </button>
-        <button
-          type="button"
-          onClick={() => openPanel('register')}
-          className={`${btn} hidden sm:inline-flex`}
-        >
-          {d.auth.register}
-        </button>
+        {/*
+          【2026-10-06 修一个一直没生效的隐藏规则】原来是 `hidden sm:inline-flex`，
+          但 `btn`（TOPBAR_PILL）本身就带 `inline-flex` —— Tailwind 的 display 工具类
+          在同一层里由**生成顺序**决定胜负，而 `inline-flex` 排在 `hidden` 之后，
+          于是 `hidden` 被盖掉，这颗「注册」在 390px 上一直是显示出来的
+          （CDP 实测：width 54px、display flex）。顶栏就多挤了一颗，
+          这正是站长说「手机端排布挤」的其中一处。
+
+          【为什么用外层 span 包一层，而不是在按钮上写 max-sm:hidden】
+          按钮的 display 已经被 TOPBAR_PILL 的 inline-flex 占住了，
+          在同一元素上再写一个 display 类，胜负仍要看 Tailwind 的生成顺序 —— 不保险。
+          包一层 span、把 hidden 写在外层，display:none 作用在**父级**上，
+          与按钮自身的 inline-flex 完全不同层，不存在竞争，一定生效。
+          内层按钮的样式一个字都不用改。
+        */}
+        <span className="hidden sm:contents">
+          <button type="button" onClick={() => openPanel('register')} className={btn}>
+            {d.auth.register}
+          </button>
+        </span>
         <AuthPanel open={panelOpen} onClose={() => setPanelOpen(false)} initialTab={panelTab} />
       </>
     );
@@ -150,22 +163,42 @@ export default function AuthMenu() {
       {menuOpen && (
         <div
           role="menu"
-          className="absolute top-[calc(100%+6px)] right-0 z-[61] w-60 rounded-xl border border-border bg-card p-2 shadow-xl"
+          /*
+            【2026-10-06 与全站浮层对齐】站长反馈「登录后弹出的框和其它弹窗风格不一致」。
+            这个下拉是全站唯一**手写外框**、不经过 EditorPanel 的浮层，于是漂成了另一套：
+              · 阴影少一档（xl vs EditorPanel 的 2xl）—— 看起来比别的浮层「浮得浅」；
+              · 内边距更紧（p-2 vs 面板的 px-4/px-5）；
+              · 条目字更小（text-xs vs 表单里的 text-sm）。
+            现在统一到 EditorPanel 那一套语言：shadow-2xl、外层 p-3、
+            条目 px-3 + text-sm，圆角保持 rounded-xl（与面板同值）。
+            【为什么内边距取 p-3 而不是与面板 px-4/px-5 完全同值】
+            面板是主内容（宽度 max-w-3xl），可以用更宽的边距；这个下拉只有 w-60（240px），
+            照搬 px-4 会让内容可用宽度只剩 208px、邮箱会被截得更多。
+            p-3 是「对齐了规范的手感，但没牺牲内容宽度」的取值 —— 风格项对齐，尺寸项按容器定。
+            名单宽度 w-60 不动 —— 它是内容决定的下限，不是风格项。
+          */
+          className="absolute top-[calc(100%+6px)] right-0 z-[61] w-60 rounded-xl border border-border bg-card p-3 shadow-2xl"
         >
-          <div className="px-2 py-1.5">
-            <p className="truncate text-xs font-semibold text-foreground">{user.displayName}</p>
+          <div className="px-3 py-2.5">
+            <p className="truncate text-sm font-semibold text-foreground">{user.displayName}</p>
             <p className="truncate text-xs text-muted-foreground">{user.email}</p>
             {user.isAdmin && (
-              <p className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-accent/50 px-2 py-0.5 text-[11px] font-semibold text-accent">
+              <p className="mt-2 inline-flex items-center gap-1 rounded-full border border-accent/50 px-2 py-0.5 text-[11px] font-semibold text-accent">
                 <ShieldCheck size={11} aria-hidden="true" />
                 {d.auth.adminBadge}
               </p>
             )}
             {!user.emailVerified && (
-              <p className="mt-1.5 text-[11px] font-semibold text-destructive">{d.auth.notVerified}</p>
+              <p className="mt-2 text-[11px] font-semibold text-destructive">{d.auth.notVerified}</p>
             )}
           </div>
 
+          {/*
+            【为什么这里也有一条分隔线】上面是「你是谁」（只读信息），下面是「你能做什么」（动作）。
+            两种性质之间画一条线，视觉上把「资料区」和「动作区」分开 ——
+            原来只有动作之间那条线，反而让「资料」和「注销账号」看起来像同一组。
+          */}
+          <span aria-hidden="true" className="mb-1.5 block h-px bg-border" />
           {/*
             注销账号。用 destructive 色而不是和「退出登录」同一种灰 ——
             这两件事的风险等级差着一个量级，长得一样会让人点错。
@@ -179,21 +212,21 @@ export default function AuthMenu() {
               setMenuOpen(false);
               setDeleteOpen(true);
             }}
-            className="mt-1 inline-flex w-full min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-2 text-xs font-semibold text-destructive transition-colors hover:bg-destructive/10"
+            className="mt-1 inline-flex w-full min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-semibold text-destructive transition-colors hover:bg-destructive/10"
           >
-            <UserX size={14} aria-hidden="true" />
+            <UserX size={16} aria-hidden="true" />
             {d.comments.deleteAccount}
           </button>
 
-          <span aria-hidden="true" className="my-1 block h-px bg-border" />
+          <span aria-hidden="true" className="my-1.5 block h-px bg-border" />
 
           <button
             type="button"
             onClick={doLogout}
             disabled={busy}
-            className="inline-flex w-full min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-2 text-xs font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex w-full min-h-[44px] cursor-pointer items-center gap-2 rounded-lg px-3 text-sm font-semibold text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <LogOut size={14} aria-hidden="true" />
+            <LogOut size={16} aria-hidden="true" />
             {d.auth.logout}
           </button>
         </div>

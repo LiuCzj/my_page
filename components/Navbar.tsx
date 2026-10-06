@@ -64,7 +64,7 @@ import MobileNavDrawer from './MobileNavDrawer';
 import AuthMenu from './AuthMenu';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
-import { TOPBAR_CONTROL } from '@/lib/topbar';
+import { TOPBAR_CONTROL, TOPBAR_ICON_SIZE, TOPBAR_SOCIAL_ICON_SIZE } from '@/lib/topbar';
 import { site } from '@/config/site';
 
 export default function Navbar() {
@@ -170,20 +170,48 @@ export default function Navbar() {
             </ul>
 
             <div className="flex items-center gap-1.5">
-              {/* 桌面端联系方式排在语言/主题之前，符合「依次排开」的顺序 */}
-              <div className="hidden items-center gap-0.5 lg:flex">
-                <SocialLinks size={20} qrPlacement="below" onOpenModal={setModal} />
+              {/*
+                桌面端联系方式排在语言/主题之前，符合「依次排开」的顺序。
+                【2026-10-06】图标 20 → 22（TOPBAR_SOCIAL_ICON_SIZE）。
+                【itemClassName 是必传的，不是可选的美化】
+                SocialLinks 的 <a> 只包住图标本身，不传这个 class 时点击区就是图标那么大
+                （现在 22×22），既低于项目「触控目标 ≥44px」的硬规矩，
+                也不符合站长「更易点击」的诉求。这里给它撑到 40×40（与右侧圆形按钮同高），
+                图标仍在正中 —— 视觉大小不变，能点的地方大了近三倍。
+                ⚠️ 负外边距是这里唯一需要动脑的地方，两个方向的错必须同时避开：
+                  · 不抵 → 每枚占位从 22 涨到 40，五个叠起来多出 90px，顶栏被撑爆；
+                  · 抵太狠 → 相邻两枚的 40px 点击区互相重叠，
+                    重叠处由 DOM 里靠后的元素胜出，于是「点 CSDN 却打开了知乎」。
+                不重叠的数学上限是 |负边距| ≤ 父容器 gap / 2：
+                父容器 gap-1（4px）→ 最多抵 2px。取 -mx-[2px] 即满足，
+                此时每枚占位 36px、相邻点击区恰好首尾相接不重叠。
+                结论：**点击区放大要优先于视觉占位不变** —— 两者在这个尺寸下不可兼得，
+                牺牲一点紧凑度换「好点」，正是站长这次要的。
+              */}
+              <div className="hidden items-center gap-1 lg:flex">
+                <SocialLinks
+                  size={TOPBAR_SOCIAL_ICON_SIZE}
+                  itemClassName="-mx-[2px] size-10"
+                  qrPlacement="below"
+                  onOpenModal={setModal}
+                />
               </div>
-              <span className="mx-1 hidden h-6 w-px bg-border lg:block" aria-hidden="true" />
+              {/*
+                竖分隔线：把「联系方式」和「工具控件」两簇分开。
+                高度 h-6 → h-7 —— 跟着图标涨这一档，否则它会在变大的图标旁边显得矮一截。
+              */}
+              <span className="mx-1 hidden h-7 w-px bg-border lg:block" aria-hidden="true" />
 
               {/*
                 背景音乐。桌面端和 ≥640px 的宽屏上直接摆在顶栏；
                 窄屏顶栏放不下（logo + 账号 + 语言 + 主题 + 汉堡已经占满），
                 所以那些宽度上它挪进手机抽屉 —— 见 MobileNavDrawer。
                 两处控件共用 lib/music-context.tsx 里那一份播放状态，不会各播各的。
+                ⚠️ 这里必须显式写 variant="popover"：抽屉里那份用 inline，
+                顶栏这份要弹出滑块（见 MusicControls 文件头）。
               */}
               <div className="hidden sm:block">
-                <MusicControls />
+                <MusicControls variant="popover" />
               </div>
 
               {/* 账号入口：登录/昵称，放在语言、主题旁边 —— 网页里最常见的位置 */}
@@ -197,7 +225,12 @@ export default function Navbar() {
                 aria-label={menuOpen ? d.topbar.closeMenu : d.topbar.menu}
                 aria-expanded={menuOpen}
               >
-                {menuOpen ? <X size={18} /> : <Menu size={18} />}
+                {/*
+                  【2026-10-06】原来写死 size={18}，是这一排唯一没走 TOPBAR_ICON_SIZE 的图标 ——
+                  于是它比旁边的语言/主题图标小一号，是「整排比例不齐」的其中一处。
+                  现在统一走常量。
+                */}
+                {menuOpen ? <X size={TOPBAR_ICON_SIZE} /> : <Menu size={TOPBAR_ICON_SIZE} />}
               </button>
             </div>
           </div>

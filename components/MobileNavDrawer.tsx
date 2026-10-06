@@ -145,12 +145,13 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           背景音乐。窄屏顶栏放不下它（logo + 账号 + 语言 + 主题 + 汉堡已经占满一行），
           所以挪到这里。控件和顶栏那两枚是同一个组件、同一份播放状态
           （状态住在 lib/music-context.tsx，两处渲染 <audio> 会同时播两条音轨）。
+          【variant="inline"】抽屉里让音量滑块**常驻平铺**，不弹浮层 ——
+          抽屉本身就是可滚动浮层，在里面再弹一层既难定位、又可能被 overflow 裁掉。
+          详见 components/MusicControls.tsx 的文件头说明。
         */}
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-foreground/[0.04] px-3 py-2">
-          <span className="text-sm font-semibold text-foreground">{pick(site.music.title)}</span>
-          <span className="ml-auto">
-            <MusicControls />
-          </span>
+          <span className="shrink-0 text-sm font-semibold text-foreground">{pick(site.music.title)}</span>
+          <MusicControls variant="inline" />
         </div>
 
         <div className="mt-2 grid grid-cols-2 gap-x-3">

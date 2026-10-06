@@ -4,20 +4,18 @@
 
 ## 页面结构
 
-三个页面（首页 / 项目 / 笔记）+ 一个悬浮聊天窗，整页底下一张会动的粒子网。首页从上到下五块：
+三个页面（首页 / 项目 / 笔记）+ 一个悬浮聊天窗。首页是**五个跨页**（封面 / 关于我 / 项目 / 笔记 / 版权页），
+每页有自己的底色令牌、主导色和排版骨架 —— 「翻页感」就来自这里，不是靠留白堆出来的。
 
-- **粒子背景**：一层铺满视口的 canvas，点缓慢漂浮、互相靠近就连线；鼠标伸进去把附近的点推开，
-  被推开那片的连线换成高对比色（暗色档变白、亮色档压深），其余保持**冷蓝灰**
-  （2026-10-04 双色分工后从紫改蓝 —— 粒子网是铺满全屏的大面积层，它一紫整页就「一片紫」，
-  紫要留给品牌标识那两处），手一离开就自己恢复。
-  真鼠标设备另外跟一条细短的拖尾和十字准线（触屏和「减少动效」下这两样都不挂）
-- **首屏**：桌面双栏 / 手机单列 ——
+- **鼠标拖尾**（`components/CursorFx.tsx`）：真鼠标设备才挂，一条细短的拖尾加十字准线；
+  触屏和「减少动效」下都不生效
+- **首屏（封面）**：桌面双栏 / 手机单列 ——
   左栏是问候行、「你好，我是 锦创AI」（名字**先解码再落定**：每个字先在随机字里跳变、从左到右逐个锁定，
   锁定瞬间放大泛光；汉字走行楷、拉丁字母走同一套字的拉丁搭档）、一句话、两个入口按钮；
   右栏是一张个人名片（Q 版头像，**本体自己在呼吸**：缩放 + 轻微晃动，悬停时放大）加一张终端卡
   （逐字敲出 `whoami` / `cat skills.txt` 等命令并打印 config 里的真实资料，点一下换下一条）。
-  数字分身角色**不在首屏**，它是右下角常驻的浮动头像（见 `components/TwinEntry.tsx`）
-- **磁贴区**：籍贯（一颗只裁出上半条的点阵地球，缓慢自转、可以按住拖动，
+  数字分身角色**不在首屏**，它是常驻的浮动头像，可按住拖到任意位置（见 `components/TwinEntry.tsx`）
+- **关于我（磁贴区）**：籍贯（一颗只裁出上半条的点阵地球，缓慢自转、可以按住拖动，
   邵阳那一点上站着一个 Q 版小人，静止站立、转到球背面就隐藏；标题行有「放大地球」按钮，
   点开是一个完整的球，地名标签钉在卡片左下角）、最喜欢的工具（Codex / Qoder / GitHub）、
   技术栈（六个组各占一行，组名和自己的条目钉在一起）、
@@ -32,20 +30,26 @@
   为空时显示一句诚实的空态
 - **笔记摘要**：最近三篇，每条是标题 / 日期 / 阅读时长 / 一句话摘要 / 标签，多的去 `/notes` 页。
   笔记存在数据库里（可以在网页上随时新增和修改），正文**只有中文**（见「配置」一节）
-- **数字分身聊天窗**：接入大模型，流式逐字回答关于我的问题，内置三个一键提问
+- **数字分身聊天窗**：接入大模型，流式逐字回答关于我的问题，内置三个一键提问。
+  回答前会先做**站内检索**（`lib/assistant-context.ts`）：把笔记正文、项目、技术栈切成片段，
+  按问句里的关键词打分取 Top N 塞进提示词，所以它能答出「某篇笔记里写了什么」这种只有站内才有的内容。
+  检索不到就不硬答 —— 越界问题（天气、代写代码）会明确说不在范围内
 - **固定顶栏**：名字、GitHub / CSDN / 知乎 / 微信公众号 / 邮箱五个入口、账号入口、深浅色切换、中英文切换，
   桌面端一行排开，滚动时不动；窄屏同一行只留名字 + 账号 + 语言 + 主题 + 汉堡，联系方式收进抽屉
-- **页脚**：「打个招呼 👋」加一颗邮箱联系按钮，下面三栏（是谁 / 页内导航 / 五个联系入口）和版权行
-- **区块之间**：一条随滚动「长出来」的流光连接线（`components/FlowLink.tsx`），
-  把「下面还有内容」这件事画出来；减少动效时退成一条静态细线
+- **页脚（版权页）**：「打个招呼 👋」加一颗邮箱联系按钮，下面三栏（是谁 / 页内导航 / 五个联系入口）和版权行
 
 聊天窗是**悬浮面板**而不是页面里的一段内容，这样对话再长也不会把网页越拉越长：
 
-- 点**右下角常驻的浮动头像**开启（2026-10-03 从首屏搬来 —— 原来那个角色挂在首屏末尾，
-  既是第五个元素、又得滚回顶部才点得到）；面板打开时按钮自动让位，因为面板桌面端就占着右下角
+- 点**浮动头像**开启（2026-10-03 从首屏搬来 —— 原来那个角色挂在首屏末尾，
+  既是第五个元素、又得滚回顶部才点得到）；面板打开时按钮自动让位，因为面板桌面端就占着右下角。
+  2026-10-06 起这颗按钮**可以按住拖到任意位置并记住**，拖不动网页外：默认它就贴在右下角，
+  所以只允许往左上方向挪（向右/向下的上限恒为 0，否则「贴边」和「可拖动」会打架）
 - 右下角头像、顶栏与页脚的「问分身」，三个入口共用同一个开合状态
 - 面板内部自己滚动，输入框和「猜你想问」固定在底部；Esc 或右上角 × 关闭
-- 桌面端展开面板时正文会自动让出宽度，不会被面板盖住；窄屏下面板贴在顶栏下方接近全屏
+- 桌面端展开面板时正文会自动让出宽度，不会被面板盖住
+- 手机上换成**三档底部抽屉**（`peek` 一条 / `half` 半高 / `full` 全高，默认半高），可以上下拖着在档位间跳。
+  半高档且没弹键盘时面板走**半透明 + 背景模糊**，底下被压住的文字透得出来、又不会糊到看不清；
+  一旦弹起软键盘就强制切全高档，否则「键盘顶上来」和「抽屉变矮」两股力会把它挤成一条缝
 
 其他已实现：
 
@@ -61,6 +65,13 @@
   （否则不知道有快捷键的人永远按不出第一个问号），**输入框内一律不触发**
 - 站内搜索：`Cmd/Ctrl + K` 唤起，搜项目 / 笔记 / 技能 / 工具 / 页面，
   中英关键词都能命中（匹配用的 haystack 把两种语言拼在一起）
+- **背景音乐**（2026-10-06 新增，`lib/music-context.tsx` + `components/MusicControls.tsx`）:
+  顶栏一颗播放键，展开是音量条。默认**暂停且静音，且不持久化任何状态** ——
+  一旦记住「上次是开着听的」，下次打开就变成有声的，那默认静音就白设了。
+  全站只渲染**一个** `<audio>`（顶栏与手机抽屉共用一份状态，各渲染一个会同时播两条音轨）。
+  音源是 `config/site.ts` 的 `music.src`（默认 `/audio/bgm.mp3`）；
+  **文件缺失或加载失败时整块不渲染**，只在控制台留一条 warn —— 与其留两个点不动的灰按钮，
+  不如让访客根本看不到它
 - 笔记详情页顶部一条随阅读生长的进度条（原生 scroll + rAF，零依赖 ——
   用 framer 写会把那一页 First Load JS 从 113 kB 顶到 156 kB，为一条 2px 的线不值）
 - 404 页，文案跟随中英切换
@@ -82,12 +93,12 @@
 
 Next.js 15（App Router）· React 19 · Tailwind CSS v4 · next-themes · lucide-react · framer-motion ·
 cobe（WebGL 地球）· better-sqlite3（SQLite 存内容与账号）· unified + remark + rehype（运行时渲染 Markdown）·
-KaTeX（公式）· nodemailer（验证码邮件）
+KaTeX（公式）· nodemailer（验证码邮件）· svg-captcha（图形验证码）
 
 没有引入成体系的 UI 组件库。通用图标（菜单、关闭、聊天、深浅色切换等）取自 lucide-react；
 CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱图标沿用 lucide-react 的形状；
 页面切换与顶栏动效用 framer-motion；籍贯那颗点阵地球用 cobe（WebGL，纯客户端打包，不请求外部资源）；
-背景的粒子网和鼠标拖尾是自己写的 2D canvas，没有再引第三方粒子/特效库。
+鼠标拖尾是自己写的 2D canvas，没有再引第三方粒子/特效库。
 
 **笔记走运行时渲染，不是构建期 MDX**（2026-10-04 改造）：笔记存在数据库里、可以在网页上随时新增和修改，
 所以 `@next/mdx` 这条路已经整个拆掉（连同 `@mdx-js/*`、`mdx-components.tsx` 一起移除了）。
@@ -114,7 +125,7 @@ CSDN、知乎、微信三个品牌图标是手写内联 SVG，GitHub 与邮箱�
 | 素材 | 位置 | 尺寸 | 用途 |
 |---|---|---|---|
 | 头像 | `public/images/avatar.jpg` | 640×640 JPEG | 首屏个人名片里的圆形头像（CSS 裁圆） |
-| 数字分身角色 | `public/images/mascot-q.png` | 512×512 PNG | **右下角常驻的浮动头像**（`components/TwinEntry.tsx`），点它开聊天窗 |
+| 数字分身角色 | `public/images/mascot-q.png` | 512×512 PNG | **常驻的浮动头像**（`components/TwinEntry.tsx`），默认贴右下角、可拖动，点它开聊天窗 |
 | 地球小人 | `public/images/avatar-stand.png` | 64×224 PNG | 籍贯卡片地球上站在邵阳的那一点 |
 | 笔记配图 | `public/images/hero-scene.jpg` | 1024×1024 JPEG | 笔记正文配图（由笔记内容引用，所以静态搜代码搜不到它） |
 | 站点图标 | `public/favicon.svg` | 32×32 SVG | 浏览器标签页 |
@@ -208,6 +219,8 @@ lib/parse-md-file.ts        解析整篇 .md 文件：拆 frontmatter 与正文�
 lib/auth.ts                 认证层：密码哈希 + 会话管理（cookie 的 Secure 判定也在这）
 lib/auth-context.tsx        全站登录态（顶栏账号入口与评论区共用同一份）
 lib/admin-guard.ts          管理端接口的公共守卫与输入校验
+lib/captcha.ts              图形验证码的生成与校验（**校验与消费是两个函数，不要合并**）
+lib/auth-ttl.ts             各类凭证的过期时长单一来源（界面文案也从这里取值）
 lib/codes.ts                邮箱验证码：注册与注销共用同一套
 lib/mailer.ts               邮件发送（验证码 / 重置密码 / 注销确认）
 lib/email-guard.ts          邮箱准入检查：把一次性邮箱挡在注册之外
@@ -215,6 +228,9 @@ lib/disposable-domains.ts   一次性邮箱域名清单（数据文件，不要�
 lib/i18n.tsx                语言 Context + localStorage 持久化
 lib/search-index.ts         站内搜索的索引构建与匹配（把站点数据拍平成可搜索条目）
 lib/twin-chat-context.tsx   聊天窗的开合状态（多处入口控制同一个面板）
+lib/assistant-context.ts    数字分身的站内检索：切片段 → 按问句关键词打分 → 取 Top N 拼提示词
+lib/music-context.tsx       背景音乐状态（全站共用同一个 `<audio>`；默认暂停 + 静音，不持久化）
+lib/topbar.ts               顶栏控件外观的**唯一来源**（圆钮 / 胶囊 / 图标尺寸 / 播放中的环）
 lib/use-hotkeys.ts          全局键盘快捷键（G 序列跳转、Cmd+K 搜索、Cmd+/ 切主题等）
 lib/use-reveal.ts           滚动进入动画的属性包 + useHydrationSafeReducedMotion
 lib/use-scroll-fx.ts        滚动特效的两个原语：焦点接力高光、视差位移
@@ -233,14 +249,13 @@ app/api/comments/*          评论的读写与删除
 app/api/admin/*             管理端接口：笔记与项目的增删改 + Markdown 预览渲染
 
 components/
-  ParticleField.tsx         背景粒子网（2D canvas：漂浮、靠近连线、鼠标推开附近那片并把它染白）
   CursorFx.tsx              鼠标拖尾 + 十字准线（2D canvas，只在真鼠标设备挂）
   Hero.tsx                  首屏（桌面双栏 / 手机单列）：名字解码入场、简介、两个入口、个人名片、终端卡
   TerminalCard.tsx          首屏终端卡（逐字敲命令 + 打印输出，点一下换下一条）
-  Dashboard.tsx             磁贴区：籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接 + 放大地球浮层
+  Dashboard.tsx             关于我：籍贯 / 最喜欢的工具 / 技术栈 / 工具 / 连接 + 放大地球浮层
   DottedGlobe.tsx           点阵地球（cobe / WebGL；邵阳那一点由第二张 canvas 投影贴一张站姿人像，可拖动）
-  FlowLink.tsx              区块之间的流光连接线（随滚动长出来）
-  SectionHeader.tsx         编辑式区块头（编号 + 大标题 + 副标题），新加区块统一走它
+  SectionBand.tsx           区块外壳 + 区块头：通栏底色 + 2px 页眉线 + 该页自己的背景光 + 等宽编号 + 宋体章节名。
+                            新加区块统一走它（旧的 `SectionHeader.tsx` 已删除）
   Marquee.tsx               滚动的条（工具那两排）：自动走 + 可用指针横向拖，松手带惯性
   CustomCursor.tsx          表情光标（地球块上方箭头变 ✈️），只在真鼠标设备生效
   ToolIcon.tsx              工具标：有官方彩色标的上图，没标的用字母徽标
@@ -251,20 +266,24 @@ components/
   NotesList.tsx             笔记列表（首页摘要与 /notes 共用；整项是一条链接）
   NoteBackLink.tsx          笔记详情页的「返回笔记列表」
   CommentSection.tsx        笔记详情页底部的评论区（含未登录时的登录 / 注册 / 找回密码三视图）
-  DigitalTwinChat.tsx       悬浮聊天面板（流式渲染、重试、停止、内部滚动、历史）
+  DigitalTwinChat.tsx       聊天面板：流式渲染、重试、停止、内部滚动、历史；手机上是三档底部抽屉
   ChatInset.tsx             桌面端展开面板时让正文让位，避免被遮挡
-  TwinEntry.tsx             数字分身常驻入口：右下角一颗浮动头像（点它开聊天窗）
+  TwinEntry.tsx             数字分身常驻入口：一颗浮动头像，可拖动并记住位置（点它开聊天窗）
   Navbar.tsx                固定顶栏（一行；窄屏收进抽屉）
   MobileNavDrawer.tsx       移动端导航抽屉
   AuthMenu.tsx              顶栏账号入口：未登录显示「登录」，已登录是下拉（管理员徽章 / 注销账号 / 退出登录）
   AuthPanel.tsx             登录 / 注册 / 找回密码浮层
-  DeleteAccountPanel.tsx    注销账号浮层（发码到本人邮箱 → 填 6 位码 → 删除）
+  CaptchaField.tsx          图形验证码输入块（刷新 / 校验 / 错误提示），注册与注销共用
+  DeleteAccountPanel.tsx    注销账号浮层（图形码 → 当前密码 → 邮箱验证码，按验证成本从低到高）
   ResetPasswordPanel.tsx    重置密码面板（接管邮件里 `?reset=<token>` 的链接）
+  VerifyNotice.tsx          邮箱验证完成后的提示（接管 `?verified=`）
   BrandIcons.tsx            五个平台图标
   SocialLinks.tsx           联系方式按钮
   ContactModal.tsx          二维码 / 邮箱弹窗
   LanguageToggle.tsx        语言切换
   theme-toggle.tsx          深浅色切换
+  MusicControls.tsx         顶栏背景音乐控件（播放 / 静音 / 音量条）
+  ThemeColorSync.tsx        把手机地址栏的颜色同步成当前封面页的底色
   footer.tsx                页脚（打招呼 + 邮箱按钮、三栏、版权行）
   page-transition.tsx       页面切换淡入动画
   ReadingProgress.tsx       笔记详情页的阅读进度条（原生 scroll + rAF，不引 framer）
@@ -304,6 +323,42 @@ GitHub Pages / 纯静态托管只会打开一个页面壳，聊天、登录、�
 
 **服务器要求 Node ≥ 22**（`better-sqlite3` 13 的硬要求，见「本地运行」一节）。
 装依赖同样要带 `--ignore-scripts`。
+
+### 什么时候才需要重新装依赖
+
+只有 `package.json` / `package-lock.json` **变了**才要跑 `npm ci --ignore-scripts`。
+
+判断方法 —— 在服务器上 `git pull` **之后**执行：
+
+```bash
+git diff --name-only HEAD@{1} HEAD -- package.json package-lock.json
+# 有输出 = 依赖变过，跑 npm ci --ignore-scripts
+# 无输出 = 没变，跳过这步直接 build
+```
+
+`HEAD@{1}` 是 pull 之前那个提交（git reflog 里记着）。
+
+想在 pull **之前**就知道，换成：
+
+```bash
+git fetch && git diff --name-only HEAD origin/main -- package.json package-lock.json
+```
+
+本地则更简单，工作区干净时看 `git status --short package.json package-lock.json` 有没有输出即可。
+
+拿不准就直接跑 `npm ci --ignore-scripts` —— 它先删 `node_modules` 再按 lock 重装，
+结果确定，代价只是多花一两分钟。
+
+### 背景音乐文件要单独传
+
+`public/audio/bgm.mp3` 被 `.gitignore` 排除了，所以 `git pull` 拿不到它，需要手动传一次：
+
+```bash
+scp public/audio/bgm.mp3 user@server:/srv/my_page/public/audio/
+```
+
+不传也不会坏 —— 控件检测不到音频文件就整块不渲染，顶栏不会留下一个点不动的按钮。
+想彻底关掉这个功能，把 `config/site.ts` 里 `music.src` 置空即可。
 
 所有配置从环境变量读，不放代码里、不进仓库 —— 完整清单见 `.env.example`（13 个，分四组）。
 上线前至少要配：模型三件套（`API_KEY` / `BASE_URL` / `MODEL_ID`）、

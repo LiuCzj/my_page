@@ -51,6 +51,16 @@ const zh = {
     pause: '暂停背景音乐',
     mute: '静音',
     unmute: '取消静音',
+    /*
+      音量控制（2026-10-06 新增）。
+      volumeSlider 是**滑块控件的无障碍名**（aria-label）—— 滑块没有可见文字标签，
+      读屏用户只能靠这个名字知道「这条横条是什么」。它不是提示文案，别删。
+    */
+    volumeSlider: '音量',
+    volumeUp: '增大音量',
+    volumeDown: '减小音量',
+    /** 音量百分比。{value} 由组件替换成 0~100 的整数 */
+    volumePercent: '音量 {value}%',
   },
   contact: {
     wechatTitle: '微信公众号',
@@ -141,6 +151,11 @@ const zh = {
     retry: '重试',
     twin: '分身',
     quickAsk: '猜你想问',
+    /**
+     * 手机档底部抽屉顶部的拖拽把手的无障碍名称。
+     * 【为什么只在手机档出现】≥768px 是右侧栏形态，没有把手（见 DigitalTwinChat）。
+     */
+    sheetHandle: '拖动调整面板高度',
     disclaimer: '内容由 AI 生成，重要信息请以锦创AI 本人回复为准。',
     errorEmpty: '请先输入内容。',
     errorTooLong: '这条太长了，精简到 2000 字以内再发。',

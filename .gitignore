@@ -97,3 +97,6 @@ data/
 *.db
 *.db-shm
 *.db-wal
+
+# 背景音乐
+*.mp3

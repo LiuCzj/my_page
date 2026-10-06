@@ -2,7 +2,6 @@ import Hero from '@/components/Hero';
 import Dashboard from '@/components/Dashboard';
 import Projects from '@/components/Projects';
 import NotesList from '@/components/NotesList';
-import ChatInset from '@/components/ChatInset';
 import { Band } from '@/components/SectionBand';
 import { homePreview } from '@/config/site';
 import { listNoteMetas, listProjects, listSkillGroups } from '@/lib/content';
@@ -65,39 +64,40 @@ export default async function Home() {
 
   return (
     <>
-      <ChatInset>
+      {/*
+        封面。留白比其他三页都大（pb-28），因为它是「一整屏」——
+        四页用同一套留白，翻页感会被抹平成一堵均匀的墙。
+
+        grid 只在这一页开：那层透视网格是全站唯一的「招牌元素」，
+        五页都铺就是壁纸，一页铺才是记号。见 components/SectionBand.tsx 的说明。
+
+        【2026-10-06】原来这里还包着一层 <ChatInset>（聊天面板的让位容器），
+        已挪到 app/layout.tsx —— 那样才能对全站所有页面生效，而不是只有首页。
+      */}
+      <Band tone="cover" grid innerClassName="pt-2 pb-20 sm:pt-14 sm:pb-28">
+        <Hero />
+      </Band>
+
+      <Band tone="about">
+        <Dashboard skillGroups={skillGroups} canEditSkills={canEditSkills} />
+      </Band>
+
+      {/*
+        id="projects" 挪到了这一页的 <Band> 上（原来挂在 Projects 组件自己的 section 上）——
+        首屏那颗「查看我的项目」按钮指向的锚点必须落在**跨页的顶端**，
+        落在内容里会让跳转后上面露出半截别的页。
+      */}
+      <Band tone="works" id="projects">
         {/*
-          封面。留白比其他三页都大（pb-28），因为它是「一整屏」——
-          四页用同一套留白，翻页感会被抹平成一堵均匀的墙。
-
-          grid 只在这一页开：那层透视网格是全站唯一的「招牌元素」，
-          五页都铺就是壁纸，一页铺才是记号。见 components/SectionBand.tsx 的说明。
+          首页的项目是**摘要**，不给编辑入口 —— 编辑集中在 /projects 页。
+          摘要是「让人快速知道你在做什么」，就地能改反而容易误触。
         */}
-        <Band tone="cover" grid innerClassName="pt-2 pb-20 sm:pt-14 sm:pb-28">
-          <Hero />
-        </Band>
+        <Projects projects={projects} />
+      </Band>
 
-        <Band tone="about">
-          <Dashboard skillGroups={skillGroups} canEditSkills={canEditSkills} />
-        </Band>
-
-        {/*
-          id="projects" 挪到了这一页的 <Band> 上（原来挂在 Projects 组件自己的 section 上）——
-          首屏那颗「查看我的项目」按钮指向的锚点必须落在**跨页的顶端**，
-          落在内容里会让跳转后上面露出半截别的页。
-        */}
-        <Band tone="works" id="projects">
-          {/*
-            首页的项目是**摘要**，不给编辑入口 —— 编辑集中在 /projects 页。
-            摘要是「让人快速知道你在做什么」，就地能改反而容易误触。
-          */}
-          <Projects projects={projects} />
-        </Band>
-
-        <Band tone="notes">
-          <NotesList notes={notes} headingLevel={2} viewAllHref="/notes" index="03" latin="NOTES" />
-        </Band>
-      </ChatInset>
+      <Band tone="notes">
+        <NotesList notes={notes} headingLevel={2} viewAllHref="/notes" index="03" latin="NOTES" />
+      </Band>
     </>
   );
 }

@@ -36,6 +36,11 @@ const en: Dict = {
     pause: 'Pause background music',
     mute: 'Mute',
     unmute: 'Unmute',
+    /* Volume control (added 2026-10-06). Keys must mirror dictionaries/zh.ts exactly. */
+    volumeSlider: 'Volume',
+    volumeUp: 'Increase volume',
+    volumeDown: 'Decrease volume',
+    volumePercent: 'Volume {value}%',
   },
   contact: {
     wechatTitle: 'WeChat Official Account',
@@ -116,6 +121,8 @@ const en: Dict = {
     retry: 'Retry',
     twin: 'Twin',
     quickAsk: 'Suggested',
+    /** aria-label for the bottom-sheet drag handle (mobile only) */
+    sheetHandle: 'Drag to resize the panel',
     disclaimer: 'AI-generated answers. For anything important, confirm with 锦创AI directly.',
     errorEmpty: 'Type something first.',
     errorTooLong: 'Too long — please keep it under 2000 characters.',

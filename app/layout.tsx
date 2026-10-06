@@ -15,6 +15,7 @@ import CursorFx from '@/components/CursorFx'
 import ThemeColorSync from '@/components/ThemeColorSync'
 import Footer from '@/components/footer'
 import PageTransition from '@/components/page-transition'
+import ChatInset from '@/components/ChatInset'
 import ShortcutLayer from '@/components/ShortcutLayer'
 import TwinEntry from '@/components/TwinEntry'
 import ResetPasswordPanel from '@/components/ResetPasswordPanel'
@@ -189,7 +190,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <MusicProvider>
               <div className="relative z-10">
                 <Navbar />
-                <PageTransition>{children}</PageTransition>
+                {/*
+                  ChatInset：桌面端聊天面板展开时的「让位」层。
+                  【2026-10-06 从 app/page.tsx 挪到这里】改前它只包住首页，
+                  /notes、/projects 三页完全没有让位，面板直接盖住正文。
+                  放在 PageTransition 外面（包住它）而不是里面，是为了让它
+                  **在所有页面、所有路由**上都生效 —— 以后新增页面会自动继承，
+                  不需要每个 page.tsx 再记得包一次。
+                  它只加 padding-right，不动任何布局结构，对各页自己的
+                  mx-auto / max-w-* 是透明平移（见组件内说明）。
+                */}
+                <ChatInset>
+                  <PageTransition>{children}</PageTransition>
+                </ChatInset>
                 <Footer />
                 {/*
                   鼠标拖尾 + 十字准线。放在这个 wrapper 里面是有讲究的：
