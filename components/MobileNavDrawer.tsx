@@ -1,18 +1,6 @@
 'use client';
 
-/**
- * 移动端导航抽屉（小屏点汉堡后展开）。
- *
- * 【抽屉里放两样东西】
- * 1. 页内导航（首页 / 项目）+「问分身」按钮
- * 2. 带文字说明的联系方式清单
- * 第 2 点是有意的冗余：顶栏第二行的图标要横向滑动才看得全，
- * 抽屉里给出「GitHub · 用户名」这种带文字的完整列表，访客不用猜图标。
- *
- * 【行为】跳页后自动收起、Esc 关闭、打开期间锁背景滚动。
- * 【触控】抽屉里每一行都是 min-h-[44px]：这一层只在手机上出现，
- * 而 44px 是手指能稳定点中的下限。
- */
+/** 移动端导航抽屉（小屏点汉堡后展开）。 */
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
@@ -37,11 +25,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
   const pathname = usePathname();
   const panelRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * 抽屉里的页面链接；「AI 问答」开关单独渲染在最后。
-   * 三项都和顶栏保持一致、指向真路由 —— 顶栏和抽屉写的是两份独立的列表，
-   * 改一处必须同时改另一处，否则手机和桌面会看到不同的导航。
-   */
+  /** 抽屉里的页面链接；「AI 问答」开关单独渲染在最后。 */
   const linkItems = [
     { href: '/', label: d.nav.home },
     { href: '/projects', label: d.nav.projects },
@@ -105,21 +89,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
         aria-hidden="true"
         onClick={onClose}
       />
-      {/*
-        抽屉面板。两处和手机有关：
-        - max-h 用 dvh 不用 vh：vh 算的是「地址栏收起来之后的那个大视口」，
-          手机刚打开页面时地址栏是展开的，80vh 会比肉眼看到的屏幕还高，
-          底部几行就落到屏幕外面去了。dvh 是动态视口，跟着地址栏一起变。
-        - overscroll-contain：抽屉里翻到底不再拖着背后的页面一起滚。
-
-        【两列并排】
-        抽屉只在 lg 以下出现，那就是手机/平板。两列：
-          左列：页内导航（首页/项目/问分身）
-          右列：联系方式（GitHub/CSDN/知乎/微信/邮箱）
-        列之间用 gap-x 隔开；每一列内仍竖排，行间用 gap-y。
-        列宽太小时字会截断，但这里只放图标+短文字（GitHub、CSDN 这种），
-        iPhone SE 375px 视宽下两列各 175px 也够放下。
-      */}
+      {/* 抽屉面板。两处和手机有关。 */}
       <div
         ref={panelRef}
         role="dialog"
@@ -141,14 +111,7 @@ export default function MobileNavDrawer({ open, onClose, onOpenModal }: MobileNa
           </button>
         </div>
 
-        {/*
-          背景音乐。窄屏顶栏放不下它（logo + 账号 + 语言 + 主题 + 汉堡已经占满一行），
-          所以挪到这里。控件和顶栏那两枚是同一个组件、同一份播放状态
-          （状态住在 lib/music-context.tsx，两处渲染 <audio> 会同时播两条音轨）。
-          【variant="inline"】抽屉里让音量滑块**常驻平铺**，不弹浮层 ——
-          抽屉本身就是可滚动浮层，在里面再弹一层既难定位、又可能被 overflow 裁掉。
-          详见 components/MusicControls.tsx 的文件头说明。
-        */}
+        {/* 背景音乐。窄屏顶栏放不下它（logo + 账号 + 语言 + 主题 + 汉堡已经占满一行），所以挪到这里。 */}
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-foreground/[0.04] px-3 py-2">
           <span className="shrink-0 text-sm font-semibold text-foreground">{pick(site.music.title)}</span>
           <MusicControls variant="inline" />

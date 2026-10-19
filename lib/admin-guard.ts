@@ -1,20 +1,4 @@
-/**
- * 管理端接口的公共守卫与输入校验。
- *
- * 【权限是这次改动的核心约束】用户明确要求：内容与项目的编辑权限**只给管理者**，
- * 「其他任何人或者 AI 都没有这权限」。所以：
- *   · 每个写接口进来第一件事就是 requireAdmin()，未登录 401、非管理员 403；
- *   · 前端把编辑入口渲染成「只有管理员看得到」，但那只是体验优化 ——
- *     真正的闸门在这里，绕过界面直接打接口同样会被挡。
- *   · 站内那个 AI 分身（/api/assistant）是只读的，它没有任何写数据的路径。
- *
- * 【为什么单独一个文件】五个管理端路由都要做同样的两件事（验身份、验输入），
- * 抄五遍迟早会漏掉一处。集中在这里，改规则只改一个地方。
- *
- * 【为什么不用 `{ ok: true } | { ok: false }` 那种判别式联合】本项目 tsconfig 里
- * `strict: false`，布尔字面量判别式在收窄时不生效（实测 `if (!x.ok)` 之后类型仍是联合）。
- * 所以这里统一改成「返回 null / 用 in 判字段」的写法，不依赖判别式收窄。
- */
+/** 管理端接口的公共守卫与输入校验。 */
 
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from './auth';
@@ -27,7 +11,6 @@ function fail(code: string, status: number): NextResponse {
 
 /**
  * 校验当前请求是不是管理员发的。
- *
  * @returns 通过返回 `null`；不通过返回**该直接回给客户端的响应**（调用方 `if (deny) return deny`）
  */
 export async function requireAdmin(): Promise<NextResponse | null> {
@@ -52,12 +35,7 @@ function strList(v: unknown): string[] {
   return [...new Set(v.map((x) => String(x).trim()).filter(Boolean))];
 }
 
-/**
- * 校验并规整笔记的提交体。
- *
- * 【必填与格式】slug 必须过白名单（它进 URL 与主键）；date 必须是 YYYY-MM-DD；
- * title / summary / body 不能为空 —— 空标题或空正文的笔记出现在列表里只会让人以为页面坏了。
- */
+/** 校验并规整笔记的提交体。 */
 export function parseNoteInput(raw: unknown): Parsed<NoteInput> {
   if (!raw || typeof raw !== 'object') return { error: 'bad_request' };
   const b = raw as Record<string, unknown>;
@@ -90,12 +68,7 @@ export function parseNoteInput(raw: unknown): Parsed<NoteInput> {
   };
 }
 
-/**
- * 校验并规整项目的提交体。
- *
- * 【英文可空】title_en / summary_en 允许留空 —— 展示层会回落到中文（见 lib/content.ts 的 toProjectRecord）。
- * 中文的标题与摘要必填。
- */
+/** 校验并规整项目的提交体。 */
 export function parseProjectInput(raw: unknown): Parsed<ProjectInput> {
   if (!raw || typeof raw !== 'object') return { error: 'bad_request' };
   const b = raw as Record<string, unknown>;
@@ -106,8 +79,8 @@ export function parseProjectInput(raw: unknown): Parsed<ProjectInput> {
   const titleZh = str(b.titleZh);
   if (!titleZh) return { error: 'invalid_title' };
 
+  /* 摘要可留空：列表不显示摘要时，卡片只靠标题和技术栈 */
   const summaryZh = str(b.summaryZh);
-  if (!summaryZh) return { error: 'invalid_summary' };
 
   const date = str(b.date);
   if (date && !/^\d{4}-\d{2}$/.test(date)) return { error: 'invalid_date' };
@@ -122,6 +95,8 @@ export function parseProjectInput(raw: unknown): Parsed<ProjectInput> {
       titleEn: str(b.titleEn),
       summaryZh,
       summaryEn: str(b.summaryEn),
+      // 正文可空：空串表示这个项目只有卡片，没有详情页
+      body: typeof b.body === 'string' ? b.body : '',
       url: str(b.url),
       stack: strList(b.stack),
       date: date || null,
@@ -154,22 +129,7 @@ function skillSections(v: unknown): SkillSectionInput[] {
   });
 }
 
-/**
- * 校验并规整技术栈的提交体。
- *
- * 【为什么整份提交，而不是一次改一组】编辑面板把所有分组放在同一张面板里、一次性提交，
- * 所以提交体天然就是一个数组；接口据此做「整体替换」
- * （见 lib/content.ts 的 replaceSkillGroups）。
- *
- * 【必填与拒收规则，以及为什么】
- * · 组标题（中文）必填 —— 空标题在页面上就是一个空白分组，看起来像坏了。
- * · 分组 id 必须过 SLUG_RE —— 它要当数据库主键、也会当 React key，
- *   放行任意字符串等于把主键交给输入。
- * · id 不许重复 —— 主键冲突会让整份保存失败在半路。
- * · 每个分组至少要有一个「有条目」的小节 —— 只有标题、没有任何内容的分组没有意义。
- * · 空小节（文本域留空）**直接丢掉、不报错** —— 管理员清空一个文本域是很自然的动作，
- *   为这个弹错误只会烦人。
- */
+/** 校验并规整技术栈的提交体。 */
 export function parseSkillGroupsInput(raw: unknown): Parsed<SkillGroupInput[]> {
   if (!Array.isArray(raw)) return { error: 'bad_request' };
 

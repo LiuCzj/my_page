@@ -1,21 +1,6 @@
 'use client';
 
-/**
- * 技术栈管理：磁贴标题行那个「编辑技术栈」按钮 + 一张编辑整份分组的面板。
- *
- * 【为什么是「一张面板改全部」而不是逐组进进出出】
- * 技术栈只有 5 组，而且组之间经常要调顺序、合并、拆分。把所有分组放进同一张面板，
- * 管理员一眼能看到全貌，保存也就一次请求。代价是面板比较长，所以面板自身可滚动。
- *
- * 【为什么条目用多行文本域，而不是「一条一个输入框」】
- * 条目本身只是短标签，一行一个是最快的录入方式，也方便整段粘贴。
- * 逐条开输入框的话，改一组 6 个标签要点 6 次「添加」。
- * 代价是中文与英文两串可能行数不一致 —— 保存时按下标配对，英文短了就回落到中文
- * （见 lib/content.ts 的 replaceSkillGroups），所以不会出现空标签。
- *
- * 【为什么 id 不能改】它是数据库主键，也当 React key。改 id 等于换了一条记录，
- * 「整份替换」会当成新增。分组 id 由前端按 `skill-group-N` 自动生成并保证不重复。
- */
+/** 技术栈管理：磁贴标题行那个「编辑技术栈」按钮 + 一张编辑整份分组的面板。 */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -171,7 +156,7 @@ export default function SkillAdmin({ groups }: { groups: SkillGroupRecord[] }) {
       <button
         type="button"
         onClick={open}
-        className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent/50 hover:bg-accent/5 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        className="btn-soft"
       >
         <Pencil size={14} aria-hidden="true" />
         <span>{d.admin.editSkills}</span>
@@ -184,19 +169,10 @@ export default function SkillAdmin({ groups }: { groups: SkillGroupRecord[] }) {
           footer={
             <>
               {error && <span className="mr-auto text-xs font-semibold text-destructive">{error}</span>}
-              <button
-                type="button"
-                onClick={() => setForm(null)}
-                className="inline-flex min-h-[40px] cursor-pointer items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
-              >
+              <button type="button" onClick={() => setForm(null)} className="btn-soft">
                 {d.admin.cancel}
               </button>
-              <button
-                type="button"
-                onClick={save}
-                disabled={busy}
-                className="inline-flex min-h-[40px] cursor-pointer items-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <button type="button" onClick={save} disabled={busy} className="btn-primary">
                 {busy ? d.admin.saving : d.admin.save}
               </button>
             </>
@@ -219,7 +195,7 @@ export default function SkillAdmin({ groups }: { groups: SkillGroupRecord[] }) {
                       disabled={gi === 0}
                       aria-label={d.admin.moveUp}
                       title={d.admin.moveUp}
-                      className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                      className="btn-icon"
                     >
                       <ArrowUp size={14} aria-hidden="true" />
                     </button>
@@ -229,7 +205,7 @@ export default function SkillAdmin({ groups }: { groups: SkillGroupRecord[] }) {
                       disabled={gi === form.length - 1}
                       aria-label={d.admin.moveDown}
                       title={d.admin.moveDown}
-                      className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+                      className="btn-icon"
                     >
                       <ArrowDown size={14} aria-hidden="true" />
                     </button>
@@ -238,7 +214,7 @@ export default function SkillAdmin({ groups }: { groups: SkillGroupRecord[] }) {
                       onClick={() => removeGroup(gi)}
                       aria-label={d.admin.delete}
                       title={d.admin.delete}
-                      className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-border text-destructive transition-colors hover:bg-destructive/10"
+                      className="btn-icon btn-icon-danger"
                     >
                       <Trash2 size={14} aria-hidden="true" />
                     </button>
@@ -334,7 +310,7 @@ export default function SkillAdmin({ groups }: { groups: SkillGroupRecord[] }) {
           <button
             type="button"
             onClick={addGroup}
-            className="mt-4 inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-border px-3.5 text-sm font-semibold text-foreground transition-colors hover:border-accent/50 hover:text-accent"
+            className="btn-soft mt-4"
           >
             <Plus size={15} aria-hidden="true" />
             {d.admin.addGroup}

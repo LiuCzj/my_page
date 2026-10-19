@@ -1,17 +1,4 @@
-/**
- * 一次性（临时）邮箱域名清单 —— 数据文件，不要手改。
- *
- * 【来源】disposable-email-domains/disposable-email-domains（公开仓库，MIT）
- *   https://github.com/disposable-email-domains/disposable-email-domains
- *   抓取时间：2026-10-03，共 9203 条。
- *
- * 【为什么存成一个大字符串而不是数组字面量】
- * 九千多个域名写成 ["a","b",...] 会有九千对引号和逗号，白占几十 KB；
- * 一个模板字符串 + split("\n") 体积小得多，可读性也没差（本来就不指望人读）。
- *
- * 【怎么更新】重新抓一份 conf 文件，跑 temp/ 里那条生成命令覆盖本文件即可。
- *   不要手写域名到这个文件里 —— 手写的会被下次更新冲掉。
- */
+/** 一次性（临时）邮箱域名清单 —— 数据文件，不要手改。 */
 export const DISPOSABLE_DOMAINS_RAW = `0-mail.com
 0-mailer.dynv6.net
 000-webmail.myhome-server.de

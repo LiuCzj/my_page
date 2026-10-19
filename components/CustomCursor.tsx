@@ -1,24 +1,6 @@
 'use client';
 
-/**
- * 跟随鼠标的「表情光标」。
- *
- * 【它是怎么被触发的】任何带 data-cursor-emoji="✈️" 的元素被鼠标扫过时，
- * 系统箭头在该元素范围内被隐藏（见 globals.css 里那条被 html 类门控的规则），
- * 由这个组件画一枚表情代替。地球块用 ✈️，工具块用 🔧，连接块用 🔗。
- *
- * 【三条不折衷的边界】
- * 1. 只在真鼠标设备上启用：`matchMedia('(pointer: fine)')` 为假时整个组件不挂，
- *    也不给 <html> 加那个类 —— 触屏没有指针可跟，把系统光标藏起来就是纯粹的坏体验。
- * 2. JS 没跑起来时也不能出现「看不见鼠标」的情况：隐藏系统光标的 CSS 规则被
- *    html.cursor-emoji-active 这个由本组件负责加上的类门控着，组件不挂就没人加它。
- * 3. 系统要求「减少动态效果」时仍然显示表情（这是功能，不是装饰），
- *    但去掉速度平滑与转向插值，飞机不随移动方向转。
- *
- * 【为什么位置直接跟手、只有旋转做插值】
- * 让表情跟随一段平滑曲线会产生拖影感（图的位置和真实指针不一致，点击时找不到边界）。
- * 所以这里 x/y 每帧直接等于鼠标坐标，只有角度和缩放走平滑。
- */
+/** 跟随鼠标的「表情光标」。 */
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -45,6 +27,22 @@ export default function CustomCursor() {
     let seen = false;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    /**
+     * 把「指针此刻压在哪个宿主上」写进 state。
+     * @param host 指针下的元素；传 null 表示不在任何宿主上（表情收起）
+     */
+    const syncEmoji = (host: Element | null) => {
+      const next = host?.closest?.('[data-cursor-emoji]')?.getAttribute('data-cursor-emoji') ?? null;
+      // 宿主没变就不 setState —— mousemove 一秒几十次，每次都渲染会白烧一帧
+      if (next === emojiRef.current) return;
+      emojiRef.current = next;
+      setEmoji(next);
+      if (next) {
+        angle = 0;
+        heldAngle = 0;
+      }
+    };
+
     const onMove = (e: MouseEvent) => {
       x = e.clientX;
       y = e.clientY;
@@ -53,16 +51,20 @@ export default function CustomCursor() {
         lastY = y;
         seen = true;
       }
-      const host = (e.target as Element | null)?.closest?.('[data-cursor-emoji]');
-      const next = host?.getAttribute('data-cursor-emoji') ?? null;
-      if (next !== emojiRef.current) {
-        emojiRef.current = next;
-        setEmoji(next);
-        if (next) {
-          angle = 0;
-          heldAngle = 0;
-        }
-      }
+      syncEmoji(e.target as Element | null);
+    };
+
+    /**
+     * 滚动 / 改窗口大小时指针本身没动，浏览器**不会补发 mousemove**，
+     * 于是磁贴从指针底下移走、表情还挂在原地。这里按当前坐标重新问一次「压在哪个元素上」。
+     *
+     * elementFromPoint 会跳过 pointer-events:none 的层（表情本身、拖尾画布都在其中），
+     * 语义和 mousemove 的 e.target 一致，不会问到自己头上。
+     * ⚠️ 滚动监听用 capture：编辑器、代码块这类**内部滚动容器**的滚动事件不冒泡到 window。
+     */
+    const resync = () => {
+      if (!seen) return;
+      syncEmoji(document.elementFromPoint(x, y));
     };
 
     const onLeave = () => {
@@ -100,12 +102,17 @@ export default function CustomCursor() {
 
     window.addEventListener('mousemove', onMove, { passive: true });
     document.addEventListener('mouseleave', onLeave);
+    window.addEventListener('scroll', resync, { capture: true, passive: true });
+    window.addEventListener('resize', resync, { passive: true });
     raf = requestAnimationFrame(tick);
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseleave', onLeave);
+      // 移除时 capture 必须和添加时一致，否则摘不掉
+      window.removeEventListener('scroll', resync, { capture: true });
+      window.removeEventListener('resize', resync);
       root.classList.remove('cursor-emoji-active');
     };
   }, []);

@@ -1,28 +1,4 @@
-/**
- * 工具品牌标：内联 SVG 路径，走 `<svg viewBox><path d></svg>` + class 控色。
- *
- * 【为什么内联而不是 public/tools/ 下的图片文件】
- * 1. 深色模式不用再存一份 -dark：颜色写在 class 里，同一份路径两版主题各自成立。
- * 2. 少一个请求。国内到服务器的单连接实测只有 10~30 KB/s，
- *    一次往返的延迟比这几 KB 本身贵得多；打进已存在的 JS 分片里是零额外往返。
- * 3. 不再有「等 next-themes 告知主题才渲染第二帧」的闪烁。
- *
- * 【来源】除 MySQL 外全部取自 simple-icons@16.33.0（CC0）。
- * MySQL 走 Iconify 的 selfhst 集合：simple-icons 那份把海豚和「MySQL」字标揉在
- * 同一个 24×24 里，压到 20px 就成了一团糊的，selfhst 这份只有海豚本体（512×512）。
- * 两条都是对官方标的单色重绘，商标仍归各自所有者，这里只是标明「我用过这个工具」。
- *
- * 【颜色为什么不是纯品牌色一套走天下】
- * pandas 官方是藏青 #150458，压在深色芯片底（约 #23252b）上只有 1.15:1，等于看不见；
- * NumPy / Jupyter / scikit-learn 的官方浅色版压在浅底上又不够。所以成对给值：
- * 明亮档用官方色的加深版、暗黑档用官方色或其提亮版，两档都保证 ≥3:1（WCAG 1.4.11 非文本对比）。
- * PyTorch 的 #ee4c2c 正好两档都过，就直接用官方值。
- * LangGraph 与 OpenAI 的官方标本来就是单色，交给 currentColor 跟随前景色。
- *
- * 【没有公开标的那几个不在这里】XGBoost、LightGBM —— 官方就没有矢量标，
- * 由 components/ToolIcon.tsx 退化成字母徽标。
- * Power BI 与 Qoder 有官方标，但都是多色/带底的整图，走 public/tools/ 那份文件。
- */
+/** 工具品牌标：内联 SVG 路径，走 `<svg viewBox><path d></svg>` + class 控色。 */
 
 import type { InlineToolGlyph } from '@/config/site';
 

@@ -1,27 +1,6 @@
 'use client';
 
-/**
- * 五个联系方式的品牌图标（内联 SVG，不引用任何图片文件）。
- *
- * 【为什么用内联 SVG 而不是 logo 图片】
- * 官方 logo 包要走网络下载、有版权与体积问题；更要紧的是多为白底 PNG，
- * 深色模式下白底方块会糊成一片。内联 SVG 用 currentColor / fill-accent /
- * fill-background 三个 token，深浅两套主题各自成立，颜色跟 globals.css 单一来源走。
- *
- * 【形状对应关系】
- * GitHub  → 章鱼猫 invertocat 轮廓（lucide-react 的官方形状描线）
- * CSDN    → CSDN 的 favicon 形态：圆角方块 + 反白「C」
- * 知乎    → 知乎的 app 图标形态：圆角方块 + 反白「知」
- * 微信    → 微信的双气泡（大气泡带两眼 + 小气泡带两眼）
- * 邮箱    → 信封描线（lucide-react Mail）
- *
- * 【配色取舍】CSDN 官方方块是红色、知乎官方方块是蓝色。本站主色是深蓝 + 白，
- * 两个都不搬 —— 一个红一个蓝，和旁边三枚灰线图标并排就是两种颜色在抢视线。
- * 现在五枚统一：底色用 currentColor，跟着按钮的 text-muted-foreground 走，
- * hover 时整枚一起变 accent；方块里的字用 fill-background 挖空。
- * 反白部分用 fill-background 而不是写死 white：明亮模式 background≈近白（深字配浅底块），
- * 暗黑模式 background≈深蓝黑（浅灰块配深字），两边都能看清。
- */
+/** 五个联系方式的品牌图标（内联 SVG，不引用任何图片文件）。 */
 
 import { Github, Mail } from 'lucide-react';
 
@@ -43,10 +22,7 @@ export function MailIcon({ size = 18, className = '' }: BrandIconProps) {
   return <Mail size={size} className={className} aria-hidden="true" />;
 }
 
-/**
- * CSDN：圆角方块里一个反白 C。
- * 方块 fill="currentColor"、字母 fill-background，两者都随主题与 hover 走。
- */
+/** CSDN：圆角方块里一个反白 C。 */
 export function CsdnIcon({ size = 18, className = '' }: BrandIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">
@@ -86,11 +62,7 @@ export function ZhihuIcon({ size = 18, className = '' }: BrandIconProps) {
   );
 }
 
-/**
- * 微信：一大一小两个气泡，每个气泡两只眼睛。
- * 气泡用 currentColor（跟随按钮的 text-* 类，hover 时一起变 accent）；
- * 眼睛用 fill-background 挖空，保证任何主题下眼睛都是「洞」而不是糊在一起。
- */
+/** 微信：一大一小两个气泡，每个气泡两只眼睛。 */
 export function WechatIcon({ size = 18, className = '' }: BrandIconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} aria-hidden="true">

@@ -1,9 +1,4 @@
-/**
- * 管理端：新建 / 更新一个项目（upsert）。
- *
- * 字段形状与校验见 lib/admin-guard.ts 的 parseProjectInput。
- * 英文标题 / 摘要允许留空，展示层会回落到中文。
- */
+/** 管理端：新建 / 更新一个项目（upsert）。 */
 
 import { NextResponse } from 'next/server';
 import { requireAdmin, parseProjectInput, readJson } from '@/lib/admin-guard';

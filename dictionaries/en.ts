@@ -1,19 +1,13 @@
 import type { Dict } from './zh';
 import { EMAIL_CODE_TTL_MINUTES, RESET_TTL_HOURS } from '@/lib/auth-ttl';
 
-/**
- * 英文界面文案字典。
- *
- * `const en: Dict` 让 TypeScript 拿中文字典当结构基准校验本文件：
- * 少一个键、键名拼错、层级写歪都会直接编译报错。
- * 这样「界面某处仍是中文」只会是漏接 useI18n()，不会是字典悄悄缺项。
- */
+/** 英文界面文案字典。 */
 const en: Dict = {
   nav: {
     home: 'Home',
     projects: 'Projects',
     notes: 'Notes',
-    // 2026-10-04 由 'Ask the twin' 改 —— 和中文同理：导航项要让第一次来的人秒懂
+    // 由 'Ask the twin' 改 —— 和中文同理：导航项要让第一次来的人秒懂
     chat: 'Ask AI',
   },
   topbar: {
@@ -36,7 +30,7 @@ const en: Dict = {
     pause: 'Pause background music',
     mute: 'Mute',
     unmute: 'Unmute',
-    /* Volume control (added 2026-10-06). Keys must mirror dictionaries/zh.ts exactly. */
+    /* Volume control. Keys must mirror dictionaries/zh.ts exactly. */
     volumeSlider: 'Volume',
     volumeUp: 'Increase volume',
     volumeDown: 'Decrease volume',
@@ -74,10 +68,7 @@ const en: Dict = {
     zoomHint: 'Drag the globe to see other sides',
     closeZoom: 'Close enlarged globe',
   },
-  /**
-   * 「关于我」这一页的章节名与引言。键必须与 dictionaries/zh.ts 完全一致，
-   * 少一个就编译不过 —— 这是故意的，避免英文界面漏出中文或 undefined。
-   */
+  /** 「关于我」这一页的章节名与引言。键必须与 dictionaries/zh.ts 完全一致，少一个就编译不过 —— 这是故意的，避免英文界面漏出中文或 undefined。 */
   about: {
     title: 'About',
     lead: 'Where I come from, the tools I reach for, and my stack.',
@@ -100,6 +91,8 @@ const en: Dict = {
     empty: 'Nothing written up yet',
     emptyHint: 'This is where my work will go. I am finishing the site and the digital twin first.',
     viewAll: 'See all projects',
+    back: 'Back to projects',
+    repo: 'GitHub repo',
   },
   notes: {
     title: 'Notes',
@@ -201,7 +194,7 @@ const en: Dict = {
     fieldName: 'Display name',
     fieldNameHint: '1–24 characters, Chinese included; case-insensitive — Tom and tom count as the same',
     fieldPasswordHint: 'At least 8 characters',
-    /** Verification-code flow (2026-10-04): both sign-up and deletion now use a code. */
+    /** Verification-code flow : both sign-up and deletion now use a code. */
     fieldCode: 'Code',
     fieldCodeHint: `6 digits, valid for ${EMAIL_CODE_TTL_MINUTES} minutes`,
     sendCode: 'Send code',
@@ -284,7 +277,7 @@ const en: Dict = {
       generic: 'Something went wrong. Try again later.',
     },
   },
-  /** Account entry (2026-10-04). Only the topbar-specific words — the form reuses d.comments. */
+  /** Account entry. Only the topbar-specific words — the form reuses d.comments. */
   auth: {
     login: 'Sign in',
     /** 顶栏那颗「注册」按钮。和 registerTitle 分开：按钮上的字要短 */
@@ -295,11 +288,12 @@ const en: Dict = {
     adminBadge: 'Admin',
     notVerified: 'Email not verified',
   },
-  /** Content management (2026-10-04). Only rendered/used for a signed-in admin. */
+  /** Content management. Only rendered/used for a signed-in admin. */
   admin: {
     newNote: 'New note',
     importFile: 'Import .md file',
     importHint: 'Filled from the file — check it before saving',
+    importOverwrite: 'The body already has content. Replace it with the file?',
     newProject: 'New project',
     edit: 'Edit',
     delete: 'Delete',
@@ -327,10 +321,13 @@ const en: Dict = {
     summaryZh: 'Summary (Chinese)',
     summaryEn: 'Summary (English, optional)',
     url: 'Link',
+    urlHint:
+      'Optional. If set, a “GitHub repo” button appears on the detail page; without a body the card links straight to this address',
+    bodyHint: 'Optional. With a body, the card opens a page on this site; without one, it stays a plain card',
     stack: 'Tech stack',
     featured: 'Pin to homepage',
     sort: 'Order (lower comes first)',
-    /** Tech-stack editor (added 2026-10-04: the admin can edit the stack in the browser) */
+    /** Tech-stack editor  */
     editSkills: 'Edit tech stack',
     skillsHint:
       'One item per line. The Chinese and English boxes are paired line by line: where the English box is empty or shorter, the English page falls back to the matching Chinese item — no blank tags. Empty lines are ignored.',
@@ -371,7 +368,10 @@ const en: Dict = {
       back: 'Back home',
     },
   },
-  footer: {
+  guard: {
+    /** Shown in the clipboard when a non-admin tries to copy protected content */
+    copyNotice: "From 锦创AI's site: ",
+  },  footer: {
     greet: 'Say hello.',
     greetCta: 'Email me',
     navigate: 'Navigate',

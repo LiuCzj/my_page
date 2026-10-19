@@ -1,35 +1,6 @@
 'use client';
 
-/**
- * 键盘快捷键说明面板（按 ? 打开）。
- *
- * 【它做什么】
- * 把整站可用的快捷键列成「跳转 / 操作」两组，按 ? 弹出，Esc 或点遮罩关闭。
- * 文案全部取自字典的 shortcuts 分组（中英各一份），所以切语言时说明跟着变；
- * 按键本身（G、H、Ctrl、K、?）不翻译，渲染成 <kbd> 小方块。
- *
- * 【为什么自带 ? 触发逻辑，而不靠全局 hook 传进来】
- * 它被设计成「扔进页面就能用」：不需要调用方再写一个 useState 管开合、
- * 也不需要把 onHelp 接到 useHotkeys 上。好处是 —— 即使调用方忘了挂全局 hook，
- * 只要挂了这个组件，访客按 ? 依然能看到说明。
- * 按 ? 只负责「打开」，关闭交给 Esc / 关闭按钮 / 点遮罩 ——
- * 「打开」是幂等的，所以就算调用方额外把 hook 的 onHelp 也接到本组件，重复触发也不会出问题。
- *
- * 【焦点管理（照 ContactModal 的做法，无障碍的核心）】
- * 1. 打开前记下焦点在哪（openerRef），关闭时还回去，键盘用户不会掉回页首。
- * 2. 打开时把焦点移进面板的关闭按钮。
- * 3. Tab 在面板内部循环（焦点圈禁），不会跑到背后的页面上。
- * 4. 打开期间锁 body 滚动，关闭时恢复原值（不写死成 ''，否则会覆盖别处设过的值）。
- * 5. role="dialog" + aria-modal="true" + aria-labelledby 指向标题。
- *
- * 【z-index】用 z-[100]，与 ContactModal 同级、高于聊天面板 z-[80]，
- * 保证说明面板不会被聊天窗盖住（层级约定见 app/layout.tsx 的注释）。
- *
- * 【点遮罩关闭的一个细节】
- * 遮罩层特意加 pointer-events-none：让它不参与命中测试，
- * 点空白处的点击会穿透到外层容器本身，于是 e.target === e.currentTarget 成立、
- * 关闭逻辑命中；而点面板时 e.target 是面板或其子元素，不等于容器，不会误关。
- */
+/** 键盘快捷键说明面板（按 ? 打开）。 */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -41,11 +12,7 @@ import { isEditableTarget } from '@/lib/use-hotkeys';
 const FOCUSABLE =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-/**
- * 一个按键方块。
- * 颜色只用语义令牌（bg-secondary / border-border / text-secondary-foreground），
- * 深浅两套主题各自成立；等宽字体让 Ctrl、K 这些字符对齐、读起来像键帽。
- */
+/** 一个按键方块。 */
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
     <kbd className="inline-flex min-w-[1.75rem] items-center justify-center rounded-md border border-border bg-secondary px-1.5 py-0.5 font-mono text-[11px] font-semibold leading-none text-secondary-foreground">
@@ -56,7 +23,6 @@ function Kbd({ children }: { children: React.ReactNode }) {
 
 /**
  * 一组按键。
- *
  * @param keys     按键序列
  * @param sequence true = 依次按（G → H）；false = 同时按（Ctrl + K）
  */
@@ -89,13 +55,6 @@ interface ShortcutRow {
 
 /**
  * 快捷键说明面板。
- *
- * 【两种用法】
- * · 不传 open → 非受控：组件自己监听 `?` 打开，适合「只想挂一个面板」的场景。
- * · 传了 open + onOpenChange → 受控：开合由外部决定。
- *   右下角那颗常驻提示按钮（components/ShortcutLayer.tsx）需要这一档 ——
- *   按钮和面板是两个组件，状态必须住在它们的共同父级，面板不能自己说了算。
- *
  * @param props.className 外部追加的类名
  * @param props.open 受控开合状态；不传则由组件自管
  * @param props.onOpenChange 开合变化回调，两种模式下都会调用
@@ -116,11 +75,7 @@ export default function ShortcutHelp({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
 
-  /**
-   * 统一的开合入口。
-   * 受控时只通知外部（自己不存），非受控时改内部状态 ——
-   * 这样 `?` 键、Esc、点遮罩三个入口不必各写一套分支。
-   */
+  /** 统一的开合入口。 */
   const setOpen = useCallback(
     (next: boolean) => {
       if (!isControlled) setUncontrolledOpen(next);
@@ -135,11 +90,7 @@ export default function ShortcutHelp({
   /** 系统开了「减少动态效果」时不做任何动画 */
   const reduceMotion = useReducedMotion();
 
-  /**
-   * 修饰键的显示文本。
-   * Mac 显示 ⌘，其余显示 Ctrl。首帧统一是 Ctrl，挂载后再按 UA 判定 ——
-   * 但面板只在交互后才渲染，那时早已挂载完毕，不存在 hydration 不一致。
-   */
+  /** 修饰键的显示文本。 */
   const [modKey, setModKey] = useState('Ctrl');
   useEffect(() => {
     setModKey(/Mac|iPhone|iPad|iPod/i.test(navigator.userAgent) ? '⌘' : 'Ctrl');
@@ -148,11 +99,7 @@ export default function ShortcutHelp({
   /** 关闭面板。焦点归还放在打开 effect 的清理函数里，这里只改状态 */
   const close = useCallback(() => setOpen(false), [setOpen]);
 
-  /**
-   * ? 触发：本组件自带的打开入口。
-   * 与全局 hook 的输入控件判断复用同一个 isEditableTarget ——
-   * 在搜索框 / 聊天输入框里打问号不会被弹窗打断。
-   */
+  /** ? 触发：本组件自带的打开入口。 */
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
@@ -167,11 +114,7 @@ export default function ShortcutHelp({
     // 所以必须进依赖数组 —— 漏了会一直绑着第一版回调，表现为「按 ? 打不开面板」。
   }, [setOpen]);
 
-  /**
-   * 打开期间的三件事：Esc 关闭 + Tab 焦点圈禁 + 锁背景滚动，并把焦点移进面板。
-   * 监听挂在 document 而不是面板上：点遮罩时焦点可能落在 body，
-   * 只监听面板会漏掉 Esc（与 ContactModal 同一处理）。
-   */
+  /** 打开期间的三件事：Esc 关闭 + Tab 焦点圈禁 + 锁背景滚动，并把焦点移进面板。 */
   useEffect(() => {
     if (!open) return;
 

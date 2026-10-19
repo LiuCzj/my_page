@@ -1,16 +1,4 @@
-/**
- * 发送邮箱验证码（注册 / 注销共用）。
- *
- * 【两种用途的准入条件不同，这是关键】
- *   · register：这个邮箱**必须还没注册**。否则等于给一个已有账号发注册码，白费一封邮件。
- *   · delete  ：**必须已登录**，且码只发给「当前登录用户自己的邮箱」——
- *              绝不让请求体指定收件邮箱，否则就成了「拿别人的邮箱当发信靶子」。
- *
- * 【限流为什么要两层】
- *   同 IP：挡脚本批量刷（每个邮箱一封）。
- *   同邮箱：挡「盯着一个邮箱狂点发送」。60 秒冷却，和常见网站一致。
- * 两层都在进程内存里（重启清零、多实例各算各的）—— 个人站单进程够用。
- */
+/** 发送邮箱验证码（注册 / 注销共用）。 */
 
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -45,7 +33,6 @@ const emailLast = new Map<string, number>();
 
 /**
  * 判断是否超出配额（并在未超时记一次）。
- *
  * @param ip 客户端 IP
  * @param email 归一化后的邮箱
  * @returns true 表示应拒绝
@@ -70,7 +57,6 @@ function rateLimited(ip: string, email: string): boolean {
 
 /**
  * 处理发码请求。
- *
  * @param request 请求体 JSON：{ email, purpose }（purpose 为 'delete' 时忽略 email，用登录用户的）
  * @returns 成功 { ok: true }；失败 { ok: false, code }
  */
@@ -93,10 +79,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   let displayName = '';
 
   if (purpose === 'delete') {
-    /*
-      注销：邮箱只认「当前登录用户自己的」，不接受请求体里指定的邮箱。
-      接受的话，任何登录用户都能让本站给任意邮箱发信 —— 那是一个现成的骚扰工具。
-    */
+    /* 注销：邮箱只认「当前登录用户自己的」，不接受请求体里指定的邮箱。 */
     const me = await getCurrentUser();
     if (!me) return fail('not_logged_in', 401);
     email = me.email.toLowerCase();

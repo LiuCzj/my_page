@@ -1,29 +1,4 @@
-/**
- * 邮件发送：验证码邮件（注册 / 注销）、重置密码邮件，以及遗留的验证链接邮件。
- *
- * 【现役的是哪几封】`sendCodeEmail`（注册 / 注销的 6 位码）与 `sendResetEmail`（重置密码）。
- * 2026-10-04 起注册改用验证码，「点链接激活」那条链路已退役 ——
- * `buildVerifyUrl` / `sendVerificationEmail` 因此**当前没有任何调用方**，
- * 只是保留给 `app/api/auth/verify/route.ts`（遗留账号的兜底落点）用。见那两个函数的说明。
- *
- * 【它是「挡临时邮箱」这条链上的关键一环】
- * 域名黑名单只能挡已知的那些，MX 检查只能挡瞎编的域名 —— 临时邮箱服务大多两者都能通过。
- * 真正让临时邮箱失效的是「必须拿到邮箱里的那串码才能完成注册」这一步，
- * 而临时邮箱要么根本收不到（发信被拒），要么用户不会去抄（那邮箱十分钟后就没了）。
- *
- * 【为什么 SMTP 没配就拒绝注册，而不是静默放行】
- * 如果 SMTP 没配却允许注册，用户会得到一个「注册成功但永远收不到验证邮件」的账号 ——
- * 卡死在中间态，既不能评论、也不知道问题在哪。宁可当场报错说清楚：
- * 「服务端还没配置邮件服务」。运维一眼就知道要补 .env。
- *
- * 【环境变量】
- *   SMTP_HOST   例如 smtp.qq.com
- *   SMTP_PORT   465（SSL）或 587（STARTTLS）
- *   SMTP_USER   登录用户名（通常是完整邮箱）
- *   SMTP_PASS   授权码 / 应用专用密码（**不是**邮箱登录密码）
- *   SMTP_FROM   发件人显示地址，不填则用 SMTP_USER
- *   SITE_URL    站点根地址，用来拼链接，例如 https://www.jinc.de5.net
- */
+/** 邮件发送：验证码邮件（注册 / 注销）、重置密码邮件，以及遗留的验证链接邮件。 */
 
 import nodemailer, { type Transporter } from 'nodemailer';
 import { EMAIL_CODE_TTL_MINUTES } from './auth-ttl';
@@ -38,7 +13,6 @@ export function isMailConfigured(): boolean {
 
 /**
  * 取 transporter（未配置时返回 null）。
- *
  * @returns nodemailer 的 transporter，或 null 表示环境变量不全
  */
 function getTransporter(): Transporter | null {
@@ -61,14 +35,6 @@ function getTransporter(): Transporter | null {
 
 /**
  * 拼验证链接。
- *
- * 【遗留：当前无调用方】这条链路是 2026-10-04 前的注册激活方式，已被验证码取代。
- * 保留它是为了 `app/api/auth/verify/route.ts` 那个兜底落点 —— 要复活整条流程，
- * 请先读那个文件头部列出的三个前置条件，别只把这里接回去。
- *
- * 优先用环境变量 SITE_URL；没配时退回请求头里的 host（由调用方传入），
- * 这样本地开发不配 SITE_URL 也能点开链接。
- *
  * @param fallbackOrigin 兜底的站点根地址（形如 https://example.com）
  * @param token 验证 token
  * @returns 完整的验证链接
@@ -80,10 +46,6 @@ export function buildVerifyUrl(fallbackOrigin: string, token: string): string {
 
 /**
  * 发验证邮件。
- *
- * 【遗留：当前无调用方】同 `buildVerifyUrl` —— 注册激活已改用 6 位验证码
- * （`sendCodeEmail`）。保留它只为遗留账号的兜底链路，删掉它等于把那条链路彻底断掉。
- *
  * @param to 收件邮箱
  * @param verifyUrl 验证链接
  * @param displayName 收件人昵称（用于称呼）
@@ -125,18 +87,6 @@ interface MailCopy {
 
 /**
  * 邮件正文（HTML）。
- *
- * 【为什么用表格布局和行内样式】邮件客户端的 CSS 支持极不统一，
- * Outlook 至今不认 flex/grid，Gmail 会剥掉 <style> 里的部分规则。
- * 表格 + 行内样式是最笨但最稳的写法 —— 在邮件里，稳比优雅重要。
- *
- * 【为什么是浅底】这里不能跟站点的深色主题。多数客户端在深色模式下
- * 会把浅底邮件反色处理，而自己写深底的邮件会被它们再处理一次，结果常常是黑底黑字。
- * 浅底 + 深字是唯一在两种模式下都安全的组合。
- *
- * 【为什么文案走参数】验证信和重置信用同一套骨架（同样的间距、按钮、兜底链接），
- * 只有几处文字不同。复制一份 HTML 意味着以后改样式要改两处，早晚会不一致。
- *
  * @param displayName 称呼
  * @param actionUrl 按钮指向的链接
  * @param copy 各处文案
@@ -174,7 +124,6 @@ function renderHtml(displayName: string, actionUrl: string, copy: MailCopy): str
 
 /**
  * 拼重置密码链接。
- *
  * @param fallbackOrigin 兜底的站点根地址
  * @param token 重置 token
  * @returns 完整链接
@@ -186,12 +135,6 @@ export function buildResetUrl(fallbackOrigin: string, token: string): string {
 
 /**
  * 发重置密码邮件。
- *
- * 【为什么要单独一封、而不是复用验证邮件】
- * 两件事的语义完全不同：验证是「证明这个邮箱是你的」，重置是「有人要改你的密码」。
- * 混在一起会让用户收到「确认你的邮箱」却发现自己密码被改了，非常吓人。
- * 分开写也让重置邮件能明确提示「如果不是你本人操作，请忽略」。
- *
  * @param to 收件邮箱
  * @param resetUrl 重置链接
  * @param displayName 称呼
@@ -225,13 +168,6 @@ export async function sendResetEmail(
 
 /**
  * 发「验证码」邮件（注册 / 注销）。
- *
- * 【为什么不用链接而用码】用户要求流程和常见网站一致。码还有一个额外好处：
- * 它是有有效期的、限尝试次数的，而链接只要被翻出来就一直能用。
- *
- * 【为什么注销和注册用不同的措辞】注销是不可逆的。收到「你正在注销账号」的邮件，
- * 如果不是本人操作，用户会立刻知道要改密码；措辞含糊会让人以为只是注册确认。
- *
  * @param to 收件邮箱
  * @param code 6 位验证码（明文）
  * @param purpose 用途：register（注册）/ delete（注销）
@@ -251,11 +187,7 @@ export async function sendCodeEmail(
   const from = process.env.SMTP_FROM || process.env.SMTP_USER || '';
   const isDelete = purpose === 'delete';
   const who = displayName ? `${displayName}，你好：` : '你好：';
-  /*
-    有效期分钟数从 lib/auth-ttl.ts 推导，不在文案里硬写「10」。
-    以前这里（正文 + HTML 各一处）和 lib/codes.ts 的常量是三份独立的「10」，
-    改 TTL 时必然漏改文案 —— 那属于「给用户的承诺与代码行为不一致」，比编译错误更难发现。
-  */
+  /* 有效期分钟数从 lib/auth-ttl.ts 推导，不在文案里硬写「10」。 */
   const codeMinutes = EMAIL_CODE_TTL_MINUTES;
 
   const action = isDelete ? '注销账号' : '注册账号';
@@ -285,10 +217,6 @@ export async function sendCodeEmail(
 
 /**
  * 验证码邮件的 HTML。
- *
- * 和验证信同一套骨架（表格布局 + 行内样式 + 浅底），只把「按钮」换成一个大号验证码。
- * 验证码用等宽字体、大字号、加字距 —— 用户要照着抄，字符必须一眼分清（0 和 O、1 和 l）。
- *
  * @param code 验证码
  * @param copy 文案（`minutes` 为有效期分钟数，由 lib/auth-ttl.ts 推导，勿在模板里写死）
  * @returns 邮件 HTML
@@ -326,10 +254,6 @@ function renderCodeHtml(
 
 /**
  * HTML 转义。
- *
- * 昵称是用户自己填的，会出现在邮件里。不转义的话，一个叫
- * `<img src=x onerror=...>` 的用户就能往别人的邮件里塞脚本。
- *
  * @param s 原始字符串
  * @returns 转义后的字符串
  */

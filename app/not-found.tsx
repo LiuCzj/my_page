@@ -1,11 +1,6 @@
 'use client';
 
-/**
- * 404 页。
- *
- * 做成客户端组件是为了能读语言字典 —— 这句提示要跟着中英切换，
- * 硬编码中文会在切到英文后仍然留一句中文。它渲染在根布局内，所以 I18nProvider 一定在上层。
- */
+/** 404 页。 */
 
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';

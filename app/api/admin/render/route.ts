@@ -1,13 +1,4 @@
-/**
- * 管理端：Markdown → HTML 预览。
- *
- * 【为什么预览要打服务端】编辑器的实时预览必须和「发布后访客看到的」一模一样。
- * 如果在浏览器里用另一个 Markdown 库渲染，两边对表格、代码块、链接的处理迟早会不一样 ——
- * 那种「预览好看、发布跑版」的落差最难查。所以预览直接复用 lib/markdown.ts 的同一条管线。
- *
- * 【为什么也要求管理员】它虽然只是渲染、不写数据，但会把任意 Markdown 变成 HTML 返回。
- * 不设权限的话，这个端点就成了一个公开的 Markdown 渲染服务（可被拿来刷 CPU）。
- */
+/** 管理端：Markdown → HTML 预览。 */
 
 import { NextResponse } from 'next/server';
 import { requireAdmin, readJson } from '@/lib/admin-guard';
@@ -16,16 +7,38 @@ import { renderMarkdown } from '@/lib/markdown';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/**
+ * 把提交上来的内容渲染成 HTML。
+ *
+ * 支持两种请求体：
+ *   `{ blocks: string[] }` —— **按块批量渲染**，返回 `{ ok, html: string[] }`。
+ *     单栏编辑器要「光标所在那一块显示源码、其余块显示渲染结果」，
+ *     就必须拿到**每一块各自**的 HTML。整篇渲染出来的一整串 HTML
+ *     没法可靠地切回块（一个块可能产出多个顶层元素，也可能没有）。
+ *   `{ markdown: string }` —— 整篇一次渲染，返回 `{ ok, html: string }`。保留给其它调用方。
+ *
+ * @param request HTTP 请求
+ * @returns 渲染结果；非管理员 / 参数非法时返回对应错误码
+ */
 export async function POST(request: Request): Promise<NextResponse> {
   const deny = await requireAdmin();
   if (deny) return deny;
 
   const raw = await readJson(request);
-  const markdown = raw && typeof raw === 'object' ? (raw as Record<string, unknown>).markdown : '';
-  if (typeof markdown !== 'string') {
-    return NextResponse.json({ ok: false, code: 'bad_request' }, { status: 400 });
+  const body = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+
+  if (Array.isArray(body.blocks)) {
+    // 有一个不是字符串就整体拒绝：过滤掉的话下标会错位，渲染结果会张冠李戴
+    if (body.blocks.some((b) => typeof b !== 'string')) {
+      return NextResponse.json({ ok: false, code: 'bad_request' }, { status: 400 });
+    }
+    const html = await Promise.all((body.blocks as string[]).map((b) => renderMarkdown(b)));
+    return NextResponse.json({ ok: true, html });
   }
 
-  const html = await renderMarkdown(markdown);
+  if (typeof body.markdown !== 'string') {
+    return NextResponse.json({ ok: false, code: 'bad_request' }, { status: 400 });
+  }
+  const html = await renderMarkdown(body.markdown);
   return NextResponse.json({ ok: true, html });
 }

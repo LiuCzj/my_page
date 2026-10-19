@@ -1,74 +1,6 @@
 'use client';
 
-/**
- * 点阵地球（cobe / WebGL）+ 第二张 overlay canvas 画「站在邵阳的小人」。
- *
- * 【为什么小人要自己画，不用 cobe 的 markers】
- * cobe 的 markers 在这套配置下画不出东西（给显式 color、mapSamples 提到 16000、
- * size 加到覆盖整个可见半球，都不出现）。可用的做法是把 markers 留空，
- * 标记画在**第二张 canvas** 上，按 cobe 自己的旋转矩阵投影：
- *   先绕 Y 轴转 phi，再绕 X 轴转 theta；屏幕上半径 = 半幅 × 0.8（cobe 的球占 0.64 的平方根）；
- *   z < 0 表示转到球背面了，小人必须不画，否则会「飘」在球前面穿帮。
- * 小人本体是一张真空透明底的站姿人像贴图（public/images/avatar-stand.png，64×224、8 KB），
- * 在 overlay 上按投影点贴图，脚底锚定，静止站立。
- *
- * 【2026-10-04 重做：为什么上一版是一颗纯蓝球】
- * 用户反馈「地球做的全是蓝色，真实地球是这样吗」。
- * 用 CDP 单独截 canvas 逐层排查后定位到**绘制顺序**，不是配色问题：
- *   上一版在 canvas 下面铺了一层蓝色海洋 <span>（绝对定位）。
- *   绝对定位元素的绘制层级高于**静态**的 canvas，于是那层蓝把整块画布盖住了 ——
- *   DOM 里有、CSS 也对、cobe 也照常在渲染，只是永远看不到。
- * 把底衬临时隐藏后，cobe 立刻显出清晰的大陆点阵（亚洲、东南亚一眼可辨）。
- *
- * 【重做后的做法：两层，各管一个色相】
- * cobe 只有一个 baseColor，海洋和陆地只能是**同一色相的不同亮度** ——
- * 这正是「全是蓝」的根因：baseColor 是蓝，海洋=蓝×0.1（深蓝），陆地=蓝×1.3（亮蓝），
- * 亮度差再大也还是蓝。要做出「蓝海 + 绿陆」就必须让两层颜色来自两个地方：
- *   ① 海洋 = canvas **下面**的 CSS 径向渐变（深蓝，可自由设计）
- *   ② 陆地 = cobe 点阵（baseColor 设为绿色，mapBrightness 1.4）
- * 两层靠 canvas 的 `mix-blend-mode: lighten` 合成。选 lighten 而不是 screen：
- *   screen 会把两层**都提亮**，深蓝海被冲成浅蓝、绿点被冲成发白的浅蓝（实测对比见
- *   temp/lab-compare.png 的 C/F 与 temp/lab-v2.png 的 J）；
- *   lighten 是逐通道取大值 —— canvas 比底衬暗的地方一律让位给底衬，
- *   于是**海洋严格等于设计的蓝、陆地严格等于 cobe 的绿**，两层互不污染（v2 的 G/H）。
- * 代价是底衬那层 <span> 从「可选装饰」变成「必需品」：删掉它，球会退回一颗近黑的球。
- *
- * 【因此 z 序必须显式写出来，不能靠 DOM 顺序】
- * 底衬 z-0 → 高光 z-0 → 地球画布 z-10 → 小人画布 z-20。
- * 这四条是上面那套混合成立的前提，少写一条就会退回「一颗蓝球」。
- * 外层 div 的 `isolate`（isolation: isolate）让 lighten 只在球盒内部生效，
- * 不会去和卡片背景、粒子网发生混合。
- *
- * 【dark 为什么必须是 1】
- * cobe 的 shader 里明暗两条分支（见 node_modules/cobe/dist/index.esm.js 的 fragment）：
- *   dark=1 → W = p + 0.1        （p 是陆地强度）→ 陆地点亮、海洋近黑
- *   dark=0 → W = (1-p)·g^0.4 + 0.1            → 海洋点亮、陆地近黑
- * 只有 dark=1 能让陆地点阵比海洋亮，lighten 之后绿色才浮得出来；
- * dark=0 会让陆地比底衬暗，被 lighten 直接吃掉，球上什么都看不见。
- *
- * 【参数】mapSamples 22000、mapBrightness 1.4、diffuse 0.5、theta 0.4、每帧 phi += 0.005。
- *
- * 【可以拖】按住可以手动转球：**左右转经度、上下调倾角**，拖的时候自动停，
- * 松手后弹簧把余速走完。这也让「邵阳」这个点变得可寻：拖到正面就看得见。
- *
- * 【2026-10-04：手机上也给了上下拖动，代价是球面上不再能竖划翻页】
- * canvas 的 touch-action 由 pan-y 改成 none —— 站长反馈「手机上地球不能上下转动」。
- * 取舍很明确：手指落在球上时，竖划转的是球、不是页面；想滚页面得从球外面划。
- * 为什么可以接受：这颗球只占磁贴里 190~210px 高的一条，不是整屏，
- * 页面其它任何位置都能正常滚动，而且转动本身有明确反馈（球跟着手指走），
- * 不会像「整块不可滚动区」那样让人以为网页卡住了。
- * 反过来说：如果哪天觉得手机滚页面被挡住，把 touch-none 改回 touch-pan-y 即可，
- * 桌面端不受影响 —— touch-action 对鼠标输入本来就不起作用。
- *
- * 【手机上的另外两处交互（本次一并确认过）】
- * · 悬停出二维码只在桌面成立：触屏没有 hover，所以点击开弹窗那条路一直留着（点公众号图标弹二维码）。
- * · 工具条的名字：桌面上鼠标停靠显示，手机上改成点一下钉住 2.8 秒（见 Dashboard 的 ToolRow）。
- *
- * 【三条不能省的边界】
- * 1. SSR 只输出两个空 canvas，不含任何主题相关的 class 或内联样式 → 无 hydration 报错。
- * 2. resolvedTheme 为 undefined 时不建 WebGL 实例，否则会按错的调色板闪一下。
- * 3. 系统要求「减少动态效果」时不自动转（仍可拖），标记照常画 —— 静态呈现，不是不画。
- */
+/** 点阵地球（cobe / WebGL）+ 第二张 overlay canvas 画「站在邵阳的小人」。 */
 
 import createGlobe from 'cobe';
 import { useEffect, useRef, useState } from 'react';
@@ -84,18 +16,7 @@ interface DottedGlobeProps {
   className?: string;
 }
 
-/**
- * 两套调色板。
- *
- * baseColor 是**陆地**的颜色（乘 mapBrightness 后就是点阵实际亮度），
- * 海洋不在这里 —— 它由下面的 OCEAN 渐变负责，理由见文件头。
- *
- * 两套的 baseColor 相同（同一支绿），差别只在海洋底衬深浅：
- * 深色主题用更深的蓝，让绿点对比更强、整球更「太空」；
- * 浅色主题用中蓝，否则一颗近乎黑蓝的球压在浅色卡片上太重。
- *
- * WebGL uniform 读不到 CSS 变量，所以颜色值只能在这里按主题各写一份。
- */
+/** 两套调色板。 */
 const PALETTE = {
   light: {
     dark: 1,
@@ -113,14 +34,7 @@ const PALETTE = {
   },
 };
 
-/**
- * 海洋底衬：深蓝径向渐变 + 球面明暗 + 大气外发光。
- *
- * 高光放在左上（circle at 32% 26%），和旁边那层 sheen 高光同一个方向 ——
- * 两处光必须同源，否则会读成「两个光源」，球面立刻变塑料。
- * 中心色不要给到 #7dd3fc 那么亮：lighten 之后亮海会把绿点冲淡，
- * 实测（temp/lab-compare.png 的 C）陆地会糊成一片浅蓝。
- */
+/** 海洋底衬：深蓝径向渐变 + 球面明暗 + 大气外发光。 */
 const OCEAN: Record<'light' | 'dark', string> = {
   light: 'radial-gradient(circle at 32% 26%, #2f7fd6 0%, #1a549f 36%, #0c2c60 68%, #051331 100%)',
   dark: 'radial-gradient(circle at 32% 26%, #1d4f9c 0%, #123a7a 34%, #0a2450 62%, #04122c 100%)',
@@ -131,23 +45,12 @@ const OCEAN_SHADOW =
   'inset -24px -18px 36px rgba(2, 8, 23, 0.62), inset 10px 8px 24px rgba(186, 230, 253, 0.18), 0 0 38px rgba(59, 130, 246, 0.22)';
 
 const THETA = 0.4;
-/**
- * 上下拖动的倾角范围（弧度）。
- *
- * 【为什么必须夹住】不夹的话能把球一路翻过头顶，露出「南极朝天」那个角度。
- * 这颗球是靠上半球的陆地点阵撑起来的（见文件头的 dark=1 说明），翻过去就是一大片空球壳，
- * 手感像把球弄丢了。±1.15 弧度（约 ±66°）足够看到南北半球，又不会翻过头。
- */
+/** 上下拖动的倾角范围（弧度）。 */
 const THETA_MIN = -1.15;
 const THETA_MAX = 1.15;
 /** 每帧自转角（弧度）。0.005 约 21 秒一圈，慢到不抢注意力 */
 const SPIN = 0.005;
-/**
- * 拖拽灵敏度：指针走这么多像素，球转一整圈。
- * 这颗球被裁得只剩上半条，可拖的横向距离很短，
- * 数值给到 1400 那种量级时几乎感觉不到转动 —— 所以给 300：
- * 拖过球面宽度的一半约转 40°，一次拖动能把邵阳从球背拉到正面。
- */
+/** 拖拽灵敏度：指针走这么多像素，球转一整圈。 */
 const DRAG_DAMPING = 300;
 
 /** 经纬度 → 单位球面上的点（沿用 cobe 的约定：lng=0 落在 +X 轴上） */
@@ -158,14 +61,7 @@ function toVec([lat, lng]: LatLng) {
   return { x: cosLat * Math.cos(ln), y: Math.sin(la), z: -cosLat * Math.sin(ln) };
 }
 
-/**
- * 与 cobe 一致的旋转：先绕 Y 转 phi，再绕 X 转 theta。
- *
- * 【为什么 theta 要当参数传进来，不再读模块常量】
- * 改前 theta 恒等于 THETA，写死成常量没问题；现在上下可以拖，倾角是个变量。
- * 小人那层 overlay 必须用**和 cobe 同一时刻的倾角**投影，否则球转了、人还按老角度站着，
- * 会明显错位（转到南北极附近时差得最厉害）。
- */
+/** 与 cobe 一致的旋转：先绕 Y 转 phi，再绕 X 转 theta。 */
 function project(p: { x: number; y: number; z: number }, phi: number, theta: number) {
   const cosP = Math.cos(phi);
   const sinP = Math.sin(phi);
@@ -190,13 +86,7 @@ function hasWebGL(): boolean {
   }
 }
 
-/**
- * 站在邵阳那一点上的人像。
- *
- * 一张真空透明底的站姿贴图（public/images/avatar-stand.png），绘制时**脚底锚定在标记点**：
- *   - 高度 h 就是整张贴图的总高（人物紧裁过，脚底≈贴图底部）；
- *   - 静止站立，只随球旋转、转到背面隐藏、按深度缩放与淡出。
- */
+/** 站在邵阳那一点上的人像。 */
 
 export default function DottedGlobe({ coordinates, className = '' }: DottedGlobeProps) {
   const globeRef = useRef<HTMLCanvasElement>(null);
@@ -207,24 +97,12 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
   /** 探测结果放 state，才能在渲染阶段决定要不要走降级图形 */
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
 
-  /**
-   * 拖拽中的指针位置；null 表示没在拖。
-   * 【为什么两个轴都存】原来只记 clientX（只能左右转球）；上下拖动要同时看纵向位移，
-   * 所以改成一个坐标对。存的是上一帧的位置、用差值当增量，避免累加漂移。
-   */
+  /** 拖拽中的指针位置；null 表示没在拖。 */
   const dragging = useRef<{ x: number; y: number } | null>(null);
-  /**
-   * 拖拽量走 motion value + 弹簧，而不是直接累加到 phi：
-   * 直接改的话手一停球就硬停，手感像在拖一张图；弹簧会在松手后把余速走完，
-   * 球自己滑一小段才停 —— 「能自由拨」的观感来自这里，不是来自阻尼数值。
-   */
+  /** 拖拽量走 motion value + 弹簧，而不是直接累加到 phi。 */
   const dragTarget = useMotionValue(0);
   const dragAngle = useSpring(dragTarget, { mass: 1, damping: 50, stiffness: 500 });
-  /**
-   * 纵向（倾角）的拖动量，**存的是相对 THETA 的偏移**，不是绝对倾角。
-   * 两个轴各给一套同参数弹簧：一套用弹簧、另一套直接累加的话，
-   * 松手后会「一个在滑、一个硬停」，手感割裂。
-   */
+  /** 纵向（倾角）的拖动量，**存的是相对 THETA 的偏移**，不是绝对倾角。 */
   const tiltTarget = useMotionValue(0);
   const tiltAngle = useSpring(tiltTarget, { mass: 1, damping: 50, stiffness: 500 });
   /** cobe 每帧把当前 phi 写到这里，overlay 用它投影，两张画布才严格同步 */
@@ -270,12 +148,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
       markers: [],
       onRender: (state) => {
         if (!reduceMotion && dragging.current === null) phi += SPIN;
-        /*
-         * 倾角 = 基准值 + 拖动偏移。基准值 THETA 是初始视角（略俯视北半球），
-         * 偏移由弹簧给出，所以松手后那一下回弹也一并带走。
-         * 这里只做加法、不再夹范围 —— 夹的是**写入拖动量的那一刻**（见 onPointerMove）；
-         * 弹簧在两次夹取之间允许轻微过冲，那点过冲正是「能拨动」的手感来源。
-         */
+        /* 倾角 = 基准值 + 拖动偏移。基准值 THETA 是初始视角（略俯视北半球），偏移由弹簧给出，所以松手后那一下回弹也一并带走。 */
         const theta = THETA + tiltAngle.get();
         state.phi = phi + dragAngle.get();
         state.theta = theta;
@@ -359,18 +232,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
     dragging.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture?.(e.pointerId);
   };
-  /**
-   * 拖动：横向改经度（phi），纵向改倾角（theta）。
-   *
-   * 【纵向为什么必须夹范围】不夹就能把球翻过头顶、露出南极朝天的角度（见 THETA_MIN/MAX）。
-   * 夹的是**偏移量**（相对 THETA），所以边界写成 THETA_MIN - THETA 与 THETA_MAX - THETA。
-   *
-   * 【纵向的符号】往下拖（clientY 变大）把北半球转过来 ——
-   * 和「手指按住球面往下搓」一致；反过来手指和球面会朝相反方向跑，很别扭。
-   *
-   * 【灵敏度】两轴共用 DRAG_DAMPING（300px 对应一整圈经度、约 1 弧度倾角）。
-   * 纵向可用行程只有磁贴那两百来像素，一次拖动约 40°，够看出转动。
-   */
+  /** 拖动：横向改经度（phi），纵向改倾角（theta）。 */
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const from = dragging.current;
     if (!from) return;
@@ -384,10 +246,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
   };
 
   if (webglOk === false) {
-    /**
-     * 拿不到 WebGL（老 Android WebView、微信/QQ 内置浏览器、驱动被拉黑）时的降级：
-     * 一枚静态虚线圆 + 一个 accent 点。地名文字在卡片里照常渲染，信息不丢。
-     */
+    /** 拿不到 WebGL（老 Android WebView、微信/QQ 内置浏览器、驱动被拉黑）时的降级。 */
     return (
       <div ref={boxRef} className={`relative isolate aspect-square ${className}`} aria-hidden="true">
         <span
@@ -403,31 +262,11 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
     );
   }
 
-  /**
-   * 挂载标记：hydration 那一帧必须和服务器渲染的一模一样，主题颜色只能等挂载之后再上。
-   *
-   * 【为什么第一次修没修掉】我先只用 resolvedTheme 判断「有没有解析出主题」，
-   * 结果服务端那侧确实变成了「没有底色」，客户端却仍然带着底色 —— 因为
-   * **next-themes 在客户端的首次渲染里就同步读出了 localStorage 的主题**，
-   * 所以 hydration 那一帧 resolvedTheme 已经有值，而服务端永远拿不到。
-   * 必须自己加一个「挂载后才为 true」的开关，把 hydration 那一帧挡在外面。
-   */
+  /** 挂载标记：hydration 那一帧必须和服务器渲染的一模一样，主题颜色只能等挂载之后再上。 */
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  /**
-   * 海洋底衬颜色，**挂载之前必须是「没有」**。
-   *
-   * 【2026-10-04 修 hydration mismatch】原来这一行是
-   * `resolvedTheme === 'dark' ? OCEAN.dark : OCEAN.light` ——
-   * 服务端输出浅色那套、客户端算出深色那套，两者不一致，
-   * React 每次访问都报 hydration mismatch，而且**不会自行修正**这一处。
-   * 现在服务端与客户端渲染的都是「没有底色」，完全一致；
-   * 挂载后才补上颜色 —— 那是一次普通更新，不再是 hydration。
-   *
-   * 这样也才真正实现了原来注释想表达的效果：不会先按浅色画一帧深蓝、再跳成深色版。
-   * 下面那个 effect 同样是等主题有了才建球，两者一起等，闪不出来。
-   */
+  /** 海洋底衬颜色，**挂载之前必须是「没有」**。 */
   const ocean = mounted
     ? resolvedTheme === 'dark'
       ? OCEAN.dark
@@ -435,16 +274,9 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
     : null;
 
   return (
-    /*
-      isolate 不能省：它让地球画布的 mix-blend-mode 只在球盒内部合成，
-      不会把卡片背景、粒子网一起卷进混合（那会让球边出现脏边）。
-    */
+    /* isolate 不能省：它让地球画布的 mix-blend-mode 只在球盒内部合成，不会把卡片背景、粒子网一起卷进混合（那会让球边出现脏边）。 */
     <div ref={boxRef} className={`relative isolate aspect-square ${className}`}>
-      {/*
-        ① 海洋。z-0 必须显式写 —— canvas 是静态元素，绝对定位的 span 默认会盖在它上面，
-        上一版的「一颗纯蓝球」就是这么来的（详见文件头）。这一层现在是必需品：
-        删掉它，lighten 之后球会退回一颗近黑的球。
-      */}
+      {/* ① 海洋。z-0 必须显式写 —— canvas 是静态元素，绝对定位的 span 默认会盖在它上面，上一版的「一颗纯蓝球」就是这么来的（详见文件头）。 */}
       <span
         aria-hidden="true"
         className="absolute inset-[10%] z-0 rounded-full border border-sky-200/40"
@@ -456,11 +288,7 @@ export default function DottedGlobe({ coordinates, className = '' }: DottedGlobe
         aria-hidden="true"
         className="pointer-events-none absolute inset-[10%] z-0 rounded-full bg-[radial-gradient(ellipse_at_28%_22%,rgba(255,255,255,0.3),transparent_32%)]"
       />
-      {/*
-        ③ 地球本体。lighten 让近黑的海洋底色让位给下面的蓝底衬，
-        只把亮起来的绿色陆地点阵「取大」叠上去 —— 蓝海与绿陆两个色相就此分离。
-        需要 relative 才能让 z-10 生效（z-index 对静态元素无效）。
-      */}
+      {/* ③ 地球本体。lighten 让近黑的海洋底色让位给下面的蓝底衬，只把亮起来的绿色陆地点阵「取大」叠上去 —— 蓝海与绿陆两个色相就此分离。 */}
       <canvas
         ref={globeRef}
         aria-hidden="true"

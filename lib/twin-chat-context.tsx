@@ -1,18 +1,6 @@
 'use client';
 
-/**
- * 数字分身聊天窗的开关状态。
- *
- * 【为什么要单独一个 Context】
- * 聊天窗改成悬浮面板后，控制它的人不止一个：首屏的角色（点一下开、再点一下关）、
- * 顶栏的「问分身」、移动端抽屉里的同一个入口，都要能开关同一个窗口。
- * 如果把这个 state 放在其中任何一个组件里，另外几个就得靠 props 层层传，
- * 而它们中间还隔着服务端组件 —— 传不过去。
- * 所以用一个只装布尔状态的 Provider，谁要用谁 useTwinChat()。
- *
- * 【刻意不做的事】
- * 不持久化这个开关状态：刷新后聊天窗应该收起，不会一打开页面就糊住首屏。
- */
+/** 数字分身聊天窗的开关状态。 */
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
@@ -53,7 +41,7 @@ export function TwinChatProvider({ children }: { children: ReactNode }) {
 export function useTwinChat(): TwinChatContextValue {
   const ctx = useContext(TwinChatContext);
   if (!ctx) {
-    throw new Error('useTwinChat 必须在 <TwinChatProvider> 内部使用（见 app/page.tsx）。');
+    throw new Error('useTwinChat 必须在 <TwinChatProvider> 内部使用。');
   }
   return ctx;
 }

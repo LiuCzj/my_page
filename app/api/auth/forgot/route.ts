@@ -1,21 +1,4 @@
-/**
- * 找回密码：给邮箱发一封重置链接。
- *
- * 【为什么邮箱不存在也返回 ok】
- * 如果「邮箱没注册」回一个专门的错误，这个接口就变成了账号枚举器：
- * 任何人拿一份邮箱列表挨个试，就能问出「谁在这个站注册过」。
- * 所以无论邮箱存不存在，都回同一个成功响应。用户那边看到的是
- * 「如果这个邮箱注册过，重置邮件已经发出」—— 他不需要知道更多。
- *
- * 【为什么重置 token 只存 1 小时】
- * 重置链接的杀伤力比验证链接大（能直接改密码）。有效期越短，
- * 邮件在收件箱里躺久了被人翻出来利用的机会越小。
- *
- * 【注意：本文件不负责「过期」这件事】这里只负责发信与写入 token，
- * 有效期常量在 `lib/auth-ttl.ts` 的 RESET_TTL_MS，真正做校验的是
- * `app/api/auth/reset/route.ts`。2026-10-05 之前本文件里也有一份同名的
- * RESET_TTL_MS 副本（从未被引用），已删除 —— 别再在这里写第二份。
- */
+/** 找回密码：给邮箱发一封重置链接。 */
 
 import { NextResponse } from 'next/server';
 import { randomBytes } from 'node:crypto';
@@ -28,20 +11,13 @@ export const dynamic = 'force-dynamic';
 /** 忘记密码接口的错误码 */
 export type ForgotErrorCode = 'bad_request' | 'mail_not_configured' | 'rate_limited';
 
-/**
- * 限流：同一 IP 十分钟内最多 3 次。
- *
- * 【为什么比注册更严】这个接口每次调用都会发一封邮件到「别人填的邮箱」。
- * 不限流的话，它可以被用来往任意邮箱灌邮件（拿别人的邮箱当地址簿轰炸），
- * 你的 SMTP 账号也会因此被服务商标记。
- */
+/** 限流：同一 IP 十分钟内最多 3 次。 */
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_ALLOW = 3;
 const hits = new Map<string, number[]>();
 
 /**
  * 判断该 IP 是否超出配额。
- *
  * @param ip 客户端 IP
  * @returns true 表示应拒绝
  */
@@ -59,7 +35,6 @@ function rateLimited(ip: string): boolean {
 
 /**
  * 处理找回密码请求。
- *
  * @param request 请求体 JSON：{ email }
  * @returns 恒定返回 { ok: true }（不泄漏邮箱是否注册过）
  */

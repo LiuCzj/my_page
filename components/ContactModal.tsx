@@ -1,19 +1,6 @@
 'use client';
 
-/**
- * 联系方式弹窗：微信公众号二维码 / 联系邮箱 / 「尚未配置」提示，三种形态共用一个组件。
- *
- * 【为什么合成一个组件】
- * 顶栏和页脚都要放这五个入口。分开各写一遍浮层的话，无障碍行为就会不一致
- * （很容易漏掉 Esc 关闭和焦点管理，键盘用户和读屏用户根本关不掉）。
- * 合成一个组件后，两处调用的是同一份实现。
- *
- * 【无障碍要点（本组件的核心价值）】
- * 1. role="dialog" + aria-modal="true" + aria-labelledby 指向标题
- * 2. 打开时焦点移入「关闭」按钮；关闭后焦点还给触发它的图标（否则键盘用户会掉回页首）
- * 3. Esc 关闭；点击遮罩关闭；Tab 在弹窗内部循环（焦点圈禁），不会跑到弹窗背后的页面
- * 4. 打开期间锁 body 滚动，避免背景在手机上跟着滑
- */
+/** 联系方式弹窗：微信公众号二维码 / 联系邮箱 / 「尚未配置」提示，三种形态共用一个组件。 */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
@@ -100,12 +87,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
 
   if (!open) return null;
 
-  /**
-   * 复制邮箱。
-   * 先走标准 Clipboard API；它要求安全上下文（https 或 localhost），
-   * 而你以后部署到 http 内网或用手机 IP 直接访问 dev 服务时会失败，
-   * 所以保留 execCommand 兜底 —— 它已被标记 deprecated，因此只在主路径抛错时才用。
-   */
+  /** 复制邮箱。 */
   const copyEmail = async () => {
     const address = site.contact.email.address;
     try {
@@ -131,7 +113,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
   };
 
   const accountName = site.contact.wechat.accountName;
-  /** 二维码路径：config 里留空表示站长还没上传自己的二维码 */
+  /** 二维码路径：留空表示尚未上传，弹窗显示提示而不是破图 */
   const qrcode = site.contact.wechat.qrcode;
   const titles: Record<ContactModalVariant, string> = {
     wechat: d.contact.wechatTitle,
@@ -178,10 +160,7 @@ export default function ContactModal({ open, variant, onClose }: ContactModalPro
 
         {variant === 'wechat' && (
           <div className="mt-4 flex flex-col items-center">
-            {/*
-              二维码路径由 config 提供，允许留空（换图或临时下架时不必改组件）。
-              留空时显示提示文字，而不是让 <img> 破图挂在弹窗里。
-            */}
+            {/* 二维码路径由 config 提供，允许留空（换图或临时下架时不必改组件）。 */}
             {qrcode ? (
               <img
                 src={qrcode}

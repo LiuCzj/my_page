@@ -1,13 +1,4 @@
-/**
- * 解析整篇 Markdown 文件：拆出 frontmatter（标题/日期/摘要/标签/草稿）与正文。
- *
- * 【为什么自己写而不用 gray-matter】gray-matter 依赖 js-yaml 与 node 侧的 Buffer，
- * 塞进浏览器包既大又没必要。站长上传的 frontmatter 只有「键: 值」和少量列表，
- * 几十行就能覆盖，不必为它引一个 YAML 解析器。
- *
- * 【容错原则】任何一段解析不出来都不抛错，退回默认值 ——
- * 上传一篇没写 frontmatter 的纯 Markdown 也该能直接进编辑器。
- */
+/** 解析整篇 Markdown 文件：拆出 frontmatter（标题/日期/摘要/标签/草稿）与正文。 */
 
 export interface ParsedMarkdownFile {
   title: string;
@@ -29,11 +20,7 @@ function unquote(v: string): string {
   return s;
 }
 
-/**
- * 解析 tags。两种常见写法都认：
- *   tags: [AI, Next.js]        —— 行内数组
- *   tags:\n  - AI\n  - Next.js —— 块列表
- */
+/** 解析 tags。两种常见写法都认。 */
 function parseTags(value: string, lines: string[], startIndex: number): string[] {
   const inline = value.match(/^\[(.*)\]$/);
   if (inline) {
@@ -55,13 +42,13 @@ function parseTags(value: string, lines: string[], startIndex: number): string[]
 
 /**
  * 解析一篇 Markdown 文件。
- *
  * @param raw 文件全文
  * @param fallbackTitle frontmatter 里没有 title 时用（一般传文件名去掉扩展名）
  * @returns 拆好的字段 + 正文
  */
 export function parseMarkdownFile(raw: string, fallbackTitle: string): ParsedMarkdownFile {
-  const text = raw.replace(/^﻿/, ''); // 去掉 Windows 记事本可能带的 BOM
+  /* 去 BOM；换行统一成 LF —— 行尾的 \r 会让编辑器的字符列号整体错位 */
+  const text = raw.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 
   const result: ParsedMarkdownFile = {
     title: fallbackTitle,

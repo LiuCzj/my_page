@@ -1,39 +1,6 @@
 'use client';
 
-/**
- * 站内搜索面板（Cmd / Ctrl + K 唤起）。
- *
- * 【它做什么】
- * 一个命令面板式的搜索浮层：顶部输入框，下面按「项目 / 笔记 / 技术栈 / 工具 / 页面」
- * 分组列出命中的条目，键盘 ↑↓ 选择、Enter 打开、Esc 关闭，鼠标 hover 同步高亮。
- *
- * 【为什么是受控组件（open + onOpenChange）】
- * 打开入口有两个：全局快捷键 hook（lib/use-hotkeys.ts 的 onSearch）和界面里的搜索按钮。
- * 组件自己管开合的话，快捷键就没法从外面把它打开。所以开合状态由调用方持有，
- * 本组件只负责渲染与「请求改变」—— 这样任何入口都只是调 onOpenChange(true)。
- *
- * 【笔记为什么走 props 而不是自己读】
- * 笔记与项目都存在数据库里（lib/content.ts），客户端组件不能 import 它，否则原生模块会进浏览器包。
- * 由服务端组件（app/layout.tsx）读好后以 notes 属性传进来，这里只消费纯数据。
- *
- * 【焦点 / 滚动 / 层级，照抄站内既有浮层】
- * - 打开时记下触发元素，关闭时把焦点还回去（照 ContactModal，键盘用户不会掉回页首）。
- * - 打开时锁 body 滚动并记录原值，关闭时恢复原值（不写死成 ''，避免覆盖别处设过的值）。
- * - Tab 在面板内部循环（焦点圈禁），不会跑到背后的页面上。
- * - z-[100]：与 ContactModal / ShortcutHelp 同级，高于聊天面板 z-[80]。
- *   （层级约定：顶栏 z-50、聊天 z-[80]、抽屉 z-[90]、弹窗 z-[100]。）
- *
- * 【颜色只用语义令牌】
- * bg-card / bg-background / text-foreground / text-muted-foreground / border-border /
- * bg-secondary / text-accent。accent 是蓝色，全站唯一交互强调色 —— 这里只给「选中项的小图标」
- * 上蓝，其余一律中性色，深浅两套主题都成立。
- *
- * 【无障碍取舍：combobox + listbox，选项是真实链接】
- * 输入框用 role="combobox" + aria-activedescendant，列表用 role="listbox"，
- * 每条结果 role="option" 且 tabIndex={-1}（选项不进 Tab 序列，方向键就是它的导航方式）。
- * 选项本身是 <Link> / <a>，保留真实链接语义（可中键新开、可右键复制地址），
- * Enter 时直接 .click() 这个链接复用它的行为，而不是另写一套 window.location。
- */
+/** 站内搜索面板（Cmd / Ctrl + K 唤起）。 */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -51,11 +18,7 @@ import {
   type SearchSkillGroup,
 } from '@/lib/search-index';
 
-/**
- * 重新导出条目形状。
- * 服务端组件从 lib/content.ts 拿到 NoteMeta / ProjectRecord 后，
- * 只需挑出对应字段即可满足本组件的 notes / projects 属性。
- */
+/** 重新导出条目形状。 */
 export type { SearchNote, SearchProject, SearchSkillGroup };
 
 /** 搜索面板的属性 */
@@ -74,10 +37,7 @@ export interface SiteSearchProps {
   className?: string;
 }
 
-/**
- * 每个分组对应的图标。
- * 只给分组一个图标做视觉锚点，不引入任何额外色相 —— 图标颜色在行内按选中态决定。
- */
+/** 每个分组对应的图标。 */
 const GROUP_ICON: Record<SearchGroup, LucideIcon> = {
   projects: FolderGit2,
   notes: FileText,
@@ -89,10 +49,7 @@ const GROUP_ICON: Record<SearchGroup, LucideIcon> = {
 /** 参与焦点圈禁的可聚焦元素选择器（与 ContactModal / ShortcutHelp 保持一致） */
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-/**
- * 一枚按键小方块，用在底部操作提示里。
- * 等宽字体 + 语义令牌，深浅两套主题都成立。
- */
+/** 一枚按键小方块，用在底部操作提示里。 */
 function Kbd({ children }: { children: React.ReactNode }) {
   return (
     <kbd className="inline-flex min-w-[1.25rem] items-center justify-center rounded border border-border bg-secondary px-1 font-mono text-[10px] font-semibold leading-4 text-secondary-foreground">
@@ -116,22 +73,7 @@ interface ResultRowProps {
   registerRef: (index: number, el: HTMLAnchorElement | null) => void;
 }
 
-/**
- * 一条搜索结果。
- *
- * 【为什么站内用 <Link>、站外用 <a>】
- * 站内跳转交给 next/link 做客户端路由（不整页刷新）；站外链接（项目的 GitHub 地址）
- * 用 <a target="_blank" rel="noopener noreferrer">，rel 里带 noopener 是防「被打开页面
- * 通过 window.opener 反向操作本页」的标准做法。
- *
- * 【为什么 tabIndex={-1}】
- * 选项在 listbox 模式里不参与 Tab 序列 —— 键盘用户用 ↑↓ 在选项间移动（配合
- * aria-activedescendant），Tab 只用于在输入框和关闭按钮之间走。把它从 Tab 序列里拿掉，
- * 焦点就不会被 Tab 甩到列表深处，方向键的语义也不会和 Tab 打架。
- *
- * 【为什么两种链接都带 role="option"】
- * 视觉与读屏需要一致的「列表选项」语义，光标高亮项由 aria-selected 表达。
- */
+/** 一条搜索结果。 */
 function ResultRow({ entry, index, active, onHover, onActivate, registerRef }: ResultRowProps) {
   const Icon = GROUP_ICON[entry.group];
   const optionId = `site-search-option-${index}`;
@@ -210,7 +152,6 @@ function ResultRow({ entry, index, active, onHover, onActivate, registerRef }: R
 
 /**
  * 搜索面板主体。
- *
  * @param props.open         是否打开（受控）
  * @param props.onOpenChange 请求改变开合
  * @param props.notes        服务端传入的笔记元数据
@@ -231,21 +172,13 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, skills
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
 
-  /**
-   * 全量索引。
-   * 随「语言」或「笔记/项目数据」变化重建：切中英文时每条条目的展示文案要跟着换，
-   * 而匹配文本里始终带着双语，所以切换语言不会丢失另一种语言的可搜性。
-   */
+  /** 全量索引。 */
   const index = useMemo(
     () => buildSearchIndex({ notes, projects, skills, lang }),
     [notes, projects, skills, lang],
   );
 
-  /**
-   * 过滤 + 分组，并给每条打上全局序号。
-   * 序号必须与「渲染顺序」完全一致，键盘 ↑↓ 才和眼睛看到的一致：
-   * 所以先按 GROUP_ORDER 分组，再在分组结果上从 0 连续编号。
-   */
+  /** 过滤 + 分组，并给每条打上全局序号。 */
   const sections = useMemo(() => {
     let cursor = 0;
     return groupEntries(filterEntries(index, query)).map((section) => ({
@@ -257,18 +190,7 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, skills
   /** 扁平顺序 = 渲染顺序。键盘导航与 aria-activedescendant 都基于它 */
   const ordered = useMemo(() => sections.flatMap((s) => s.items.map((it) => it.entry)), [sections]);
 
-  /**
-   * 打开期间的收尾工作。
-   *
-   * 放在一个 effect 里统一处理「进入」与「离开」两半：
-   *   进入：记录触发元素 → 锁 body 滚动（先存原值）→ 重置查询与高亮 → 聚焦输入框
-   *   离开：清定时器 → 恢复滚动原值 → 焦点还给触发元素
-   * 这样即便组件被直接卸载（而不是走关闭分支），滚动锁与焦点也不会留在错误状态。
-   *
-   * 【为什么聚焦要延后一帧】
-   * 面板是刚挂载的，动画 / 布局还没稳定，立刻 focus 在部分浏览器上会失败。
-   * 等 30ms 再聚焦，稳定可靠。
-   */
+  /** 打开期间的收尾工作。 */
   useEffect(() => {
     if (!open) return;
 
@@ -297,19 +219,12 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, skills
     setActiveIndex(0);
   }, [query]);
 
-  /**
-   * 结果数量变化 → 把高亮夹回有效范围。
-   * 删字 / 改词后结果可能变少，若高亮停在越界的位置，Enter 会打不开任何东西。
-   */
+  /** 结果数量变化 → 把高亮夹回有效范围。 */
   useEffect(() => {
     setActiveIndex((i) => (ordered.length === 0 ? 0 : Math.min(i, ordered.length - 1)));
   }, [ordered.length]);
 
-  /**
-   * 高亮项滚动进视野。
-   * block: 'nearest' 只在确实超出可视区时才滚动，且只滚最近的滚动容器（这里就是结果列表），
-   * 不会把背后的页面拽走 —— 与 DigitalTwinChat 里滚动到底用的是同一种克制做法。
-   */
+  /** 高亮项滚动进视野。 */
   useEffect(() => {
     rowRefs.current[activeIndex]?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex, ordered.length]);
@@ -333,13 +248,7 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, skills
     [ordered.length],
   );
 
-  /**
-   * 打开第 index 条结果。
-   *
-   * 优先 .click() 真实链接节点：站内走 next/link 的客户端路由，站外走 target=_blank，
-   * 语义与鼠标点击完全一致。只有在节点缺失（理论上不会发生）时才退回 window.open。
-   * 打开后立刻请求关闭面板 —— 导航与关闭互不阻塞。
-   */
+  /** 打开第 index 条结果。 */
   const activate = useCallback(
     (index: number) => {
       const entry = ordered[index];
@@ -352,12 +261,7 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, skills
     [ordered, onOpenChange],
   );
 
-  /**
-   * 面板内的键盘处理（挂在面板容器上，事件从输入框 / 链接冒泡上来都能接住）。
-   *
-   * Esc 关闭；↑↓ 移动高亮并阻止默认行为（否则输入框里光标会跳到行首行尾）；
-   * Enter 打开当前高亮项；Tab 做焦点圈禁。
-   */
+  /** 面板内的键盘处理（挂在面板容器上，事件从输入框 / 链接冒泡上来都能接住）。 */
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === 'Escape') {
       e.preventDefault();
@@ -472,11 +376,7 @@ export default function SiteSearch({ open, onOpenChange, notes, projects, skills
               </button>
             </div>
 
-            {/*
-              结果列表：唯一会滚动的部分。
-              min-h-0 是 flex 子项能内部滚动的必要条件；overscroll-contain 让列表滚到头时
-              不再把背后的页面一起拖动（同 DigitalTwinChat 的消息区）。
-            */}
+            {/* 结果列表：唯一会滚动的部分。 */}
             <div
               id="site-search-list"
               role="listbox"

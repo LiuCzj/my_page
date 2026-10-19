@@ -1,38 +1,6 @@
 'use client';
 
-/**
- * 笔记列表 —— 期刊式目录（2026-10-05 第二期改）。
- *
- * 【形态】每一项 = 左栏「日期 + 阅读时长」（等宽字，像卷期号）+ 右栏「标题 / 摘要 / 标签」。
- * 两栏各有用途：想按时间找就只扫左栏，想按内容找就只扫右栏 —— 这是目录才有的读法。
- * 改前四行叠在一个竖排块里，每条都长得一样、没有可比较的抓手。
- *
- * 【为什么不用卡片（不用 border + 圆角 + 背景）而用分割线】
- * 笔记列表是「一串条目」，每项都做成卡片会让页面变成一堆方块，
- * 反而看不清哪一条是哪一条。轻卡（只有分割线）是这套三级卡片语言里的第三级。
- *
- * 【标题为什么走 font-song 而不是 font-display】
- * 标题是站长在后台随手写的**动态内容**，自托管宋体子集覆盖不到，
- * 混排会出现「半行是自托管宋体、半行是系统宋体」。详见 globals.css 的 --font-song。
- *
- * 【整项是一条链接，不是只有标题可点】
- * 这是为手机做的决定。触屏上没有悬停，也没有光标提示「这里可点」，
- * 只有标题那几个字能点的话，手指要瞄得很准。整项可点之后，
- * 点哪儿都行，而且整项的高度天然超过 44px 的触控下限，不用额外补。
- *
- * 【管理员的编辑/删除按钮为什么排在链接外面】
- * 列表项本身是一个 <a>。把 <button> 塞进 <a> 里是非法嵌套（交互元素套交互元素），
- * 点击行为在各浏览器上不一致。所以按钮放在 <a> 的**兄弟位置** —— 只有传了回调才渲染，
- * 访客的 DOM 里根本不会有这两个按钮。
- *
- * 【为什么标题要 break-words】
- * 中文标题没有空格，浏览器默认不在汉字之间断行（取决于 word-break 设置）。
- * 一个长标题在 375px 宽的屏上会直接把容器撑宽，连带整页出现横向滚动条。
- *
- * 【NoteMeta 为什么用 import type】
- * lib/content.ts 依赖 better-sqlite3。`import type` 在编译后会被完全擦除，
- * 不会产生运行时 import；写成普通 import 就会把原生模块打进浏览器包并直接报错。
- */
+/** 笔记列表 —— 期刊式目录。 */
 
 import Link from 'next/link';
 import { ArrowRight, Pencil, Trash2 } from 'lucide-react';
@@ -44,17 +12,11 @@ import SectionBand from './SectionBand';
 
 interface NotesListProps {
   notes: NoteMeta[];
-  /**
-   * 标题用几级。笔记页自己是 h1，首页的摘要区块是 h2 ——
-   * 一个页面只能有一个 h1，这个 prop 就是为这条规则存在的。
-   */
+  /** 标题用几级。笔记页自己是 h1，首页的摘要区块是 h2 ——一个页面只能有一个 h1，这个 prop 就是为这条规则存在的。 */
   headingLevel?: 1 | 2;
   /** 传了就渲染「查看全部笔记」入口，指向它 */
   viewAllHref?: string;
-  /**
-   * 章节编号（如 "03"）。首页的笔记摘要是第三页，传 "03"；
-   * /notes 独立页只有一节，不传即不渲染编号。
-   */
+  /** 章节编号（如 "03"）。首页的笔记摘要是第三页，传 "03"； */
   index?: string;
   /** 英文小标（如 "NOTES"）。窄屏不渲染 —— 那点宽度留给标题 */
   latin?: string;
@@ -63,10 +25,6 @@ interface NotesListProps {
   /** 管理员才传：传了就在每条右侧渲染「删除」按钮 */
   onDelete?: (note: NoteMeta) => void;
 }
-
-/** 管理员操作按钮的统一外观 */
-const ACTION =
-  'inline-flex min-h-[36px] cursor-pointer items-center gap-1 rounded-md border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent/50 hover:text-foreground';
 
 export default function NotesList({
   notes,
@@ -106,25 +64,15 @@ export default function NotesList({
         </motion.div>
       ) : (
         <>
-          <ul className="mt-10 divide-y divide-border border-y border-border">
+          {/* data-protect：非管理员不能选中/复制 */}
+          <ul data-protect className="mt-10 divide-y divide-border border-y border-border">
             {notes.map((n, i) => (
               <motion.li
                 key={n.slug}
                 {...reveal(0.06 * (i + 1))}
                 className="flex items-start gap-2"
               >
-                {/*
-                  ── 期刊式目录（2026-10-05 第二期）──────────────────
-                  【改前】日期和标题挤在同一个竖排块里，四行叠着（标题／日期·时长／摘要／标签）。
-                  读起来是「一串条目」，但每条都长得一样、没有可比较的抓手。
-                  【改后】左边一栏专放日期和阅读时长（等宽字，像期刊的卷期号），
-                  右边一栏放标题和摘要。视线可以只扫左栏来找时间，或者只扫右栏来找标题 ——
-                  两栏各有各的用途，这是目录才有的读法。
-                  【为什么整条仍然是链接】手机上没有悬停，只有标题能点的话手指要瞄得很准。
-                  所以 <a> 是这两栏的容器，点哪儿都行，整条高度也天然超过 44px。
-                  【标题走 font-song】笔记标题是动态内容（站长在后台写的），
-                  自托管宋体子集覆盖不到，混排会出现半行换字 —— 详见 globals.css 的 --font-song。
-                */}
+                {/* ── 期刊式目录 ────────────────── */}
                 <Link
                   href={`/notes/${n.slug}`}
                   className="group grid min-w-0 flex-1 gap-x-6 gap-y-2 rounded-xl py-6 no-underline transition-colors hover:bg-foreground/[0.04] sm:grid-cols-[7rem_1fr] sm:px-3 sm:py-8"
@@ -168,16 +116,16 @@ export default function NotesList({
                 </Link>
 
                 {(onEdit || onDelete) && (
-                  <div className="flex shrink-0 flex-col gap-1 pt-6 sm:flex-row">
+                  <div className="flex shrink-0 flex-col gap-2 pt-5 sm:flex-row">
                     {onEdit && (
-                      <button type="button" onClick={() => onEdit(n)} className={ACTION}>
-                        <Pencil size={13} aria-hidden="true" />
+                      <button type="button" onClick={() => onEdit(n)} className="btn-soft">
+                        <Pencil size={15} aria-hidden="true" />
                         {d.admin.edit}
                       </button>
                     )}
                     {onDelete && (
-                      <button type="button" onClick={() => onDelete(n)} className={ACTION}>
-                        <Trash2 size={13} aria-hidden="true" />
+                      <button type="button" onClick={() => onDelete(n)} className="btn-danger">
+                        <Trash2 size={15} aria-hidden="true" />
                         {d.admin.delete}
                       </button>
                     )}
@@ -188,11 +136,7 @@ export default function NotesList({
           </ul>
 
           {viewAllHref && (
-            /*
-              文字链接必须自己撑到 44px：它没有卡片的天然高度，
-              手机上就是一行 20 来像素的字，很难点中。
-              inline-flex + min-h 是站里统一的做法（页脚那两栏也是这么做的）。
-            */
+            /* 文字链接必须自己撑到 44px：它没有卡片的天然高度，手机上就是一行 20 来像素的字，很难点中。 */
             <motion.div {...reveal(0.12)} className="mt-4">
               <Link
                 href={viewAllHref}

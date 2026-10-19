@@ -1,20 +1,6 @@
 'use client';
 
-/**
- * 项目页的内容体。
- *
- * 【为什么要拆成「服务端壳 + 客户端体」两个文件】
- * 项目数据来自数据库（lib/content.ts，依赖 better-sqlite3），需要服务端能力；
- * 但 Next.js 不允许客户端组件导出 metadata。想让 /projects 有自己的浏览器标题，
- * 就必须让 page.tsx 保持服务端组件只导出 metadata，读好数据后再渲染这个客户端体。
- *
- * 【管理员看得到编辑入口，访客看不到】canEdit 由服务端算出（getCurrentUser + isAdmin），
- * 为 true 时才渲染 ProjectAdmin（带「新建 / 编辑 / 删除」）。访客的 HTML 里根本没有这些按钮 ——
- * 不是靠 CSS 藏起来。真正的权限闸门在服务端接口（见 lib/admin-guard.ts）。
- *
- * 【容器宽度用 5xl 而不是笔记页的 3xl】
- * 这里是两列卡片网格，需要横向空间；笔记列表是竖排文字，需要的是窄栏。
- */
+/** 项目页的内容体。 */
 
 import { motion } from 'framer-motion';
 import { FolderOpen } from 'lucide-react';
@@ -37,10 +23,7 @@ export default function ProjectsPageBody({
 
   return (
     <div className="mx-auto max-w-5xl px-4 pt-10 pb-16 sm:pt-14">
-      {/*
-        独立页只有一节，所以不传编号；但色调仍走 works（珊瑚橘）——
-        这样从首页滚到 /projects 页，章节名的颜色是连着的，不会「翻页翻了张不同版式的纸」。
-      */}
+      {/* 独立页只有一节，所以不传编号；但色调仍走 works（珊瑚橘）——这样从首页滚到 /projects 页，章节名的颜色是连着的，不会「翻页翻了张不同版式的纸」。 */}
       <SectionBand tone="works" as="h1" title={d.projects.title} lead={d.projects.lead} />
 
       {projects.length === 0 && !canEdit ? (

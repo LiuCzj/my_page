@@ -1,24 +1,6 @@
 'use client';
 
-/**
- * 重置密码面板：接管邮件里那个 `?reset=<token>` 链接。
- *
- * 【为什么不做成一个独立页面 /reset】
- * 重置链接是用户从邮件点进来的，落点越简单越好。做成独立页面要新增一个路由、
- * 一套布局、还要处理「用户没登录但带着 token 访问」的路由守卫 —— 而这件事的本质
- * 只是「弹个框让他输新密码」。用全局浮层接管，落到任何页面都能弹出来。
- *
- * 【为什么重置成功要清掉 URL 上的 token】
- * 不清的话，用户刷新页面会再弹一次，而那个 token 已经用掉了（后端一次性），
- * 于是他会看到「链接无效」—— 明明刚才还成功过。清掉参数才是符合直觉的收尾。
- * 用 history.replaceState 而不是 router.replace，是为了不触发一次导航
- * （我们只是想让地址栏干净，不需要重新渲染整页）。
- *
- * 【为什么密码要输两遍】
- * 重置密码时用户看不到原密码（因为是忘掉的那个），打错的概率比平时高。
- * 一个拼错的密码被提交后，用户会陷入「用新密码登不上、用旧密码也登不上」的死循环。
- * 让他输两遍是最省事的防错。
- */
+/** 重置密码面板：接管邮件里那个 `?reset=<token>` 链接。 */
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
@@ -31,7 +13,6 @@ const MIN_LEN = 8;
 
 /**
  * 重置密码浮层。检测到 URL 上有 `?reset=` 才渲染，其余时候返回 null。
- *
  * @returns 重置表单，或 null
  */
 export default function ResetPasswordPanel() {
@@ -44,10 +25,7 @@ export default function ResetPasswordPanel() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
 
-  /*
-    挂载后才读 URL，不能在渲染期读 —— 这是客户端组件，但服务端预渲染时
-    没有 window，直接读会炸。放 useEffect 里只在浏览器执行。
-  */
+  /* 挂载后才读 URL，不能在渲染期读 —— 这是客户端组件，但服务端预渲染时 */
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get('reset');
     if (t) setToken(t);
@@ -108,7 +86,7 @@ export default function ResetPasswordPanel() {
   const inputCls =
     'w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:border-accent focus:outline-none';
   const btnCls =
-    'inline-flex min-h-[40px] cursor-pointer items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition hover:opacity-90 disabled:opacity-50';
+    'btn-primary';
 
   /** 已成功：只显示结果和一个关闭按钮 */
   if (token === '') {

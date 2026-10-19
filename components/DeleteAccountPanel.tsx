@@ -1,20 +1,6 @@
 'use client';
 
-/**
- * 注销账号浮层：图形验证码 + 当前密码 + 邮箱验证码，三层都过才真的删。
- *
- * 【为什么是三层】这个操作不可逆（账号 + 全部评论一起没），挡的是三种不同的东西：
- *   · 图形验证码 → 挡脚本（批量提交、拿泄漏的会话列表去撞）
- *   · 当前密码   → 挡「拿到会话但不知道密码的人」（共用电脑、会话被偷）
- *   · 邮箱验证码 → 挡「连邮箱也被拿到」，同时留一条「你确定吗」的缓冲
- * 顺序按验证成本从低到高：图形码看一眼就填，密码要回忆，邮箱码得切到邮箱去抄。
- *
- * 【邮箱为什么是只读的】注销的收件人只能是当前登录用户自己的邮箱。
- * 服务端也是这个口径（不收请求体里的邮箱），前端把邮箱显示出来只是让用户确认「发到哪儿了」。
- *
- * 【为什么不用 window.confirm 收尾】原来只用一句 confirm 挡一道，太轻。
- * 现在「发码 → 填码 → 提交」本身就是三重确认，不再叠一个原生弹窗。
- */
+/** 注销账号浮层：图形验证码 + 当前密码 + 邮箱验证码，三层都过才真的删。 */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -140,7 +126,7 @@ export default function DeleteAccountPanel({
           <button
             type="button"
             onClick={close}
-            className="inline-flex min-h-[40px] cursor-pointer items-center rounded-lg border border-border px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            className="btn-soft"
           >
             {d.admin.cancel}
           </button>
@@ -197,12 +183,7 @@ export default function DeleteAccountPanel({
           <p className={HINT}>{d.comments.fieldCodeHint}</p>
         </div>
 
-        {/*
-          当前密码：第三层。
-          【为什么放在最后】它是三层里唯一「用户可能想不起来」的一道。
-          放在末尾，用户先做完确定能做完的两步，卡在密码上时前面的填写不会白费。
-          autoComplete="current-password" 让密码管理器认得这是「已有密码」而不是「新密码」。
-        */}
+        {/* 当前密码：第三层。 */}
         <div>
           <label className={LABEL} htmlFor="delete-password">
             {d.comments.fieldPassword}

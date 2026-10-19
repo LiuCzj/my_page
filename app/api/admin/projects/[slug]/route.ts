@@ -1,6 +1,4 @@
-/**
- * 管理端：删除一个项目。
- */
+/** 管理端：删除一个项目。 */
 
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-guard';

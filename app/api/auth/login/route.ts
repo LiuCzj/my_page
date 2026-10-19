@@ -1,17 +1,4 @@
-/**
- * 登录。
- *
- * 【为什么「邮箱不存在」和「密码错误」返回同一个错误码】
- * 分开返回等于送人一个账号枚举接口：攻击者拿一份邮箱列表挨个试，
- * 就能问出「哪些邮箱在这个站注册过」。统一回 `bad_credentials`，
- * 让这两种情况在外部看起来完全一样。
- *
- * 【为什么未验证也能登录】
- * 登录和「能否评论」是两件事。允许未验证用户登录，是为了让他能看到
- * 评论框上的「请先验证邮箱 / 重新发送验证信」提示 —— 直接拒绝登录的话，
- * 用户只会看到一个「登录失败」，完全不知道卡在哪一步。
- * 真正拦截评论的是 comments 接口。
- */
+/** 登录。 */
 
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -23,20 +10,13 @@ export const dynamic = 'force-dynamic';
 /** 登录接口的错误码 */
 export type LoginErrorCode = 'bad_request' | 'bad_credentials' | 'rate_limited';
 
-/**
- * 限流：同一 IP 十分钟内最多 10 次登录尝试。
- *
- * 【为什么比注册宽松】正常用户会打错密码，重试几次是常态；
- * 卡太死会把真人挡在外面。10 次足够挡住脚本的暴力猜测
- * （配合 scrypt 每次约 100ms 的计算成本，十分钟 10 次的猜测量毫无意义）。
- */
+/** 限流：同一 IP 十分钟内最多 10 次登录尝试。 */
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_ALLOW = 10;
 const hits = new Map<string, number[]>();
 
 /**
  * 判断该 IP 是否超出配额。
- *
  * @param ip 客户端 IP
  * @returns true 表示应拒绝
  */
@@ -54,7 +34,6 @@ function rateLimited(ip: string): boolean {
 
 /**
  * 处理登录请求。
- *
  * @param request 请求体 JSON：{ email, password }
  * @returns 成功 { ok: true, user }；失败 { ok: false, code }
  */

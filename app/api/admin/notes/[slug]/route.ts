@@ -1,11 +1,4 @@
-/**
- * 管理端：单篇笔记的读取与删除。
- *
- * 【为什么需要 GET】列表页（/notes）只传元数据（标题/日期/摘要/标签），不带正文 ——
- * 正文可能很长，全部塞进列表页的 HTML 是浪费。编辑器点「编辑」时才按 slug 取全文。
- *
- * 【删除会连带评论】见 lib/content.ts 的 deleteNote。
- */
+/** 管理端：单篇笔记的读取与删除。 */
 
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin-guard';

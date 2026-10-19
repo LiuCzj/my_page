@@ -1,19 +1,6 @@
 'use client';
 
-/**
- * 页尾，三件事：
- *   ① 上面一个「打个招呼 👋」+ 一颗实心按钮 —— 点它弹出邮箱联系方式
- *   ② 中间三栏：左边是谁 + 一句话 / 中间是页内导航（含打开数字分身）/ 右边是五个联系入口
- *   ③ 底下版权行
- *
- * 【底部那团柔光】页面收尾的一点温度。用 --accent（蓝）
- * 压到 0.14 的一层径向渐变，pointer-events-none，不挡下面任何点击。
- *
- * 【右栏为什么不用现成的 SocialLinks】SocialLinks 是「一排纯图标」，
- * 顶栏和磁贴区那种横排要的就是它。这一栏要的是「图标 + 名字」竖排，
- * 所以直接用同一批 BrandIcons 自己排，交互口径保持一致：
- * 外链一律 target=_blank + rel=noopener noreferrer，微信和邮箱走父组件的弹窗。
- */
+/** 页尾。 */
 
 import { useState } from 'react';
 import ContactModal, { type ContactModalVariant } from './ContactModal';
@@ -29,42 +16,16 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
   const { github, csdn, zhihu, wechat, email } = site.contact;
 
-  /**
-   * 一栏里的一行：图标 + 名字。外链和按钮共用同一套排版。
-   * 【min-h-[44px] 不是给桌面看的，是给手指留的】文字链接本身只有 20 来像素高，
-   * 在手机上就是「要点很准才点得到」。全站可点元素最短边 ≥44px 这条规矩，
-   * 页尾这两栏不能例外。
-   */
-  /**
-   * 一栏里的一行：图标 + 名字。外链和按钮共用同一套排版。
-   *
-   * 【为什么必须有 w-full】原来只写了 inline-flex，宽度就等于文字本身的宽度 ——
-   * 手机上「首页」这两个字量出来只有 28px 宽，手指很难点中。
-   * 这是移动端审计实测出来的（不是凭直觉），加上 w-full 之后
-   * 整行都成为可点区域：高度 44px、宽度撑满整列。
-   * 行内文字链接可以窄，但页脚这几行是列表项，用户会当成整行可点。
-   */
+  /** 一栏里的一行：图标 + 名字。外链和按钮共用同一套排版。 */
+  /** 一栏里的一行：图标 + 名字。外链和按钮共用同一套排版。 */
   const row =
     'inline-flex min-h-[44px] w-full items-center gap-2.5 text-sm text-muted-foreground transition-[color,transform] duration-200 hover:translate-x-1 hover:text-accent visited:text-muted-foreground';
-  /**
-   * 行内文本加粗：原版 font-medium 在 16px 字号下读着像普通正文，
-   * 访客扫读时容易漏掉。提到 font-semibold 与导航项同级，
-   * 「左中右」三栏字重一致，整页的字体分级才稳。
-   */
+  /** 行内文本加粗：原版 font-medium 在 16px 字号下读着像普通正文，访客扫读时容易漏掉。提到 font-semibold 与导航项同级，「左中右」三栏字重一致，整页的字体分级才稳。 */
   const label = 'font-semibold';
 
   return (
     <>
-      {/*
-        ── 版权页（第五页，2026-10-05）──────────────────────────────
-        页脚原来用 bg-card/40 + 一条灰上边线，夹在整页平色底上。
-        现在它是这本册子的**收口页**：底色走 --band-colophon（全页最暗/最浅的一档），
-        顶上一条 2px 中性色通栏线 —— 和上面四个跨页用的是同一套「页」的语言。
-        少了这一层，前四页翻完会落在「一块没有边界的灰区」上，翻页感断在最后一米。
-
-        【为什么这一页的主导色是中性色】封面紫、关于我青、项目橘、笔记绿都已经用掉了。
-        收口页不该再引入第五支彩色 —— 它是让视线停下来的地方，中性才收得住。
-      */}
+      {/* ── 版权页 ────────────────────────────── */}
       <footer
         className="relative mt-16 overflow-hidden"
         style={{ backgroundColor: 'hsl(var(--band-colophon))' }}
@@ -84,19 +45,13 @@ export default function Footer() {
         />
 
         <div className="relative mx-auto max-w-5xl px-4">
-          {/* ──  打个招呼 ───────────────────────────────
-              py-10 而不是 py-14：手机上这一屏只有一句标题加一颗按钮，
-              56px 的上下留白会把页尾撑到要多滚一屏才看得全。
-              sm 以上回到 56px，页尾才有收尾该有的呼吸感。 */}
+          {/* py-10 而不是 py-14：手机上这一屏只有一句标题加一颗按钮，56px 的上下留白会把页尾撑到要多滚一屏才看得全。 */}
           <div className="flex flex-col items-center py-10 text-center sm:py-14">
             <p className="text-3xl font-black tracking-tight text-foreground sm:text-4xl">
               {d.footer.greet}
               <span aria-hidden="true" className="ml-2 inline-block align-middle">👋</span>
             </p>
-            {/* 这颗按钮是「用邮箱联系我」，不是开聊天窗。
-                走的是站里既有的邮箱弹窗（可复制的地址），不直接 mailto：
-                直接 mailto 会在没装邮件客户端的设备上点了没反应，
-                而且弹窗里那个地址还能复制。聊天窗的入口在左栏「问分身」。 */}
+            {/* 走的是站里既有的邮箱弹窗（可复制的地址），不直接 mailto：直接 mailto 会在没装邮件客户端的设备上点了没反应，而且弹窗里那个地址还能复制。聊天窗的入口在左栏「问分身」。 */}
             <button
               type="button"
               onClick={() => setModal('email')}
@@ -108,13 +63,7 @@ export default function Footer() {
             </button>
           </div>
 
-          {/* ── ② 三栏 ──────────────────────────────────
-              【移动端改成两列】
-              sm 以下：`grid-cols-2`，「是谁」跨满两列占第一行，
-              「导航」和「联系」并排占第二行 —— 页尾这两块性质相同（都是一列链接），
-              在手机上竖着堆成两屏才滚得完，并排才是一屏能看完的密度。
-              sm 以上：回到原来的 1.35fr / 0.8fr / 1fr 三栏，
-              「是谁」那句 tagline 需要横向空间，三栏里它才有地方铺开。 */}
+          {/* sm 以下：`grid-cols-2`，「是谁」跨满两列占第一行，「导航」和「联系」并排占第二行 —— 页尾这两块性质相同（都是一列链接），在手机上竖着堆成两屏才滚得完，并排才是一屏能看完的密度。 */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-8 border-t border-border py-12 sm:grid-cols-[1.35fr_0.8fr_1fr] sm:gap-8">
             {/* 左：是谁。这里不放头像 —— 首屏已经有一枚圆头像，
                 同一张脸在页尾再出现一次只是重复。
@@ -131,9 +80,7 @@ export default function Footer() {
               </p>
             </div>
 
-            {/* 中：页面导航。站点从单页扩成三页后，项目改指真路由 /projects，
-                并补上笔记 /notes。这里用的是原生 <a> 而不是 next/link ——
-                现状如此，本次只同步 href，不动跳转方式以缩小改动面。 */}
+            {/* 并补上笔记 /notes。这里用的是原生 <a> 而不是 next/link ——现状如此，本次只同步 href，不动跳转方式以缩小改动面。 */}
             <nav aria-label={d.footer.navigate}>
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-foreground">
                 {d.footer.navigate}

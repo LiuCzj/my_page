@@ -1,33 +1,6 @@
 'use client';
 
-/**
- * 一枚工具标。三种情况，按「有没有标、标是几色」分流：
- *
- * 1. 单色品牌剪影 → components/ToolGlyphs.tsx 里的内联 SVG（PyTorch / pandas / NumPy /
- *    scikit-learn / Tableau / Jupyter / LangGraph / OpenAI / MySQL）。颜色走 Tailwind class，
- *    深浅两档各自给值，所以不需要 -dark 副本，也不受主题就绪时机影响，第一帧就是对的。
- * 2. 多色品牌文件 → public/tools/ 下的 <img>（Python 渐变、Docker 十片、VSCode 四色、
- *    Git、GitHub、Power BI 四片渐变、Qoder 自带浅底方块）。这类标一个文件里带好几个
- *    fill / gradient，内联进 JS 会把 <defs> 的 id 也复制进文档
- *    （同名 id 全站只能有一个生效），所以留在文件里。
- * 3. 根本没有公开标 → 字母徽标。现在只剩 XGBoost / LightGBM 两个（官方就没有矢量标）。
- *    与其为了凑齐去抓来源不明的图，不如老实显示首字母。
- *
- * 【为什么第 2 种要等 mounted】GitHub 那份文件是近黑的 #161614，深色底上必须换成
- * github-dark.svg。而主题只有 next-themes 在客户端才知道 —— 服务端渲染时
- * resolvedTheme 是 undefined，这时候按某一版硬编码就会出现
- * 「服务端给黑标、客户端换成白标」的闪烁与 hydration 不匹配。
- * 所以首帧先占一个同尺寸的位，第二帧再出图。第 1、3 种不需要这个等待。
- *
- * 【为什么用普通 <img> 而不是 next/image】实测把这几个 22px 的本地 SVG 换成 next/image
- * 之后，首页 First Load JS 从 163 kB 涨到 169 kB —— 多出来的 6 kB 全是它的客户端运行时，
- * 而本站 images.unoptimized 已开、SVG 也不需要尺寸优化。
- * 对单连接只有 10~30 KB/s 的国内访客来说，这 6 kB 是白付的。
- *
- * 【无障碍】这里一律 aria-hidden：标只是名字的图形重复，读屏拿到的是外层给的文字
- * （工具条里是 sr-only 的名字，最喜欢的工具里是并排的可见名字）。
- * 给 SVG 再挂一次 aria-label 会变成「PyTorch PyTorch」这样的重读。
- */
+/** 一枚工具标。三种情况，按「有没有标、标是几色」分流。 */
 
 import { useEffect, useState } from 'react';
 import { useTheme } from 'next-themes';

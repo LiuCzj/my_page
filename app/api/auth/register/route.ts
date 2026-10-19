@@ -1,16 +1,4 @@
-/**
- * 注册：校验邮箱验证码 → 建账号（直接是已激活）→ 直接登录。
- *
- * 【2026-10-04 流程改造】原来是「建账号 + 发验证链接 + 点链接才激活」。
- * 现在改成常见网站的流程：先调 /api/auth/send-code 拿 6 位码，
- * 再把「邮箱 + 码 + 密码 + 确认密码 + 昵称」一起提交到这里。
- * 码本身已经证明了邮箱归属，所以建出来的账号 **email_verified = 1**，
- * 不再需要点链接那一步（verify 路由保留，给历史未激活账号用）。
- *
- * 【为什么错误码要这么细】前端要把这些码翻成当前语言显示。
- * 细分的码能把「邮箱已注册」「昵称被占」「验证码错了」「验证码过期」分开 ——
- * 这几种情况用户该做的事完全不同，混成一句「注册失败」等于没说。
- */
+/** 注册：校验邮箱验证码 → 建账号（直接是已激活）→ 直接登录。 */
 
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
@@ -48,19 +36,13 @@ export type RegisterErrorCode =
   | 'name_taken'
   | 'rate_limited';
 
-/**
- * 极简限流：同一 IP 十分钟内最多注册 5 次。
- *
- * 【为什么注册也要限流】不限的话，脚本可以拿一份邮箱列表批量注册。
- * 个人站单进程部署够用；要更严就换 Redis。
- */
+/** 极简限流：同一 IP 十分钟内最多注册 5 次。 */
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_ALLOW = 5;
 const hits = new Map<string, number[]>();
 
 /**
  * 判断该 IP 是否超出配额，并在未超时时记一次。
- *
  * @param ip 客户端 IP
  * @returns true 表示应拒绝
  */
@@ -78,7 +60,6 @@ function rateLimited(ip: string): boolean {
 
 /**
  * 处理注册请求。
- *
  * @param request 请求体 JSON：{ email, code, password, confirmPassword, displayName }
  * @returns 成功 { ok: true, user }；失败 { ok: false, code }
  */
@@ -117,13 +98,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   const captchaId = (body.captchaId ?? '').trim();
   const captchaText = (body.captchaText ?? '').trim();
 
-  /*
-    ── 图形验证码：放在最前面 ──────────────────────────────────
-    【为什么排第一】它是这一整条链路上唯一专门用来挡脚本的一环。
-    后面的邮箱 DNS 查询（canReceiveMail）会真的往外发 DNS 请求，
-    是被刷时最贵的操作 —— 让它排在验证码后面，脚本连这一关都过不去。
-    【对正常用户的影响】他本来就要读图再填，先报这一项不额外增加负担。
-  */
+  /* ── 图形验证码：放在最前面 ────────────────────────────────── */
   const captchaVerdict = verifyCaptcha(captchaId, captchaText);
   if (captchaVerdict === 'expired') return fail('captcha_expired');
   if (captchaVerdict === 'too_many') return fail('captcha_too_many');
@@ -147,25 +122,13 @@ export async function POST(request: Request): Promise<NextResponse> {
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
   if (existing) return fail('email_taken', 409);
 
-  /*
-    昵称唯一。用 COLLATE NOCASE 让 "Tom" 和 "tom" 算同一个 —— 否则评论区里
-    会出现两个肉眼分不清的昵称，读者根本认不出谁是谁。
-
-    这里提前查一次是为了给出**准确的错误码**。真正的保证来自 lib/db.ts 的唯一索引：
-    并发下两个请求可能同时通过这次查询，那时由索引兜底（见下面的 catch）。
-  */
+  /* 昵称唯一。用 COLLATE NOCASE 让 "Tom" 和 "tom" 算同一个 —— 否则评论区里 */
   const nameTaken = db
     .prepare('SELECT id FROM users WHERE display_name = ? COLLATE NOCASE')
     .get(displayName);
   if (nameTaken) return fail('name_taken', 409);
 
-  /*
-    校验验证码。
-
-    【为什么放在最后】验证码是「用户刚去邮箱抄回来的东西」，前面那些（邮箱格式、
-    临时邮箱、密码强度、昵称）都是他手上就能改的。先报那些，用户一轮就能改完；
-    先报验证码的话，他改完密码还得再输一遍码（而码可能已经过期了）。
-  */
+  /* 校验验证码。 */
   const verdict = verifyCode(email, 'register', code);
   if (verdict === 'expired') return fail('expired_code');
   if (verdict === 'too_many') return fail('too_many_attempts');
@@ -183,10 +146,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       .run(email, displayName, hashPassword(password), now);
     userId = Number(info.lastInsertRowid);
   } catch (err) {
-    /*
-      唯一索引兜底：并发下两个请求可能同时通过了上面那两次查询。
-      靠错误信息里提到的索引名区分是邮箱冲突还是昵称冲突 —— 两者对用户的提示完全不同。
-    */
+    /* 唯一索引兜底：并发下两个请求可能同时通过了上面那两次查询。 */
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('idx_users_name')) return fail('name_taken', 409);
     return fail('email_taken', 409);
@@ -195,11 +155,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   // 码用完即弃：同一枚码不该能注册第二个账号
   consumeCode(email, 'register');
 
-  /*
-    图形验证码也在这里才销毁（不是校验通过就销毁）。
-    上面任何一步失败都不会走到这里，所以用户「图形码填对了、邮箱码填错了」时，
-    重试不用重新读图 —— 见 lib/captcha.ts 文件头对这个取舍的说明。
-  */
+  /* 图形验证码也在这里才销毁（不是校验通过就销毁）。 */
   consumeCaptcha(captchaId);
 
   // 注册即登录：省掉「注册完还得再登一次」

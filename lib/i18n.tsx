@@ -1,24 +1,6 @@
 'use client';
 
-/**
- * 轻量中英切换（自建，不引入 next-intl / i18next）。
- *
- * 【为什么不装 next-intl】
- * next-intl 的标准做法是加 middleware + /[locale] 路由段，会连带改动现有的路由结构
- * （app/page.tsx 与 app/notes/[slug]/page.tsx），并让所有 URL 变成 /zh/... /en/...。
- * 而 content/ 下的文章只有中文一种，
- * 加语言前缀反而让访客以为英文站有内容。第一版要的是「点一下就换、刷新不丢」，
- * 一个 Context + 两份字典就够了，新增依赖为 0。
- *
- * 【作用域限制（已写进 README）】
- * 只有界面文案会被翻译；文章正文仍是中文。
- *
- * 【为什么默认语言在 useEffect 里覆盖】
- * 服务端渲染永远用 site.defaults.lang（中文），客户端首次渲染也必须一致，
- * 否则 React 会报 hydration 不匹配。所以「读 localStorage 恢复英文」这件事放在
- * effect 里做 —— 代价是英文用户会看到一瞬间的中文，换来的是控制台干净无报错。
- * 这与 components/theme-toggle.tsx 用 mounted 开关防闪烁是同一个思路。
- */
+/** 轻量中英切换（自建，不引入 next-intl / i18next）。 */
 
 import {
   createContext,
@@ -57,7 +39,6 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 /**
  * 语言提供者。挂在 app/layout.tsx 里、包裹整个站点。
- *
  * @param children 被包裹的子树
  */
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -107,7 +88,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
 /**
  * 取当前语言与文案工具。
- *
  * @returns {I18nContextValue}
  * @throws 在 I18nProvider 之外调用时抛错，避免开发者拿到 undefined 后在页面上一片空白。
  */

@@ -1,27 +1,9 @@
 'use client';
 
-/**
- * 数字分身聊天区。
- *
- * 【它做什么】
- * 访客在这里直接问「你有哪些作品」「怎么联系你」，问题经 app/api/assistant/route.ts
- * 转给大模型，模型的回流按 token 逐字打出来（打字机效果），看起来是在跟本人聊天。
- *
- * 【三个刻意的设计】
- * 1. 欢迎语不存进 messages，而是每次从 config 现取 —— 这样切到中/英文它立刻跟着变，
- *    也不会出现「历史记录里躺着一种语言、界面已是另一种语言」的割裂。
- * 2. 历史存 localStorage（键 twin-chat），上限 config.assistant.maxHistory 条。
- *    选 localStorage 而不是内存：刷新、跳去项目页再回来，对话还在，面试演示时不会当场失忆。
- * 3. 失败的那条气泡带「重试」，重发时先把这条错误气泡删掉再发，
- *    避免把同一个问题重复塞进上下文里多花一份 token。
- *
- * 【SSE 解析为什么要自己拼 buffer】
- * 网络块（chunk）的边界和 SSE 的行边界不对齐：一个 chunk 可能只到 "data: {\"con" 就断了，
- * 也可能一次给两行。所以必须：累积 buffer → 按换行切 → 只处理完整行 → 把最后那段不完整的
- * 留下个循环。直接对 chunk 做 JSON.parse 是新手最常见的翻车点。
- */
+/** 数字分身聊天区。 */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Loader2, RotateCcw, Send, Trash2, X } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
@@ -42,26 +24,7 @@ const STORAGE_KEY = 'twin-chat';
 /** 与后端 MAX_CONTENT_LEN 保持一致，前端先挡一道，省一次往返 */
 const MAX_INPUT_LEN = 2000;
 
-/**
- * 手机档底部抽屉的「三档高度」。
- *
- * 【为什么是 top 而不是 height】
- * 抽屉的外层是 `fixed top-[var(--panel-top)] bottom-0`（上下都贴死），
- * 它的高度是**被 top 夹出来的**。所以「调高度」在这套定位里就等于「调 top」：
- * top 越小 → 抽屉越高。这样不用在任何地方写 height，
- * 也就不会和 `bottom` 上的软键盘抬升（kbInset）打架 —— 两者作用在不同的边上。
- *
- * 【三档的取值依据】
- * · half  = 55dvh：手机上调出键盘后剩下的可视高度大约 45~50dvh，
- *   抽屉占 55% 时上方还留得下一两行正文，访客知道「自己还在哪一页」。
- * · full  = 顶栏下方到底：即 top 取 --panel-top 本身，抽屉铺满整屏。
- * · peek  = 只露出一条把手（约 72px 的窗头），拖到这里松手 = 关闭。
- *   用「露一条边」而不是「直接关」是为了**可逆**：误拖到底还能拖回来，
- *   不会一松手面板就没了、还得重新点开心想「我刚才干了什么」。
- *
- * ⚠️ 单位是 dvh 而不是 vh：手机上 vh 不随地址栏收放变化，
- * 用 vh 会出现「拖到半高度时底部被地址栏切掉一截」。
- */
+/** 手机档底部抽屉的「三档高度」。 */
 const SNAP_HALF_VH = 55;
 /** 把手 + 窗头露出的高度（px）：peek 档时抽屉只留这么多，其余都在屏幕外 */
 const PEEK_HEIGHT = 72;
@@ -69,18 +32,7 @@ const PEEK_HEIGHT = 72;
 /** 抽屉三档 */
 type SheetSnap = 'peek' | 'half' | 'full';
 
-/**
- * 生成消息 id。
- *
- * 【为什么不用 crypto.randomUUID()】
- * 它是 Web Crypto 的一部分，只在「安全上下文」下存在 —— 也就是 HTTPS 或 localhost。
- * 手机通过 http://192.168.x.x:3000 访问局域网开发服务时属于非安全上下文，
- * 那时 crypto.randomUUID 是 undefined，调用直接抛 TypeError，
- * 表现就是「手机上点发送毫无反应」而电脑 localhost 一切正常。
- *
- * id 只在本次会话的列表里当 React key 用，不需要全局唯一，
- * 所以时间戳 + 自增序号 + 随机段足够，且任何上下文都可用。
- */
+/** 生成消息 id。 */
 let idSeq = 0;
 function nextId(): string {
   idSeq += 1;
@@ -89,15 +41,6 @@ function nextId(): string {
 
 /**
  * 把模型输出压成干净的纯文本。
- *
- * 【为什么提示词里禁了还要在这里再处理一遍】
- * 实测四次真实调用里有一次仍然吐了 `**加粗**` —— 提示词对格式只是「倾向」，不是保证，
- * 而聊天区是 whitespace-pre-wrap 的纯文本渲染，星号会原样露在界面上。
- * 所以这里做确定性的清理，而不是继续往提示词里堆话。
- *
- * 只处理界面会露馅的几种行内标记，不做真正的 Markdown 渲染器：
- * 给聊天气泡引一个 markdown 库，代价远大于收益。
- *
  * @param raw 模型返回的原始文本
  * @returns 去掉行内强调符号后的文本
  */
@@ -142,6 +85,8 @@ function loadHistory(): ChatMessage[] | null {
 
 export default function DigitalTwinChat() {
   const { d, pick, fill, lang } = useI18n();
+  // 当前路由：后端据此把「访客正在看的那篇笔记」整篇注入提示词
+  const pathname = usePathname();
   /** 聊天窗是悬浮面板：开合由外部（首屏角色、顶栏「问分身」、移动端抽屉）通过 Context 控制 */
   const { open, closeChat } = useTwinChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -166,11 +111,7 @@ export default function DigitalTwinChat() {
   // 卸载时收尾：留着半截的流会触发「在已卸载组件上 setState」告警
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  /**
-   * 面板展开时：Esc 关闭 + 把光标直接放进输入框（省掉一次点击）。
-   * 面板是「非模态」的 —— 不挡背景、不加遮罩，所以这里只做这两件事，
-   * 不做焦点圈禁，也不锁背景滚动，访客可以一边看页面一边聊。
-   */
+  /** 面板展开时：Esc 关闭 + 把光标直接放进输入框（省掉一次点击）。 */
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (e: KeyboardEvent) => {
@@ -185,10 +126,20 @@ export default function DigitalTwinChat() {
     };
   }, [open, closeChat]);
 
-  // 新内容进来就滚到底部。block:'nearest' 只在确实超出可视区时滚动，不会把页面拽走
+  /** 消息区滚动跟随。 */
+  const lastScrollKey = useRef('');
   useEffect(() => {
-    if (status === 'sending') endRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [messages, status]);
+    if (!open) {
+      // 关闭时清空指纹：下次打开会重新滚到底，让访客先看到最新那条
+      lastScrollKey.current = '';
+      return;
+    }
+    const last = messages[messages.length - 1];
+    const key = last ? `${last.id}:${last.content.length}:${last.state ?? ''}` : 'empty';
+    if (key === lastScrollKey.current) return;
+    lastScrollKey.current = key;
+    endRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [messages, open]);
 
   /** 持久化，并按 config 上限裁掉最老的消息 */
   const persist = useCallback((next: ChatMessage[]) => {
@@ -221,6 +172,8 @@ export default function DigitalTwinChat() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             lang,
+            // 当前路由：后端据此把「访客正在读的那篇笔记」整篇注入提示词
+            pagePath: pathname,
             messages: history
               .filter((m) => m.state !== 'error')
               .map((m) => ({ role: m.role, content: m.content })),
@@ -339,7 +292,8 @@ export default function DigitalTwinChat() {
         }
       }
     },
-    [lang, persist],
+    // pathname 必须进依赖：换页后要拿到新的路由，漏了会把旧页当作「当前页」发出去
+    [lang, pathname, persist],
   );
 
   /** 发送输入框内容（或一键提问按钮塞进来的内容） */
@@ -414,29 +368,9 @@ export default function DigitalTwinChat() {
   const bubbleBase =
     'max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed';
 
-  /**
-   * ============ 手机档底部抽屉：可拖拽调高度 ============
-   *
-   * 【为什么需要它】<768px 时正文不让位（让位会把正文挤成一条竖线），
-   * 抽屉必然要盖住内容。原来它从顶栏下方一路铺到屏幕底 —— 访客打开后
-   * 完全看不到自己在哪一页。允许拖拽后：想专注问答就拉满，想边看边问就拉到半高。
-   *
-   * 【和 TwinEntry（右下角那颗可拖动的分身按钮）是同一套思路】
-   *   pointerdown 记起点 → move 超过阈值才算拖 → up 落定并吸附 → 夹在合法范围内。
-   * 区别只有一处：那颗按钮夹的是「屏幕四边」，这里夹的是「三档高度之间」。
-   *
-   * 【为什么拖动时用 translateY 而不是改 top】
-   * 改 top 会触发 layout（每帧重算盒子位置），translation 只走合成层。
-   * 拖动期间给整块面板加 translateY(偏移)，松手时才把偏移换算成新的 top 并清零 —— 
-   * 视觉上完全连续，代价只有一次 layout。
-   */
+  /** 抽屉必然要盖住内容。原来它从顶栏下方一路铺到屏幕底 —— 访客打开后 */
   const [snap, setSnap] = useState<SheetSnap>('half');
-  /**
-   * snap 的 ref 镜像，只给「需要读它但不能把它列进依赖」的回调用（见 onSheetPointerUp）。
-   * 为什么不干脆把 snap 加进 useCallback 依赖：那会让 handler 每次换档都重建、
-   * 绑到新的指针捕获上下文上，拖动中途换档时反而更容易出怪问题；
-   * ref 是这里更稳的做法。
-   */
+  /** snap 的 ref 镜像，只给「需要读它但不能把它列进依赖」的回调用（见 onSheetPointerUp）。 */
   const snapRef = useRef<SheetSnap>('half');
   /** 拖动中的实时垂直偏移（px，向下为正）。null = 没在拖 */
   const [sheetDragY, setSheetDragY] = useState<number | null>(null);
@@ -450,10 +384,7 @@ export default function DigitalTwinChat() {
   /** 面板外层节点，用来量当前 top、算夹取范围 */
   const sheetRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * 顶栏下沿的屏幕坐标 —— 抽屉的 top 下限（再往上就盖住顶栏的按钮了）。
-   * 从 --panel-top 读，保证与 CSS 里那份只有同一个来源。
-   */
+  /** 顶栏下沿的屏幕坐标 —— 抽屉的 top 下限（再往上就盖住顶栏的按钮了）。 */
   const readPanelTop = useCallback(() => {
     const raw = getComputedStyle(document.documentElement).getPropertyValue('--panel-top').trim();
     const px = parseFloat(raw);
@@ -564,25 +495,8 @@ export default function DigitalTwinChat() {
       const settledTop = clampTop(g.startTop + (e.clientY - g.startY), viewportH, panelTop);
       const target = nearestSnap(settledTop, viewportH, panelTop);
 
-      /*
-        【收起为什么不直接关，而是先缩成「一条」】
-        站长在手机上拖到底的原始诉求是「把挡路的东西挪开」，不是「关掉它」。
-        如果拖到底=立刻关闭，那么「只想把它调矮一点」这个更常见的意图
-        会因为拖过头而变成「面板没了，还得重新点开」—— 手机上拖动本来就容易过头。
-        两段式（先缩成一条 → 再拖才关）把这两个意图分开：
-          · 拖到底 = 缩成一条把手，正文全露出来，随时能拉回来（可逆）
-          · 已经在「一条」上还继续往下拖 = 明确要关（不可逆，但意图清晰）
-        而且关闭本来就有三个入口（面板 ×、Esc、顶栏），不缺这一个。
-      */
-      /*
-        ⚠️ 判「当前是不是已经在 peek 档」必须读 snapRef，不能读闭包里的 snap。
-        `onSheetPointerUp` 是 useCallback，依赖里一旦漏掉 `snap`
-        （很容易漏 —— 「读状态」比「写状态」隐蔽得多），
-        闭包里的 snap 就会永远停在首次渲染的值，表现是
-        「已经缩成一条了，再拖还是缩回一条，永远关不掉」。
-        snapRef 每次都跟着最新值同步，从根上避开这类 stale closure；
-        也不在 setSnap 的 updater 里调 closeChat（updater 必须是纯函数）。
-      */
+      /* 拖到底的意图通常是「把挡路的东西挪开」，不是「关掉它」。 */
+      /* `onSheetPointerUp` 是 useCallback，依赖里一旦漏掉 `snap` */
       if (target !== 'peek') {
         setSnap(target);
         return;
@@ -603,31 +517,10 @@ export default function DigitalTwinChat() {
     setSheetDragY(null);
   }, []);
 
-  /**
-   * 手机档抽屉的 top 值（px）。
-   *
-   * ⚠️ **≥768px 时固定返回 panelTop**（= 顶栏下沿），不是当前吸附档。
-   * 桌面档的右侧栏同样读 --sheet-top（见 JSX 里的 class，md 没有覆盖 top），
-   * 如果这里还返回「半高档」的位置，右侧栏会被钉在屏幕中间而不是顶栏下方。
-   * 所以断点判断在 JS 里也要做一次 —— 阈值与 CSS 的 md: 严格一致（都是 768）。
-   */
+  /** 手机档抽屉的 top 值（px）。 */
   const MD_BREAKPOINT = 768;
 
-  /**
-   * 软键盘把输入框埋了这件事。
-   * iOS Safari 弹键盘时**不缩小布局视口**，只是把可视区域往上盖一层 ——
-   * 这块面板是 position:fixed + bottom:0，它的底边仍按「整屏」算，
-   * 于是键盘正好压在输入框上，用户打字时看不见自己打了什么。
-   * 页面本身能滚，但 fixed 元素不跟着滚，所以系统那套「聚焦时滚到可见」也救不了它。
-   *
-   * 解法是盯着 visualViewport：它报的是「键盘之上还剩多少」，
-   * 布局高 − 可视高 − 可视区顶部偏移 就是被吃掉的高度，直接抬面板的 bottom。
-   * 键盘收起后这个数归 0，那时**不写内联 bottom**，交回 Tailwind 的 bottom-0 / md:bottom-4，
-   * 否则桌面端右下角窗口的 16px 下边距会被顶成贴底。
-   *
-   * ⚠️ **必须声明在 sheetTop 之前**：sheetTop 要读它（键盘弹起时切 full 档），
-   * 而 const 有 TDZ —— 顺序放反了运行时会抛 ReferenceError（tsc 不一定报）。
-   */
+  /** 软键盘把输入框埋了这件事。 */
   const [kbInset, setKbInset] = useState(0);
   useEffect(() => {
     const vv = window.visualViewport;
@@ -656,19 +549,7 @@ export default function DigitalTwinChat() {
     return () => window.removeEventListener('resize', measure);
   }, []);
 
-  /**
-   * 生效的 top。
-   * 就绪前（viewportH=0）返回 null → 不写变量 → class 里的 fallback 是 --panel-top，
-   * 与改造前行为一致，所以首帧不闪。
-   *
-   * ⚠️ **键盘弹起时强制铺满**（`kbInset > 0` → 忽略当前档位、直接按 full 算）。
-   * 两个原因：
-   *   ① 点了输入框就是要专心打字，此时再留半屏正文没有意义；
-   *   ② 更关键的是**避免两个「高度来源」互相打架** —— 键盘抬高 bottom（抽屉变矮）、
-   *      而某些安卓浏览器弹键盘时 innerHeight 也会缩小（抽屉的 top 又往上跑），
-   *      两者叠加会把抽屉挤成一条缝、输入框都看不见。
-   *      直接切 full 之后 top 钉在 --panel-top，高度完全由 bottom 决定，方向单一、不会打架。
-   */
+  /** 生效的 top。 */
   const sheetTop = (() => {
     if (viewportH === 0) return null;
     const panelTop = readPanelTop();
@@ -677,27 +558,7 @@ export default function DigitalTwinChat() {
     return snapToTop(snap, viewportH, panelTop); // 手机档：三档吸附
   })();
 
-  /**
-   * 面板是否走「半透明 + 背景模糊」。
-   *
-   * 【触发条件】只在**手机档的半开档**（`<768` 且 `snap === 'half'`、且没弹键盘）成立。
-   *
-   * 【为什么不做「检测是否盖住文字」】
-   * 手机上抽屉只要展开就必然盖住下半屏的正文 —— 几何检测算出来的结果永远是「遮挡」，
-   * 等于白算一遍，还多一次整页 DOM 遍历的开销。按档位决定更简单、也更符合直觉：
-   * 拉满 = 专心问答（不透明），拉到半高 = 边看边问（半透明）。
-   *
-   * 【为什么是「半透明底 + backdrop-blur」而不是整体 opacity】
-   * 整体 opacity 会把面板里的聊天文字、按钮一起变淡，读起来很吃力 ——
-   * 而站长明确要求「不能透明到看不清图案」。backdrop-blur 让**背后的正文**糊成一片
-   * 但轮廓可辨（知道下面是什么、能对上下文），面板自己的内容则完全清晰。
-   *
-   * 【透明度取值】70% 底 + md 模糊 —— **实测对比出来的**（55% / 70% / 85% 三档并排试过）：
-   *   · 55%：面板自己的标题都糊进背景了，两边的字互相干扰，两边都读不清（站长要的「不能透明到看不清」的下限）；
-   *   · 85%：和 80% 观感几乎一样，看不出「透」，等于白做；
-   *   · **70%**：面板文字清晰可读，同时抽屉顶边能看见背后正文的模糊轮廓 —— 平衡点。
-   * 模糊用 md（12px）而不是 lg：手机上 backdrop-blur 是每帧重算的合成开销，lg 会在低端机上掉帧。
-   */
+  /** 面板是否走「半透明 + 背景模糊」。 */
   const translucent =
     viewportW > 0 &&
     viewportW < MD_BREAKPOINT &&
@@ -705,49 +566,15 @@ export default function DigitalTwinChat() {
     kbInset === 0 &&
     sheetDragY === null;
 
-  /**
-   * 关闭时整块不渲染 —— 这是「消息多了网页不再变长」的前提之一：
-   * 面板不占文档流，页面高度与聊天内容彻底解耦。
-   */
+  /** 关闭时整块不渲染 —— 这是「消息多了网页不再变长」的前提之一。 */
   if (!open) return null;
 
   return (
-    /*
-     * 悬浮面板定位。**两段形态，分界点是 md(768px)，与 ChatInset 的让位阈值严格对齐**：
-     *
-     * · <md（手机 + 小屏平板）：贴顶栏下方、左右贴边撑到屏幕底部（**底部抽屉**）。
-     *   这一区间正文不做让位（让位会把它挤成一条竖线），所以也不该让面板变成
-     *   一个横在中间的 400px 小窗 —— 底部抽屉至少把上半屏的正文完整留给访客。
-     * · ≥md：收成右下角 400px 宽的窗口，同时 ChatInset 给正文加 432px 右内边距，
-     *   正文左移、面板占住那片空白，两者互不干扰。
-     *
-     * 【为什么 2026-10-06 把分界点从 sm(640) 改成 md(768)】
-     * 改前 640~767 这段宽度里，面板已经变成 400px 小窗贴在右侧，
-     * 而 ChatInset 的让位当时要 lg(1024) 才生效 —— 于是这段宽度两头不靠：
-     * 面板已经窄到不像抽屉，正文又还没开始让位，结果就是盖得一塌糊涂。
-     * 现在两边的阈值统一到 md：要么「抽屉 + 不让位」，要么「侧栏 + 让位」，没有中间态。
-     *
-     * 【top 为什么用 --panel-top 而不是写死像素】
-     * 面板只要顶边和顶栏高度对不上，真机上就会出现两种错：压住顶栏的语言/主题按钮，
-     * 或者浮在半空、和顶栏之间露出一条背景缝（看着像布局崩了）。
-     * 顶栏高度只有 globals.css 里 --header-h 一个来源，面板跟着它算，这两种错都不会发生。
-     * 高度一律用 top + bottom 夹出来，不用 100dvh 算，避免出现量到 96px 那种差一位数的错位。
-     * kbInset 见上面那段：键盘弹起时把底边抬到键盘上方，否则输入框被埋。
-     */
+    /* 悬浮面板定位。**两段形态，分界点是 md(768px)，与 ChatInset 的让位阈值严格对齐**。 */
     <div
       id="digital-twin-chat"
       ref={sheetRef}
-      /*
-        【定位为什么全部走 class + CSS 变量，而不是内联 top/bottom】
-        手机档的三档高度是算出来的（见 snapToTop），必须由 JS 提供；
-        但 ≥md 的右侧栏形态是固定写法（top 仍跟 --panel-top、bottom 改成 16px）。
-        如果手机档的值写成内联样式，它的优先级高于任何 class，
-        桌面档会连 top/bottom 一起被内联值顶掉 —— 右侧栏会错位。
-        所以：JS 只往 CSS 变量里写值，class 负责「在哪个断点用哪个变量」——
-        md 变体在基础变体之后定义、同权重，天然覆盖，不需要 !important。
-        （桌面档的 top 没有被 md 覆盖，仍然读 --sheet-top →
-          此时 JS 给的值恰好等于 --panel-top，与改造前完全一致。）
-      */
+      /* 手机档的三档高度是算出来的（见 snapToTop），必须由 JS 提供； */
       className="fixed inset-x-0 top-[var(--sheet-top,var(--panel-top))] bottom-[var(--sheet-kb,0px)] z-[80] flex flex-col transition-[top,transform] duration-[280ms] ease-[cubic-bezier(0.33,1,0.68,1)] md:inset-x-auto md:bottom-4 md:left-auto md:right-4 md:h-auto md:max-h-[720px] md:w-[400px]"
       style={{
         ['--sheet-top' as string]: sheetTop !== null ? `${sheetTop}px` : undefined,
@@ -759,19 +586,7 @@ export default function DigitalTwinChat() {
       role="dialog"
       aria-label={d.chat.title}
     >
-      {/*
-        ===== 拖拽把手（仅手机档）=====
-          它是**整条**可抓的横杠区，不是只有那根 4px 的线 —— 4px 的目标太难点中，
-          手指按不准。所以外面这层给了 44px 的触控高度（全站触控下限），
-          里面的圆杠只负责「看起来能抓」。
-
-          touch-none 必不可少：手机浏览器默认把纵向拖动当滚页面，
-          不加这个的话手指一往下拉，页面跟着滚，抽屉纹丝不动。
-
-          点击（不拖）＝ 在半高 / 全屏之间切换 —— 给不方便精细拖动的人留的快捷路径。
-          所以它是个 <button>，键盘 Enter/Space 也能触发；拖动则由 pointer 事件接管，
-          两者靠「是否超过 8px」区分（与 TwinEntry 同一套阈值逻辑）。
-        */}
+        {/* 它是**整条**可抓的横杠区，不是只有那根 4px 的线 —— 4px 的目标太难点中，手指按不准。所以外面这层给了 44px 的触控高度（全站触控下限），里面的圆杠只负责「看起来能抓」。 */}
         <button
           type="button"
           aria-label={d.chat.sheetHandle}
@@ -790,11 +605,7 @@ export default function DigitalTwinChat() {
         </button>
         <section
           id="ask-twin"
-          /*
-            peek 档（缩成一条）时把整个面板体藏起来，只留上面那根把手。
-            不这么做的话，72px 的高度会让 header/消息区/输入框全被 flex 压扁，
-            挤成一团糊在一条缝里 —— 比直接藏掉难看得多，也没有信息量。
-          */
+          /* peek 档（缩成一条）时把整个面板体藏起来，只留上面那根把手。 */
           className={`${
             snap === 'peek' && sheetDragY === null ? 'hidden' : 'flex'
           } h-full min-h-0 flex-1 flex-col overflow-hidden border border-border shadow-2xl md:flex md:rounded-2xl ${
@@ -834,7 +645,7 @@ export default function DigitalTwinChat() {
           </div>
         </header>
 
-      {/* 消息区：唯一会滚动的部分。min-h-0 是 flex 子项能内部滚动的必要条件 */}
+          {/* 消息区：唯一会滚动的部分。min-h-0 是 flex 子项能内部滚动的必要条件 */}
       {/* overscroll-contain：消息列表滚到头时不再带着整页一起动。
           手机上少了这一句，往上翻历史翻到顶会顺手把背后的页面也拖走，回来时位置就丢了 */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 py-4">

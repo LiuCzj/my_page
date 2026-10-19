@@ -1,21 +1,4 @@
-/**
- * 站点唯一配置文件 —— 以后你只需要改这一个文件。
- *
- * 【这是什么】
- * 全站所有「关于你本人的事实」（名字、一句话介绍、头像、五个联系方式、公众号二维码、
- * 邮箱、数字分身要背的资料）都集中在这里。组件里不再零散硬编码中文，
- * 改一处即可全站生效，也保证中英文切换时这些资料能跟着换语言。
- *
- * 【当前填写状态】
- * 五个联系方式（GitHub / CSDN / 知乎 / 微信公众号 / 邮箱）、公众号二维码与头像均已填真实内容。
- *
- * 【字段留空会怎样】
- * 联系方式 url 留空时，顶栏图标仍可点击，但只弹出「该联系方式尚未配置」提示，
- * 不会把访客送到错误页面；二维码路径留空时弹窗显示提示文字而不是破图。
- *
- * 【类型说明】
- * LocalizedText = { zh, en } 二选一的结构，由 lib/i18n.tsx 的 pick() 按当前语言取值。
- */
+/** 站点唯一配置文件 —— 以后你只需要改这一个文件。 */
 
 /** 当前站点支持的语言。新增语言要同时加 dictionaries/<语言>.ts */
 export type Lang = 'zh' | 'en';
@@ -26,44 +9,21 @@ export interface LocalizedText {
   en: string;
 }
 
-/**
- * 技术栈里的一个小节：小标题 + 条目。
- *
- * 【为什么要有小节这一层】「深度学习 / 机器学习」底下本来分两类东西
- * （深度学习框架 / 传统机器学习），平铺成一串标签就读不出这层区别；
- * 「数据处理与业务分析」同理。小标题留空 = 这一组只有一段、不需要小标题。
- */
+/** 技术栈里的一个小节：小标题 + 条目。 */
 export interface SkillSection {
   /** 小节名。留空表示这一组不分子节，条目直接铺开 */
   label: LocalizedText;
   items: LocalizedText[];
 }
 
-/**
- * 技术栈的一个分组。
- *
- * 【为什么带 id】分组与条目现在可以在网页上编辑（存在数据库里），编辑时要给每一组一个
- * 稳定标识：既是「这次改的是哪一组」，也当 React 的 key。它不参与展示。
- *
- * 【为什么统一成 sections，而不是「要么 items、要么 sections」两种形态】
- * 两种形态会让渲染、编辑、存储三处各写一遍分支；统一成「至少一个小节」之后只有一套逻辑。
- * 不想要小标题，把 label 留空即可。
- */
+/** 技术栈的一个分组。 */
 export interface SkillGroup {
   id: string;
   title: LocalizedText;
   sections: SkillSection[];
 }
 
-/**
- * 工具品牌标的两种来路，分开列是因为渲染路径不同：
- * - FileToolGlyph：public/tools/ 下的多色品牌文件（渐变、多路径、自带底色），只能走 <img>
- * - InlineToolGlyph：内联在 components/ToolGlyphs.tsx 里的单色剪影，走 <svg> + class 控色
- *
- * 刻意用联合类型而不是 string：填一个不存在的名字，typecheck 当场就报，
- * 不会等到线上裂一个图。XGBoost / LightGBM 官方就没有矢量标，不给 icon，
- * 退化成字母徽标。
- */
+/** 工具品牌标的两种来路，分开列是因为渲染路径不同。 */
 export type FileToolGlyph =
   | 'python'
   | 'git'
@@ -102,12 +62,7 @@ export interface SiteConfig {
     nameAccent: string;
     /** 头像（public/ 下的相对路径） */
     avatar: string;
-    /**
-     * 「关于我」章节头那张作者小像（`public/images/hero-scene.jpg`）的替代文本，双语。
-     * 【写法要求】必须是**画面描述**而不是「这是一张插画」—— 读屏用户拿不到画面，
-     * 只有把画里的人、物、动作说出来，这张图才对他们存在。
-     * ⚠️ **换图必须回来改这一条**，否则读屏用户听到的是上一张画。
-     */
+    /** 「关于我」章节头那张作者小像（`public/images/hero-scene.jpg`）的替代文本，双语。 */
     heroSceneAlt: LocalizedText;
     /** 一句话介绍 */
     tagline: LocalizedText;
@@ -125,34 +80,18 @@ export interface SiteConfig {
       /** [纬度, 经度]，单位「度」，北纬/东经为正 */
       coordinates: [number, number];
     };
-    /**
-     * 目的地。为 null 时「籍贯」卡片不画箭头、也不出现第二个城市。
-     * 留 null 是因为你只给了邵阳一个地点，我不会替你编一个目的地出来。
-     */
+    /** 目的地。为 null 时「籍贯」卡片不画箭头、也不出现第二个城市。 */
     destination: {
       label: LocalizedText;
     } | null;
   };
-  /**
-   * 技术栈：按他自己给的那段话分成三组，条目原样收录，没有添加他没写的东西。
-   * 这一组是「会什么」，和下面的 tools（用什么软件）分开，避免同一份清单出现两遍。
-   */
+  /** 技术栈：按他自己给的那段话分成三组，条目原样收录，没有添加他没写的东西。 */
   skills: SkillGroup[];
   /** 工具条：icon 是品牌标（见 ToolGlyph 的两种来路）；没标的留空，渲染成字母徽标 */
   tools: { label: LocalizedText; icon?: ToolGlyph }[];
   /** 最喜欢的工具。同样是没标的留空走字母徽标 */
   favoriteTools: { label: LocalizedText; icon?: ToolGlyph }[];
-  /**
-   * 项目列表。
-   *
-   * 【为什么项目留在 config，而不像笔记那样进 content/】
-   * 项目是短结构化记录（标题 / 摘要 / 技术栈 / 链接），不是长文；
-   * 这个形状已经有两个消费方（首页摘要、/projects 页）在用，扩字段是零迁移成本。
-   * 而且它和数字分身引用的人设资料同源，放在一起改一处就全站生效。
-   * 真要给某个项目写长文，写一篇笔记让项目卡链过去即可，不必再开一套 MDX 管线。
-   *
-   * 【空数组会怎样】「项目」区块显示一句诚实的空态，不会留一个看起来坏掉的洞。
-   */
+  /** 项目列表。 */
   projects: {
     /** 稳定标识：用作 React key，也是以后若要开项目详情页时的路径段 */
     slug: string;
@@ -194,18 +133,9 @@ export interface SiteConfig {
     lang: Lang;
     theme: 'dark' | 'light';
   };
-  /**
-   * 背景音乐（2026-10-05 新增）。
-   *
-   * 【src 留空字符串会怎样】整个播放器**不渲染** —— 页面上不会出现一个点了没反应的按钮。
-   * 文件放好后把路径填上即可（`public/` 之后的相对路径，例如 `/audio/bgm.mp3`）。
-   * 路径填了但文件不在，播放控件会变成「不可用」态并在悬停提示里说明。
-   *
-   * 【播放器的默认状态】打开页面时是**暂停 + 静音**，永远不会自动出声。
-   * 详见 lib/music-context.tsx 的说明（那里也写了这个默认值带来的交互代价）。
-   */
+  /** 背景音乐。 */
   music: {
-    /** public/ 下的相对路径。留空 = 不渲染播放器 */
+    /** 音频文件名（路径部分不参与取用）。留空 = 不渲染播放器。 */
     src: string;
     /** 曲名，鼠标悬停在播放按钮上时显示 */
     title: LocalizedText;
@@ -256,19 +186,13 @@ export const site: SiteConfig = {
     ],
     location: {
       label: { zh: '中国湖南省邵阳市', en: 'Shaoyang, Hunan, China' },
-      /**
-       * 东经 111.469230°、北纬 27.237842°，城市中心参考坐标（GCJ-02 系）。
-       * 与 WGS-84 差几十到上百米，在一颗装饰性地球上完全看不出来，不做换算。
-       */
+      /** 东经 111.469230°、北纬 27.237842°，城市中心参考坐标（GCJ-02 系）。 */
       coordinates: [27.2378, 111.4692],
     },
     destination: null,
   },
 
-  /**
-   * 以下清单逐条来自你本人给的内容，我没有添加、也没有替换成更「好听」的说法。
-   * 英文一栏是同一含义的翻译，不是另一份内容。
-   */
+  /** 以下清单逐条来自你本人给的内容，我没有添加、也没有替换成更「好听」的说法。 */
   skills: [
     {
       id: 'dl-ml',
@@ -296,16 +220,7 @@ export const site: SiteConfig = {
         },
       ],
     },
-    /*
-     * 【2026-10-04 按站长的原话重写】
-     * 分组名、小节名、条目全部照他给的那份清单写，没有改写措辞、也没有添油加醋。
-     * 结构上多了「小节」这一层：他给的是「深度学习框架：…」「传统机器学习：…」这种写法，
-     * 本身就是两个小标题，而旧结构只有「组 → 条目」两层，塞不进去。
-     *
-     * 【这些值只是种子】它们只在**数据库里那张表还空着的时候**灌进去一次
-     * （见 lib/seed.ts 的 seedSkills）。灌过之后以库里的为准 ——
-     * 站长在网页上改过之后，再改这里不会覆盖他的内容，正合预期。
-     */
+    /* 分组名、小节名、条目全部照他给的那份清单写，没有改写措辞、也没有添油加醋。 */
     {
       id: 'llm',
       title: { zh: '大模型开发', en: 'LLM development' },
@@ -376,12 +291,7 @@ export const site: SiteConfig = {
     },
   ],
 
-  /**
-   * 工具条 —— 他 2026-09-30 给的原话清单，当时一条没加一条没删；
-   * 2026-10-01 他点名补了 MySQL，又点名删掉 ReAct / Plan-and-Solve / Reflection / RAG
-   * 那四条（理由是「不是产品就不该混在品牌标里」）。
-   * 这四个名字本身没消失，它们作为技能条目留在技术栈那一条带里。
-   */
+  /** 工具条 —— 他 给的原话清单，当时一条没加一条没删； */
   tools: [
     { label: { zh: 'Python', en: 'Python' }, icon: 'python' },
     { label: { zh: 'PyTorch', en: 'PyTorch' }, icon: 'pytorch' },
@@ -403,19 +313,12 @@ export const site: SiteConfig = {
   favoriteTools: [
     /** Codex 是 OpenAI 的产品，它自己没有独立标，用 OpenAI 的标 */
     { label: { zh: 'Codex', en: 'Codex' }, icon: 'openai' },
-    /**
-     * Qoder 官方只给一张 73 KB 的 favIcon.svg（矢量但坐标极密），
-     * 按本站带宽预算不能直接用 —— svgo 压到精度 1 是 5.3 KB，自带浅灰底方块，
-     * 深浅两版主题都成立，所以走 public/tools/ 那份文件。
-     */
+    /** Qoder 官方只给一张 73 KB 的 favIcon.svg（矢量但坐标极密），按本站带宽预算不能直接用 —— svgo 压到精度 1 是 5.3 KB，自带浅灰底方块，深浅两版主题都成立，所以走 */
     { label: { zh: 'Qoder', en: 'Qoder' }, icon: 'qoder' },
     { label: { zh: 'GitHub', en: 'GitHub' }, icon: 'github' },
   ],
 
-  /**
-   * 示例项目 —— 前两条是这个站自己真实用到的东西，第三条是明确标注的占位，
-   * 等你把真项目给我时直接替换。结构照抄即可，`slug` 不能重复。
-   */
+  /** 示例项目 —— 前两条是这个站自己真实用到的东西，第三条是明确标注的占位，等你把真项目给我时直接替换。结构照抄即可，`slug` 不能重复。 */
   projects: [
     {
       slug: 'this-homepage',
@@ -472,9 +375,7 @@ export const site: SiteConfig = {
       label: { zh: '知乎', en: 'Zhihu' },
     },
     wechat: {
-      /**
-       * 二维码图片路径（public/ 下）。留空时弹窗显示「尚未上传」提示，不会出现破图。
-       */
+      /** 二维码图片路径（public/ 下）。留空时弹窗显示「尚未上传」提示，不会出现破图。 */
       qrcode: '/images/wechat-qrcode.jpg',
       accountName: '锦创AI',
       label: { zh: '微信公众号', en: 'WeChat Official Account' },
@@ -491,24 +392,13 @@ export const site: SiteConfig = {
 
   defaults: {
     lang: 'zh',
-    /**
-     * 首次访问的默认主题。
-     * 【2026-10-05 由 dark 改成 light】站长要求「以后打开网页默认是亮色模式」。
-     * 配套改动在 app/layout.tsx：ThemeProvider 上显式写了 enableSystem={false} ——
-     * 不写的话 next-themes 会去看系统的 prefers-color-scheme，
-     * 系统是深色的访客就还是拿到深色，「默认亮色」就不成立了。
-     * 访客自己点过右上角的主题开关后，选择存在 localStorage 里，不再受这个值影响。
-     */
+    /** 首次访问的默认主题。 */
     theme: 'light',
   },
 
   music: {
-    /*
-      ⚠️ 这里填的是**预期路径**：文件要放在 public/audio/bgm.mp3。
-      站长还没放音乐文件时，播放控件会显示成「不可用」态（悬停有说明），
-      文件一放进去就自动可用 —— 不需要再改代码。
-      想换成别的文件名/格式，改这一行即可（mp3 / m4a / ogg / wav 都行，浏览器认哪个看设备）。
-    */
+    /* 文件放在 private/audio/ —— 不是 public/，public/ 下的一切都会被静态服务。
+       换非 mp3 格式时还要改 app/api/audio/route.ts 里的 Content-Type。 */
     src: '/audio/bgm.mp3',
     title: {
       zh: '背景音乐',
@@ -517,9 +407,10 @@ export const site: SiteConfig = {
   },
 
   assistant: {
+    /** 首屏欢迎语，不走网络，避免聊天区一片空白 */
     greeting: {
-      zh: '我是锦创AI 的数字分身。机器学习、大模型、Agent、怎么联系他，都可以直接问我。',
-      en: "I'm 锦创AI's digital twin. Ask me about machine learning, LLMs, agents, or how to reach him.",
+      zh: '嗨，我是锦创AI 的分身，在这儿替他答话。想问什么直接说，我尽量讲人话；不知道的我会直说，不瞎编。',
+      en: "Hey, I'm 锦创AI's stand-in here. Ask me anything about him — I'll keep it plain, and I'll say so when I don't know instead of making something up.",
     },
     quickQuestions: [
       { zh: '最近 AI 的新进展是什么？', en: 'What are the recent breakthroughs in AI?' },
@@ -531,10 +422,5 @@ export const site: SiteConfig = {
   },
 };
 
-/**
- * 首页各摘要区块展示多少条。
- *
- * 单独抽成常量而不是写死在组件里：首页的「项目」和「笔记」两块要保持同样的节奏
- * （都是 3 条），数字写在一处，调整时不会只改了一块、另一块还是旧值。
- */
+/** 首页各摘要区块展示多少条。 */
 export const homePreview = { projects: 3, notes: 3 } as const;

@@ -1,23 +1,6 @@
 'use client';
 
-/**
- * 浮层外壳：遮罩 + 面板 + 标题 + 关闭。全站的弹层（登录、笔记/项目编辑器）都用它。
- *
- * 【为什么必须用 Portal 渲染到 document.body】
- * 这不是洁癖，是一个真实踩过的 bug：登录面板原来直接渲染在顶栏组件里，
- * 而顶栏是 `sticky z-50 backdrop-blur-md` ——
- *   · `backdrop-filter` 会让元素成为 `position: fixed` 后代的**包含块**，
- *     于是面板的 `fixed inset-0` 不再相对视口，而是被塞进顶栏那条 56px 高的横条里；
- *   · `z-50` 又让顶栏自成层叠上下文，面板里写的 `z-[120]` 只在那一层内有效，
- *     跑不到页面内容之上。
- * 结果是：点「登录」，面板出现在网页**后面**（用户报的「巨大 bug」）。
- * 挂到 body 上就一次性绕开这两个坑，也顺带让浮层不受任何祖先的 overflow/transform 影响。
- *
- * 【Esc 关闭】键盘用户不必去找关闭按钮。遮罩点击也关 —— 这是弹层的通用预期。
- *
- * 【移动端】内边距在窄屏收到 p-3、面板宽度走 w-full，配合 max-h 与自身滚动，
- * 手机上不会顶出屏幕；关闭按钮 36px、底部按钮 40px，都够手指点。
- */
+/** 浮层外壳：遮罩 + 面板 + 标题 + 关闭。全站的弹层（登录、笔记/项目编辑器）都用它。 */
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -29,12 +12,15 @@ export default function EditorPanel({
   onClose,
   children,
   footer,
+  full = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
   /** 底部操作条（保存 / 取消） */
   footer: React.ReactNode;
+  /** true = 铺满视口（写正文用），false = 居中浮层 */
+  full?: boolean;
 }) {
   const { d } = useI18n();
   /** SSR 阶段没有 document，挂载后才渲染 Portal */
@@ -60,7 +46,31 @@ export default function EditorPanel({
 
   if (!mounted) return null;
 
-  const panel = (
+  const closeBtn = (
+    <button type="button" onClick={onClose} aria-label={d.admin.cancel} className="btn-icon shrink-0">
+      <X size={16} aria-hidden="true" />
+    </button>
+  );
+
+  const panel = full ? (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+      className="fixed inset-0 z-[200] flex flex-col bg-background"
+    >
+      {/* 操作条放顶栏：底部不留 footer，正文才能一直铺到屏幕最下面 */}
+      <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-2 sm:px-6">
+        <h2 className="shrink-0 text-base font-bold text-foreground">{title}</h2>
+        <div className="ml-auto flex min-w-0 items-center gap-2">{footer}</div>
+        {closeBtn}
+      </header>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+        {children}
+      </div>
+    </div>
+  ) : (
     <div className="fixed inset-0 z-[200] flex items-start justify-center overflow-y-auto overscroll-contain bg-black/60 p-3 backdrop-blur-sm sm:p-6">
       {/* 遮罩层：点击关闭。放在面板之前、absolute 铺满，不挡面板自身的点击 */}
       <button
@@ -78,14 +88,7 @@ export default function EditorPanel({
       >
         <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-5">
           <h2 className="text-base font-bold text-foreground">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={d.admin.cancel}
-            className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
+          {closeBtn}
         </header>
 
         <div className="px-4 py-4 sm:px-5">{children}</div>

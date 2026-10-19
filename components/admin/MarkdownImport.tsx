@@ -1,15 +1,6 @@
 'use client';
 
-/**
- * 「上传 Markdown 文件」按钮 —— 选一个 .md/.markdown/.txt 文件，自动把里面的
- * frontmatter（标题/日期/摘要/标签/草稿）和正文填进编辑器。
- *
- * 【为什么要它】站长原话：「我可没空在这一个个字的敲」。
- * 笔记通常是在本地编辑器里写好的，上传到网页再手打一遍纯属浪费。
- *
- * 【为什么不走服务端】文件只在浏览器里读（FileReader），不上传、不入库 ——
- * 直接把文本交给解析函数即可。省一次网络往返，也不用为临时文件加清理逻辑。
- */
+/** 「上传 Markdown 文件」按钮 —— 选一个 .md/.markdown/.txt 文件，自动把里面的 */
 
 import { useRef, useState } from 'react';
 import { Upload } from 'lucide-react';
@@ -38,7 +29,7 @@ export default function MarkdownImport({
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="inline-flex min-h-[40px] cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 text-sm font-semibold text-foreground transition hover:bg-secondary"
+        className="btn-soft"
       >
         <Upload size={15} aria-hidden="true" />
         {d.admin.importFile}

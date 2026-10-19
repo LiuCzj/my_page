@@ -1,28 +1,6 @@
 'use client';
 
-/**
- * 顶栏的账号入口 —— 放在「网页常见的地方」（顶栏右侧，和语言/主题按钮同一排）。
- *
- * 【为什么要有它】改造前登录入口只藏在笔记详情页的评论区里，站长自己都找不到
- * （用户反馈「压根没看到哪有入口」）。登录本来就是一个全站级动作，不该依附在某一页的某个区块上。
- *
- * 【两种形态】
- *   · 未登录：一颗「登录」按钮 → 打开 AuthPanel（登录 / 注册 / 找回密码都在里面）
- *   · 已登录：显示昵称 → 点开一个下拉，里面有邮箱、管理员标记、登出
- *
- * 【下拉为什么用「document 上的 pointerdown」而不是铺一层透明遮罩】
- * 踩过的坑：原来用 `<button className="fixed inset-0">` 当遮罩，但顶栏有 `backdrop-blur-md` ——
- * **backdrop-filter 会让后代的 position: fixed 相对顶栏而不是视口定位**，
- * 于是那层遮罩只有顶栏那么高，点页面别处根本关不掉下拉（用户实测反馈）。
- * 改成在 document 上监听 pointerdown、判断点是否落在组件之外，不受任何定位上下文影响。
- *
- * 【登录后为什么要 router.refresh()】「新建/编辑/删除」这些入口是**服务端**根据
- * canEdit 渲染的。只更新客户端登录态，服务端那层不会重算 —— 表现就是「登录了却看不到管理入口」。
- * refresh() 会让服务端组件带着新 cookie 重渲染一次。
- *
- * 【管理员标记为什么重要】站长改完 ADMIN_EMAILS 后要能一眼确认权限到底生效没有。
- * （注意：改 ADMIN_EMAILS 后**必须重启服务**，见 .env.example 的说明。）
- */
+/** 顶栏的账号入口 —— 放在「网页常见的地方」（顶栏右侧，和语言/主题按钮同一排）。 */
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -38,30 +16,15 @@ export default function AuthMenu() {
   const router = useRouter();
   const { user, setUser } = useAuth();
   const [panelOpen, setPanelOpen] = useState(false);
-  /**
-   * 浮层打开时停在哪个页签（2026-10-05 新增）。
-   * 顶栏现在是**两颗**按钮 ——「登录」和「注册」—— 各自要直接进到对应的页签，
-   * 而不是都先落到登录页签让用户再点一次 tab。
-   */
+  /** 浮层打开时停在哪个页签。 */
   const [panelTab, setPanelTab] = useState<AuthTab>('login');
   const [menuOpen, setMenuOpen] = useState(false);
-  /**
-   * 注销账号浮层的开合。
-   *
-   * 【2026-10-04 补：这个入口原来根本不存在】
-   * DeleteAccountPanel（发码 → 填码 → 删除）和后端接口早就写好了，但没有任何地方渲染它 ——
-   * 全仓库唯一提到它的还是一句过时注释（CommentSection 里说「入口已搬到顶栏账号菜单」，
-   * 而那次搬运只改了注释、没真的接上）。结果就是「注销账号」这个功能用户点不到。
-   * 现在按注释里写的那样，接在账号菜单里。
-   */
+  /** 注销账号浮层的开合。 */
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  /**
-   * 点组件之外的任何地方就收起下拉。
-   * 用 pointerdown 而不是 click：按下的瞬间就收，手感比等抬手更利落。
-   */
+  /** 点组件之外的任何地方就收起下拉。 */
   useEffect(() => {
     if (!menuOpen) return;
     const onDown = (e: PointerEvent) => {
@@ -71,25 +34,14 @@ export default function AuthMenu() {
     return () => document.removeEventListener('pointerdown', onDown);
   }, [menuOpen]);
 
-  /*
-    【2026-10-05 改版】从「40px 方框 + 边框 + 卡片底色」改成「40px 胶囊 + 极淡底色、无边框」。
-    站长反馈原来那一排方框「丑」—— 方框把顶栏控件画成了卡片，而它们是工具不是内容。
-    样式走 lib/topbar.ts 的共享常量，和主题 / 语言 / 音乐那几枚同款，
-    这样「登录是方的、主题是圆的」这种漂移不会再发生。
-  */
+  /* 方框会把顶栏控件画成卡片，而这一排是工具不是内容。 */
   const btn = TOPBAR_PILL;
 
   // 还在查登录态：什么都不渲染，避免闪烁
   if (user === undefined) return null;
 
   if (!user) {
-    /*
-      【为什么登录按钮上没有图标了】2026-10-05 站长要求。
-      去掉之后还多一层好处：两颗按钮都是纯文字，宽度只由字数决定，
-      并排时不会出现「一颗带图标、一颗不带」的参差。
-      【为什么窄屏不显示「注册」】390px 的顶栏已经排了 logo + 登录 + 语言 + 主题 + 汉堡，
-      再塞一颗会挤爆。手机上「注册」并没有消失 —— 点「登录」打开浮层，页签里就有「注册」。
-    */
+    /* 去掉之后还多一层好处：两颗按钮都是纯文字，宽度只由字数决定，并排时不会出现「一颗带图标、一颗不带」的参差。 */
     const openPanel = (tab: AuthTab) => {
       setPanelTab(tab);
       setPanelOpen(true);
@@ -99,21 +51,7 @@ export default function AuthMenu() {
         <button type="button" onClick={() => openPanel('login')} className={btn}>
           {d.auth.login}
         </button>
-        {/*
-          【2026-10-06 修一个一直没生效的隐藏规则】原来是 `hidden sm:inline-flex`，
-          但 `btn`（TOPBAR_PILL）本身就带 `inline-flex` —— Tailwind 的 display 工具类
-          在同一层里由**生成顺序**决定胜负，而 `inline-flex` 排在 `hidden` 之后，
-          于是 `hidden` 被盖掉，这颗「注册」在 390px 上一直是显示出来的
-          （CDP 实测：width 54px、display flex）。顶栏就多挤了一颗，
-          这正是站长说「手机端排布挤」的其中一处。
-
-          【为什么用外层 span 包一层，而不是在按钮上写 max-sm:hidden】
-          按钮的 display 已经被 TOPBAR_PILL 的 inline-flex 占住了，
-          在同一元素上再写一个 display 类，胜负仍要看 Tailwind 的生成顺序 —— 不保险。
-          包一层 span、把 hidden 写在外层，display:none 作用在**父级**上，
-          与按钮自身的 inline-flex 完全不同层，不存在竞争，一定生效。
-          内层按钮的样式一个字都不用改。
-        */}
+        {/* 但 `btn`（TOPBAR_PILL）本身就带 `inline-flex` —— Tailwind 的 display 工具类 */}
         <span className="hidden sm:contents">
           <button type="button" onClick={() => openPanel('register')} className={btn}>
             {d.auth.register}
@@ -139,13 +77,7 @@ export default function AuthMenu() {
     }
   };
 
-  /*
-    【为什么整块用 Fragment 包起来】注销浮层必须挂在菜单之外 ——
-    菜单本身是 `{menuOpen && ...}` 条件渲染的，点「注销账号」时菜单会收起，
-    浮层要是长在菜单里就会跟着一起消失。挂在根节点上，菜单关了它还在。
-    浮层自己走 EditorPanel 的 Portal（渲染到 document.body），
-    所以不受顶栏 backdrop-blur 造成的 fixed 包含块问题影响。
-  */
+  /* 菜单本身是 `{menuOpen && ...}` 条件渲染的，点「注销账号」时菜单会收起，浮层要是长在菜单里就会跟着一起消失。挂在根节点上，菜单关了它还在。 */
   return (
     <>
     <div ref={rootRef} className="relative">
@@ -163,20 +95,7 @@ export default function AuthMenu() {
       {menuOpen && (
         <div
           role="menu"
-          /*
-            【2026-10-06 与全站浮层对齐】站长反馈「登录后弹出的框和其它弹窗风格不一致」。
-            这个下拉是全站唯一**手写外框**、不经过 EditorPanel 的浮层，于是漂成了另一套：
-              · 阴影少一档（xl vs EditorPanel 的 2xl）—— 看起来比别的浮层「浮得浅」；
-              · 内边距更紧（p-2 vs 面板的 px-4/px-5）；
-              · 条目字更小（text-xs vs 表单里的 text-sm）。
-            现在统一到 EditorPanel 那一套语言：shadow-2xl、外层 p-3、
-            条目 px-3 + text-sm，圆角保持 rounded-xl（与面板同值）。
-            【为什么内边距取 p-3 而不是与面板 px-4/px-5 完全同值】
-            面板是主内容（宽度 max-w-3xl），可以用更宽的边距；这个下拉只有 w-60（240px），
-            照搬 px-4 会让内容可用宽度只剩 208px、邮箱会被截得更多。
-            p-3 是「对齐了规范的手感，但没牺牲内容宽度」的取值 —— 风格项对齐，尺寸项按容器定。
-            名单宽度 w-60 不动 —— 它是内容决定的下限，不是风格项。
-          */
+          /* 这个下拉是全站唯一**手写外框**、不经过 EditorPanel 的浮层，于是漂成了另一套。 */
           className="absolute top-[calc(100%+6px)] right-0 z-[61] w-60 rounded-xl border border-border bg-card p-3 shadow-2xl"
         >
           <div className="px-3 py-2.5">
@@ -193,19 +112,9 @@ export default function AuthMenu() {
             )}
           </div>
 
-          {/*
-            【为什么这里也有一条分隔线】上面是「你是谁」（只读信息），下面是「你能做什么」（动作）。
-            两种性质之间画一条线，视觉上把「资料区」和「动作区」分开 ——
-            原来只有动作之间那条线，反而让「资料」和「注销账号」看起来像同一组。
-          */}
+          {/* 两种性质之间画一条线，视觉上把「资料区」和「动作区」分开 ——原来只有动作之间那条线，反而让「资料」和「注销账号」看起来像同一组。 */}
           <span aria-hidden="true" className="mb-1.5 block h-px bg-border" />
-          {/*
-            注销账号。用 destructive 色而不是和「退出登录」同一种灰 ——
-            这两件事的风险等级差着一个量级，长得一样会让人点错。
-            【min-h 为什么是 44px 而不是原来退出按钮的 36px】
-            项目硬规矩：手机上可点元素最短边 ≥44px。下拉菜单在手机上就是纯触控目标，
-            原来那个 36px 的退出按钮本身就低于这条线，这里一并补上，两个条目高度也就齐了。
-          */}
+          {/* 注销账号。用 destructive 色而不是和「退出登录」同一种灰 ——这两件事的风险等级差着一个量级，长得一样会让人点错。 */}
           <button
             type="button"
             onClick={() => {

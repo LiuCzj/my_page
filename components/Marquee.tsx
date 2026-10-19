@@ -1,33 +1,6 @@
 'use client';
 
-/**
- * 来回滚动的条（技术栈、工具共用）。自动走，也可以用手拖着走。
- *
- * 【为什么位移改由 JS 每帧写，而不是 CSS 无限动画】
- * 原来是 CSS keyframes 独占 transform，指针想插一脚就得跟它抢同一个属性：
- * 动画会把拖拽量直接覆盖掉，拖完也没法把动画的相位接回去。
- * 改成 JS 之后，「自动走」只是每帧加一个常量速度，拖拽是另一个来源，
- * 两者直接相加就行；松手后的惯性衰减到一定量级，常态速度自然并回来，不需要对齐相位。
- *
- * 【无缝循环】同一份内容渲染两份，轨道之间也留一个 gap，于是周期
- * L = 单份宽度 + gap。位移每帧折回 (-L, 0]，两份内容一模一样，
- * 折回那一刻画面里没有可辨的跳变。
- *
- * 【不滚的条件 —— 这正是他看到的重复】
- * 一条滚动的、内容比容器窄的带子，**必然**同时露出两份一样的标签：
- * 第二份要接在第一份后面填满屏幕，于是「Power BI / Tableau」在视野里出现两次。
- * 内容越短越明显 —— 「业务分析与可视化」只有 4 个短标签，正好撞上。
- * 判据是确定的：单份宽度 ≥ 容器宽度时，任意时刻视野里最多只有一份，才允许滚。
- * 不满足就退回静态换行排列，而不是硬滚出一个穿帮的效果。
- *
- * 【两端淡出】用 CSS mask，不是叠一层渐变遮罩 —— 遮罩层会挡住下面的点击。
- * 【减少动态效果】原先靠全局 prefers-reduced-motion 把 CSS 时长压成 0.001ms 来静止；
- * 现在没有 CSS 动画，这条要在 JS 里显式做：常态速度取 0，这一排变成静止列表，
- * 但**照样能拖** —— 「少动」是不该有持续动画，不是不该能操作。
- *
- * 【触屏】touch-action 给 pan-y：纵向仍归浏览器滚动页面，横向才是拖这条带子。
- * 「点一下」和「拖一下」用 8px 阈值分开，点的那一下照常落到条目自己身上（钉住名字）。
- */
+/** 来回滚动的条（技术栈、工具共用）。自动走，也可以用手拖着走。 */
 
 import { useEffect, useRef, useState } from 'react';
 
@@ -41,21 +14,12 @@ interface MarqueeProps {
   duration?: string;
   /** 条目间距，默认 0.75rem */
   gap?: string;
-  /**
-   * 外部强制停住这一排（不只是悬停停）。
-   * 触屏用它：点一下图标把名字钉住的那 2.8 秒里，如果这一排还在走，
-   * 名字会跟着图标一起漂到边缘，然后被 overflow-hidden 裁掉半截 ——
-   * 正好是他说的「没看清就消失了」。停住才读得完。
-   */
+  /** 外部强制停住这一排（不只是悬停停）。 */
   paused?: boolean;
   className?: string;
 }
 
-/**
- * 按下后走过多远就判定为「在拖」而不是「想点」（px）。
- * 卡在 8 是因为它和浏览器自己的点击容差同量级：比它小还算是点，
- * 条目自己的 onPointerUp（触屏钉住名字）照常收到；比它大就接管指针、只拖动。
- */
+/** 按下后走过多远就判定为「在拖」而不是「想点」（px）。 */
 const DRAG_THRESHOLD = 8;
 /** 松手后惯性速度的时间常数（秒）。太小像拖一张纸，太大像抽风 */
 const GLIDE_TAU = 0.85;
@@ -116,11 +80,7 @@ export default function Marquee({
     pausedRef.current = paused;
   }, [paused]);
 
-  /*
-   * 量宽：既决定能不能滚，也决定周期 L —— 常态速度是「L 除以 duration 秒」换算出来的，
-   * 所以外层仍然只管「一轮多少秒」，不用关心内容有多宽。
-   * deps 带 canLoop：静态/滚动两个分支渲染的是不同的节点，翻过去要重新挂 observer。
-   */
+  /* 量宽：既决定能不能滚，也决定周期 L —— 常态速度是「L 除以 duration 秒」换算出来的，所以外层仍然只管「一轮多少秒」，不用关心内容有多宽。 */
   useEffect(() => {
     const outer = outerRef.current;
     const track = trackRef.current;
@@ -188,11 +148,7 @@ export default function Marquee({
     return () => cancelAnimationFrame(raf);
   }, [canLoop, pauseOnHover]);
 
-  /*
-   * 拖拽的三个 handler 都挂在最外层。走 capture 这一段是为了不被里面的条目拦掉：
-   * 触屏那排图标按下时会 stopPropagation（不想让磁贴的表情弹印和钉住的名字同时冒出来），
-   * 挂在冒泡阶段的 handler 会被它挡死。
-   */
+  /* 拖拽的三个 handler 都挂在最外层。走 capture 这一段是为了不被里面的条目拦掉。 */
   const onDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (lenRef.current <= 0) return;
     velRef.current = 0;

@@ -1,22 +1,6 @@
 'use client';
 
-/**
- * 磁贴区：籍贯、最喜欢的工具、技术栈、工具、连接。
- *
- * 【为什么是磁贴而不是一列一节】
- * 五块内容性质完全不同（一个图形、两个清单、一组链接），排成等高卡片阵列最丑。
- * 这里用一张不规则网格：籍贯占两列（地球需要横向空间）、
- * 最喜欢的工具挤在右侧窄列、技术栈整条铺开（滚动条需要宽度）、
- * 工具和连接再分成 2:1。尺寸差异本身就是层次。
- *
- * 【每块磁贴的表情，两条通道】每块带一个 data-cursor-emoji：
- * 桌面上鼠标扫过时，系统箭头由 components/CustomCursor.tsx 换成对应表情（地球块是 ✈️），
- * 触屏没有光标可换，改成点一下在指尖弹一下那枚表情（见 Tile 的 onDown）。
- * CustomCursor 只在真鼠标设备上挂载，触屏不会触发任何光标隐藏，见那里的说明与 globals.css 里那条被门控的规则。
- *
- * 【技术栈的分组怎么不丢】三个组名钉在上方当图例，下面一条长带滚全部条目。
- * 不给每组单开一条带：条目少的组比磁贴还窄，一滚就必然同时露出两份一样的标签。
- */
+/** 磁贴区：籍贯、最喜欢的工具、技术栈、工具、连接。 */
 
 import { motion } from 'framer-motion';
 import { Brain, Globe2, Heart, Link2, Maximize2, Wrench, X } from 'lucide-react';
@@ -35,36 +19,8 @@ import { useReveal, CARD_REVEAL, CARD_STAGGER } from '@/lib/use-reveal';
 import { useScrollFocus } from '@/lib/use-scroll-fx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/**
- * 一块磁贴。
- *
- * 动画和悬停反馈都挂在同一个 <li> 上，但走的是两条互不干扰的通道：
- * 入场由 framer 写内联 transform，悬停只改 border-color 与 box-shadow
- * （transition 也显式限定成这两项）。如果这里写 transition-all，
- * CSS 会去补间 framer 每帧设的 transform，入场动画会被拖出残影。
- *
- * 刻意不做悬停位移：站里「抬一下」的语义留给真正可点的东西，
- * 这几块只是展示，给的是边缘高亮。
- *
- * 【第三条通道：焦点接力高光】
- * 除了「鼠标指在哪、哪块亮」，还有一条跟着滚动走的：
- * 哪块磁贴靠近视口中心，它就自己亮起来，离开时暗下去（见 lib/use-scroll-fx.ts）。
- * 往下滚的时候，高光在几块磁贴之间依次传递 —— 视线被这条光带着往下走，
- * 不需要箭头，也不需要编号。它只写覆盖层的 opacity，不碰 transform，
- * 所以和上面两条通道都不冲突。
- */
-/**
- * 磁贴的装饰色相（2026-10-04 用户要求「颜色更丰富」后新增）。
- *
- * 【它只改两处】标题行那枚小图标的颜色、以及卡片右上角那团极淡的晕染。
- * 正文、标题、按钮、状态一律不受影响 —— 也就是说这几块磁贴在语义上仍然只有
- * 「交互蓝 / 成功青绿 / 品牌紫」三色，多出来的颜色纯粹是画上去的层次。
- * 色值来自 globals.css 的 --tint-* 装饰色板（深浅两档各自调过明度）。
- *
- * 【为什么给每块不同的色相】五块磁贴内容性质本来就不同（一个球、两个清单、
- * 一条技能带、一排工具），原来它们只有「有没有暖色」这一种区别，
- * 扫过去是一片同色的方块。各给一个色相之后，视线能靠颜色先分区、再读内容。
- */
+/** 一块磁贴。 */
+/** 磁贴的装饰色相。 */
 type TileTint = 'sky' | 'teal' | 'violet' | 'coral' | 'amber';
 
 /** 色相 → Tailwind 工具类。集中成一张表，避免在 JSX 里写三元表达式拼类名 */
@@ -97,31 +53,14 @@ function Tile({
   children,
 }: {
   span: string;
-  /**
-   * 标题左侧那枚小图标。
-   * 【2026-10-04 改成可选】籍贯那块去掉了定位针 —— 标题行已经是「籍贯 · 中国湖南省邵阳市」，
-   * 前面再挂一枚地图针只是把同一件事说第三遍。不传即为纯文字标题。
-   */
+  /** 标题左侧那枚小图标。 */
   icon?: React.ReactNode;
   title: string;
   cursorEmoji: string;
   delay: number;
   /** 装饰色相，见上面的 TileTint 说明 */
   tint?: TileTint;
-  /**
-   * 是不是「主角卡」（2026-10-05 新增）。只有地球卡开这个开关。
-   *
-   * 【为什么需要它】磁贴区五块原来共用同一套外观，扫过去是一堵「一样大的方块墙」。
-   * 主角卡走 .card-hero（见 globals.css）：更大圆角 + 一圈蓝紫青的彩色描边 + 更重投影，
-   * 一眼就认得出来这是这一屏的重点。
-   *
-   * 【为什么主角卡还要顺便换 padding】大圆角配原来那圈 p-4 会显得「边很厚、内容很挤」。
-   * 圆角和内边距是同一件事的两面，一起放大才成立。
-   *
-   * 【为什么主角卡不挂 hover:border-accent/70】它的边框已经被那圈彩色描边占用
-   * （border-color 是 transparent，彩边画在边框内侧）。再叠一层悬停变色，
-   * 悬停瞬间会变成「外圈蓝 + 内圈彩」两层边，比不悬停还乱。
-   */
+  /** 是不是「主角卡」。只有地球卡开这个开关。 */
   hero?: boolean;
   action?: React.ReactNode;
   children: React.ReactNode;
@@ -139,11 +78,7 @@ function Tile({
 
   useEffect(() => () => window.clearTimeout(stampTimer.current), []);
 
-  /**
-   * 鼠标邻近发光：把指针位置写进 --gx / --gy，让那团径向渐变跟着走。
-   * 直接改 DOM style 而不是 setState —— 每帧 setState 会让整棵 React 子树重渲染，
-   * 一个纯跟随效果不该付这个代价。
-   */
+  /** 鼠标邻近发光：把指针位置写进 --gx / --gy，让那团径向渐变跟着走。 */
   const onMove = (e: React.PointerEvent<HTMLLIElement>) => {
     const glow = glowRef.current;
     if (!glow) return;
@@ -165,22 +100,7 @@ function Tile({
     stampTimer.current = window.setTimeout(() => setStamp(null), STAMP_MS);
   };
 
-  /**
-   * 触屏没有光标，所以桌面那套「箭头换成 ✈️ / ❤️ / 🔧」在手机上物理上不存在 ——
-   * 不是漏做了，是那块屏幕上根本没有一个可以替换的东西。
-   * 这里给它的等价物：手指点在哪，表情就在哪弹一下（动画见 globals.css 的 emoji-pop）。
-   *
-   * 三条避让：
-   * - 只认非鼠标。鼠标有 :hover，再弹一个印子只会挡住内容。
-   * - 点在 a / button 上不弹。链接和按钮各有自己的动作，抢它们的点击会既挡住内容
-   *   又让人以为点错了。
-   * - 收尾用定时器而不是 animationend。全局那条 prefers-reduced-motion 会把
-   *   animation-duration 压成 0.001ms，事件立刻就来，印子等于没出现过。
-   *
-   * 【地球为什么走「抬手才弹」这一支】那块球是要按住左右拖的，按下去的一刻
-   * 分不清这一下是点还是拖：立刻弹的话，每转一次球都掉出一架 ✈️。
-   * 所以地球上的点先存下来，抬手时确认没拖过、也没按太久，才当这是一下点击。
-   */
+  /** 触屏没有光标，所以桌面那套「箭头换成 ✈️ / ❤️ / 🔧」在手机上物理上不存在 ——不是漏做了，是那块屏幕上根本没有一个可以替换的东西。 */
   const onDown = (e: React.PointerEvent<HTMLLIElement>) => {
     if (e.pointerType === 'mouse') return;
     const target = e.target as HTMLElement;
@@ -235,12 +155,7 @@ function Tile({
           background: `radial-gradient(circle, hsl(var(${TINT_VAR[tint]}) / 0.14), transparent 70%)`,
         }}
       />
-      {/*
-        焦点接力高光：一条 accent 内描边 + 一团很淡的外发光，opacity 由滚动位置驱动。
-        内描边（inset 1px）而不是改 border-color：改 border 会和 hover 那条
-        hover:border-accent/50 抢同一个属性，鼠标停在卡上时会看到边框跳一下。
-        外发光用负 spread（-12px）压住范围，否则这块卡的辉光会溢到隔壁卡上。
-      */}
+      {/* 焦点接力高光：一条 accent 内描边 + 一团很淡的外发光，opacity 由滚动位置驱动。 */}
       <motion.span
         aria-hidden="true"
         style={{
@@ -290,8 +205,6 @@ function Tile({
 
 /**
  * 将首页点阵地球放大到独立弹层中，让访客能看清地形并继续拖动旋转。
- * 打开期间锁住背景滚动；Escape、遮罩与关闭按钮均可关闭，键盘焦点留在弹层内。
- *
  * @param props.open 是否显示弹层
  * @param props.onClose 关闭弹层的回调
  * @param props.coordinates 地球标记坐标，纬度/经度（度）
@@ -391,64 +304,20 @@ function GlobeZoomDialog({
   );
 }
 
-/**
- * 技能条目的样式常量原来在这里（SKILL_TAG），2026-10-05 第二期删掉了。
- *
- * 【为什么删】技术栈从「标签云」改成了「目录」：条目不再是灰底胶囊，
- * 而是一串用「·」隔开的纯文字（见下面技能那块 JSX 里的说明）。
- * 样式类直接写在 <li> 上，不再需要这个常量。
- * 留这段说明是为了让以后翻历史的人知道「这里曾经有个 SKILL_TAG」，而不是以为它丢了。
- *
- * 它当年的两条结论仍然有效，改那串文字时照做：
- *   ① 条目**必须允许换行** —— 技能里有「表格数据专用深度学习模型（TabNet、FT-Transformer、
- *      TabTransformer 等）」这种超长条目，nowrap 会顶出容器右边缘被 overflow-hidden 切掉
- *      （2026-10-04 用 390 视口实测被切 101px，站长反馈过「手机上内容被挡住」）；
- *   ② 正文色不要用 --muted-foreground 那一档 —— 三十来条挤在一起会读得发虚。
- */
+/** 技能条目的样式常量原来在这里（SKILL_TAG），第二期删掉了。 */
 
 /** 触屏弹印活多久。比 emoji-pop 那条 1.1s 的动画略长，让它淡完再被摘掉 */
 const STAMP_MS = 1150;
 
-/**
- * 抬手时允许的位移上限（px）。比滚动条的 8px 宽一档：
- * 按在球上手指难免漂一点，但把球转出十几像素已经不是「点一下」的意图了。
- */
+/** 抬手时允许的位移上限（px）。比滚动条的 8px 宽一档。 */
 const TAP_SLOP = 12;
 /** 按下到抬手超过这么久就不算点 —— 那是按住在看，不是想让它弹个表情 */
 const TAP_MS = 700;
 
-/**
- * 触屏下名字钉多久。2.8 秒不是随手取的：这一排里最长的「Scikit-learn」
- * 和相邻两枚挤在一起的读法，扫读一遍就要两秒上下，
- * 再短就成了「看清之前已经没了」。再长会让人觉得页面卡住 —— 手指已经移开了
- * 字还赖在那。同一条图标再点一次会重新计时。
- */
+/** 触屏下名字钉多久。2.8 秒不是随手取的：这一排里最长的「Scikit-learn」 */
 const PIN_MS = 2800;
 
-/**
- * 工具的一行：一排图标，名字平时不出现 —— 鼠标停在哪个图标上就在它正下方浮出来，
- * 手机上改成点一下钉住 2.8 秒。
- *
- * 【为什么名字跟着图标走，而不是钉在整块的最左边】
- * 整块共用一条说明位时，指针在第 12 个图标上、字却出现在最左边，
- * 眼睛得在两者之间来回找。所以每一列自己带一行标签位。
- *
- * 【为什么两条通道：CSS :hover + 手动打标记】
- * :hover 这条必须留着，而且不能用 React state 替代 —— 无缝循环是把同一份内容渲染两遍，
- * 所以「Pandas」在 DOM 里有两个节点；state 记的是名字，两个节点会一起亮，
- * 手只碰着一个、名字却在屏幕上出现两次。:hover 只作用在你真正指着的那个节点。
- * 触屏没有 :hover（手机浏览器会把它模拟成「点住不放」，时机完全对不上），
- * 所以再加一条：点一下给那个节点打一个 data-tool-pin 标记，2.8 秒后摘掉。
- * 记的同样是**哪个 DOM 节点**而不是哪个名字，理由和上面一模一样。
- *
- * 【三条尺寸约束】
- * 1. 标签用绝对定位：不占宽度，「Scikit-learn」这种长名字不会把相邻图标撑开。
- * 2. 列高 58px = 图标 36 + 4 + 标签 16 + 2 余量。滚动条是 overflow-hidden 的，
- *    标签必须整个待在这 58px 里，否则会被齐根裁掉 —— 这也是不走浮层 tooltip 的原因。
- * 3. 标签带 bg-card 底：不加它，浮出来的字会压在相邻图标上糊成一团。
- *
- * 名字同时以 sr-only 留在每个图标里 —— 读屏软件不该只能拿到一个没有名字的方块。
- */
+/** 工具的一行：一排图标，名字平时不出现 —— 鼠标停在哪个图标上就在它正下方浮出来，手机上改成点一下钉住 2.8 秒。 */
 function ToolRow({
   row,
   reverse = false,
@@ -526,10 +395,9 @@ function ToolRow({
 
 /**
  * @param props.skillGroups 技术栈分组。**必须从数据库读好当 props 传进来** ——
- *   本文件是客户端组件，直接 import lib/content 会把 better-sqlite3 打进浏览器包、构建直接失败。
+ * @param props.skillGroups 技术栈分组。**必须从数据库读好当 props 传进来** ——
+ * @param props.skillGroups 技术栈分组。**必须从数据库读好当 props 传进来** ——
  * @param props.canEditSkills 当前访问者是不是管理员，决定技术栈那块要不要出现「编辑技术栈」。
- *   这只是体验优化：真正的闸门在 /api/admin/skills（未登录 401、非管理员 403），
- *   绕过界面直接打接口一样会被挡。
  */
 export default function Dashboard({
   skillGroups,
@@ -550,15 +418,7 @@ export default function Dashboard({
 
   return (
     <div>
-      {/*
-        ── 这一页的章节名（2026-10-05 新增）────────────────────────
-        磁贴区在此之前**没有任何标题** —— 它是首页上一块「没有名字的内容」，
-        读者看到五块磁贴却不知道这一节在讲什么。
-        现在它是「关于我」这一页（编号 01），章节名走宋体、页眉线走青（这一页的主导色）。
-
-        【编号为什么是 01】编号跟着跨页走：01 关于我 / 02 项目 / 03 笔记。
-        改前首页的编号是从「项目 = 01」开始的，因为那时磁贴区还没被立成一页。
-      */}
+      {/* ── 这一页的章节名 ──────────────────────── */}
       <SectionBand
         tone="about"
         index="01"
@@ -566,27 +426,7 @@ export default function Dashboard({
         id="about-title"
         title={d.about.title}
         lead={d.about.lead}
-        /*
-          ── 那张插画挪到了这里（2026-10-05）────────────────────
-          它原来是首屏主视觉，站长问「好端端的放张插画在那干嘛」—— 问得对：
-          它不携带任何关于这个人的信息，占着封面最大的位置却在说谁都能说的话。
-          但它本身没问题，只是**放错了页**：这是「关于我」的一页，一张人像在这里才有意义 ——
-          像杂志栏目页右上角那张作者小像。
-
-          【2026-10-05 换了图】新图沿用同一个人物，但背景从深蓝紫改成浅色、
-          屏幕上的内容改成「锦创AI」。旧图是深色底，压在亮色主题的页面上是一块突兀的深色方块；
-          新图两套主题下都成立，屏幕上那三个字也才看得清。
-          旧图没删，留在 `Outbox/Images/hero-scene.深色底版.20261005.jpg`。
-          配套改了两处：`identity.heroSceneAlt`（替代文本必须跟着换）和 `DOWNLOADS.md` 的尺寸记录。
-
-          【尺寸为什么这么小】它是「栏目页的作者小像」，不是主视觉 ——
-          只负责让这一页有个人，撑场面的是左边那颗地球。桌面 160px 是能看清屏幕上那三个字的下限，
-          再小「锦创AI」就糊成一团了。
-
-          【object-cover 就够了，不要写 object-position】图和容器都是正方形，
-          cover 会把整张图完整显示、根本不裁 —— 这时候写 object-[x%_y%] 是无效的，
-          只会让后面读代码的人以为这里有取景逻辑。真要取景得先把图裁成非正方形。
-        */
+        /* ── 那张插画挪到了这里 ──────────────────── */
         aside={
           <img
             src="/images/hero-scene.jpg"
@@ -603,28 +443,10 @@ export default function Dashboard({
       <ul className="mt-10 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         {/* ① 籍贯：地名摆在标题行（左边），地球占满下面一块。
             地名一旦放到球的右侧，这块就读成了「一张图 + 一段说明」的两栏排版；
-            它要的是一行标题 + 一颗球。
-
-            【2026-10-04 改：地名并进标题行、去掉地图图标、删掉球上的浮标】
-            原来标题只写「籍贯」，地名做成一枚浮在球左下角的胶囊 ——
-            同一件事在一小块里出现两次；那枚胶囊还压在海面，窄屏下会和小人抢位置
-            （代码里已经为它挪过两次位置）。
-            现在标题写成「籍贯 · 中国湖南省邵阳市」。保留「籍贯」二字是因为它是这一格的含义，
-            去掉就只剩一串地名、读不出这是「老家」；图标一并去掉，标题行已经有字。
-            浮标删除后，那块位置归还给球面。
-
-            【为什么占 2 列 2 行】右侧那一列要能同时放下「最喜欢的工具」和「连接」两块。
-            地球只占一行的话，右边那一格会被地球的高度拉成一条 400 多像素的空柱 ——
-            三行工具名飘在中间，上下各空一大片。
             让地球跨两行、右侧两格各占一行，两边高度就对上了。 */}
         <Tile
           span="sm:col-span-2 sm:row-span-2"
-          /*
-           * 标题图标用 Globe2（地球），不用原来那枚 MapPin（地图针）。
-           * 【为什么】站长先说过「不要那个地图图标」，后来又要「其他卡片都有图标，籍贯也得有」——
-           * 所以换成和这一格内容（一颗点阵地球）直接对应的地球图标：
-           * 既补回了图标，又和他明确否掉的那枚不是同一个。
-           */
+          /* 标题图标用 Globe2（地球），不用原来那枚 MapPin（地图针）。 */
           icon={<Globe2 size={13} />}
           title={`${d.location.label} · ${pick(location.label)}`}
           cursorEmoji="✈️"
@@ -641,18 +463,14 @@ export default function Dashboard({
               aria-haspopup="dialog"
               aria-expanded={globeZoomed}
               aria-label={d.location.zoom}
-              className="inline-flex min-h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:border-accent/50 hover:bg-accent/5 hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="btn-soft"
             >
               <Maximize2 size={14} aria-hidden="true" />
               <span>{d.location.zoom}</span>
             </button>
           }
         >
-          {/*
-            仍保留 cobe 的真实经纬地形和可拖拽旋转；蓝色海洋、青绿陆地点阵与球面阴影
-            让它读起来更像地球，而不是灰色示意球。首屏磁贴只露上半球以保持网格高度，
-            想看完整球面可点标题行的「放大地球」进入同一交互的大图。
-          */}
+          {/* 仍保留 cobe 的真实经纬地形和可拖拽旋转；蓝色海洋、青绿陆地点阵与球面阴影 */}
           <div className="relative mt-1 h-[190px] overflow-hidden sm:h-[210px]">
             {!globeZoomed && (
               <div className="absolute left-1/2 top-[-26px] w-[460px] -translate-x-1/2">
@@ -687,12 +505,7 @@ export default function Dashboard({
           </div>
         </Tile>
 
-        {/* ④ 技术栈：整条铺开，每组各自一行，组名和它自己的条目钉在一起。
-            【为什么不用一条长带混滚】各组的条目首尾相接一起滚，
-            滚起来之后完全看不出「SQL」属于哪一组、这一串到哪儿换组 ——
-            图例那行组名和带子里的内容对不上号，等于把六份信息搅成一份。
-            每组单独配一条滚动带也不行：条目少的组会同时露出两份一样的标签。
-            静态换行同时避开这两个问题。 */}
+        {/* 滚起来之后完全看不出「SQL」属于哪一组、这一串到哪儿换组 ——图例那行组名和带子里的内容对不上号，等于把六份信息搅成一份。 */}
         <Tile
           span="sm:col-span-3 sm:row-span-1"
           icon={<Brain size={13} />}
@@ -705,25 +518,12 @@ export default function Dashboard({
         >
           <div className="space-y-6">
             {skillGroups.map((g) => (
-              /*
-                ── 技术栈：从「标签云」改成「目录」（2026-10-05 第二期）──────
-                【改前是什么】每一组下面铺一屏灰底小胶囊，三十来枚挤在一起。
-                它读起来是「一坨」，而且是整页视觉最重的一块 —— 但它只是技术栈，
-                不该是这一屏的重点。
-                【改后】左边组名、右边条目，条目之间用「·」隔开，**胶囊全部去掉**。
-                读起来从「标签云」变成「一份目录」：组名先被看到，条目再被读。
-                【为什么用 grid 而不是 flex】左栏要固定宽度（组名长度不一，
-                用 flex 会让每组的条目起点参差不齐），10rem 是量过最长的组名定的。
-              */
+              /* ── 技术栈：从「标签云」改成「目录」────── */
               <div
                 key={g.id}
                 className="grid gap-2 border-t border-border/40 pt-4 first:border-t-0 first:pt-0 sm:grid-cols-[10rem_1fr] sm:gap-6"
               >
-                {/*
-                  组名走 font-song（系统宋体栈）而不是 font-display —— 组名是
-                  站长在后台随手写的动态内容，自托管子集覆盖不到，混排会出现半行换字。
-                  详见 globals.css 里 --font-song 的说明。
-                */}
+                {/* 组名走 font-song（系统宋体栈）而不是 font-display —— 组名是 */}
                 <span className="font-song text-lg font-bold leading-snug text-foreground">
                   {pick(g.title)}
                 </span>

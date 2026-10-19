@@ -1,25 +1,6 @@
 'use client';
 
-/**
- * 图形验证码控件：图片 + 「换一张」+ 输入框。
- *
- * 【注册和注销共用同一个组件】两处的需求完全一样（都是「拿一张图 → 读 → 填 → 随表单提交」），
- * 唯一不同的是挂在哪个表单里。做成组件之后，将来要换验证码方案只改这一处。
- *
- * 【状态怎么给出去】用受控模式：父组件持有 `{ id, text }`，本组件通过 `onChange` 回写。
- * 这样父组件提交时直接把这两个字段塞进请求体即可，不需要 ref 或额外的 context。
- *
- * 【为什么换一张时要把已填的字符清空】不清的话，用户看着新图、输入框里还留着上一张的答案，
- * 提交必然失败，而且他很难意识到「图已经换了，我填的是旧的」。
- *
- * 【svg 为什么可以 dangerouslySetInnerHTML】这段 SVG 是服务端用固定模板生成的
- * （见 lib/captcha.ts），不含任何用户输入，没有注入面。
- * 换成一个 `<img src="/api/auth/captcha?id=...">` 也可以，但那样要先把 id 拿到手再请求一次，
- * 多一次往返；而且图片形式下「换一张」还得处理浏览器缓存，不如内联直接。
- *
- * 【加载失败怎么办】把提示写出来、输入框禁用。
- * 不静默 —— 否则用户面对一个空白方块，只会以为是自己网络的问题而反复刷新。
- */
+/** 图形验证码控件：图片 + 「换一张」+ 输入框。 */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
@@ -49,12 +30,7 @@ export default function CaptchaField({
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
-  /*
-    onChange 放进 ref：它通常是父组件的内联箭头函数，每次渲染都是新引用。
-    直接放进 useCallback 的依赖里会让 load 每次都重建，
-    配合下面的挂载 effect 就变成「每次父组件渲染都重新拉一张验证码」——
-    用户正在看图，图突然换了，永远填不对。
-  */
+  /* onChange 放进 ref：它通常是父组件的内联箭头函数，每次渲染都是新引用。 */
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -106,13 +82,7 @@ export default function CaptchaField({
       />
 
       <div className="mt-2 flex items-center gap-3">
-        {/*
-          图片容器固定成和 SVG 一样的尺寸（200×60，见 lib/captcha.ts 的生成参数）。
-          固定尺寸有两个好处：加载中不会跳高度；「换一张」时不会因为新图长度不同而抖一下。
-          【浅色底为什么在这里给】生成的 SVG 是透明的、字符是近黑色（理由见 lib/captcha.ts），
-          底色由这个容器提供 —— 这样深浅两套主题下验证码长得完全一样，
-          不需要它去参与主题（它本质上就是一张图片）。
-        */}
+        {/* 图片容器固定成和 SVG 一样的尺寸（200×60） */}
         <span className="flex h-[60px] w-[200px] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f2f3fb] ring-1 ring-border">
           {svg ? (
             <span
