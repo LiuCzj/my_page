@@ -28,6 +28,8 @@ const MAX_INPUT_LEN = 2000;
 const SNAP_HALF_VH = 55;
 /** 把手 + 窗头露出的高度（px）：peek 档时抽屉只留这么多，其余都在屏幕外 */
 const PEEK_HEIGHT = 72;
+/** 「猜你想问」自动收起的时间（毫秒）：手机上它占掉小半个面板，收起后消息区才够用 */
+const SUGGEST_HIDE_MS = 15_000;
 
 /** 抽屉三档 */
 type SheetSnap = 'peek' | 'half' | 'full';
@@ -72,6 +74,8 @@ function loadHistory(): ChatMessage[] | null {
           (m.role === 'user' || m.role === 'assistant') &&
           typeof m.content === 'string',
       )
+      // 空的助手消息（上次被中断、失败或超时）读回来会渲染成一个空气泡，直接丢掉
+      .filter((m: any) => m.role === 'user' || m.content.trim() !== '')
       .map((m: any): ChatMessage => ({
         id: m.id,
         role: m.role,
@@ -94,6 +98,8 @@ export default function DigitalTwinChat() {
   const [status, setStatus] = useState<'idle' | 'sending'>('idle');
   const [notice, setNotice] = useState('');
   const [mounted, setMounted] = useState(false);
+  /** 「猜你想问」是否还露着：打开时展示，超时或发出第一条消息后收起 */
+  const [showSuggestions, setShowSuggestions] = useState(true);
 
   const endRef = useRef<HTMLDivElement>(null);
   /** 用于「停止」按钮和组件卸载时中断还没读完的流 */
@@ -125,6 +131,14 @@ export default function DigitalTwinChat() {
       window.clearTimeout(timer);
     };
   }, [open, closeChat]);
+
+  /* 每次打开重新计时：到点把「猜你想问」收起来，高度让给消息区 */
+  useEffect(() => {
+    if (!open) return;
+    setShowSuggestions(true);
+    const timer = window.setTimeout(() => setShowSuggestions(false), SUGGEST_HIDE_MS);
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   /** 消息区滚动跟随。 */
   const lastScrollKey = useRef('');
@@ -274,7 +288,13 @@ export default function DigitalTwinChat() {
       } catch (err) {
         // 主动停止（含组件卸载）不算错误：保留已经打出来的部分
         if ((err as Error)?.name === 'AbortError') {
-          setMessages((prev) => prev.map((m) => (m.id === replyId ? { ...m, state: 'done' } : m)));
+          setMessages((prev) =>
+            prev.flatMap((m) => {
+              if (m.id !== replyId) return [m];
+              // 一个字都没收到就停了：把这条抽掉，别留一个空气泡在那儿
+              return m.content.trim() ? [{ ...m, state: 'done' as const }] : [];
+            }),
+          );
         } else {
           setMessages((prev) =>
             prev.map((m) =>
@@ -310,6 +330,8 @@ export default function DigitalTwinChat() {
         return;
       }
       setNotice('');
+      // 已经开口了就收起快捷问题，把高度让给对话
+      setShowSuggestions(false);
 
       const userMsg: ChatMessage = { id: nextId(), role: 'user', content: text };
       const replyMsg: ChatMessage = {
@@ -704,8 +726,14 @@ export default function DigitalTwinChat() {
 
       {/* 底部固定区：一键提问 + 输入框 + 免责说明。shrink-0 让它始终贴在面板底部 */}
       <div className="shrink-0 border-t border-border px-4 py-3">
-      {/* 一键提问：别人最常问你的三个问题 */}
-      <div>
+      {/* 一键提问：别人最常问你的三个问题。超时或已开口即收起，把高度让给对话 */}
+      <div
+        className={`overflow-hidden transition-[max-height,opacity] duration-500 ease-out ${
+          showSuggestions ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'
+        }`}
+        inert={!showSuggestions}
+        aria-hidden={!showSuggestions}
+      >
         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           {d.chat.quickAsk}
         </p>
@@ -726,7 +754,7 @@ export default function DigitalTwinChat() {
 
       {/* 输入区：Enter 发送，Shift+Enter 换行 */}
       <form
-        className="mt-3 flex items-end gap-2"
+        className={`${showSuggestions ? 'mt-3' : 'mt-0'} flex items-end gap-2`}
         onSubmit={(e) => {
           e.preventDefault();
           send();

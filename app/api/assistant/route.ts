@@ -1,9 +1,10 @@
 /** 数字分身的后端代理：转发消息到大模型，把 SSE 流原样吐回浏览器。 */
 
 import { site, type Lang } from '@/config/site';
-import { retrieveContext, formatContext, noteChunks } from '@/lib/assistant-context';
+import { retrieveContext, formatContext, noteChunks, projectChunks } from '@/lib/assistant-context';
 import { matchCannedAnswer, matchSecurityRefusal } from '@/lib/assistant-intents';
-import { isWebSearchConfigured, webSearch, formatWebResults } from '@/lib/web-search';
+import { takeQuota } from '@/lib/assistant-quota';
+import { isWebSearchConfigured, webSearch, formatWebResults, type WebSearchHit } from '@/lib/web-search';
 
 /** 明确用 Node 运行时：Edge 运行时读不到 fs/内存 Map 的限流语义，也没必要 */
 export const runtime = 'nodejs';
@@ -16,13 +17,17 @@ export type AssistantErrorCode =
   | 'bad_request'
   | 'too_long'
   | 'rate_limited'
+  | 'quota_exhausted'
   | 'upstream_auth'
   | 'upstream_rate_limit'
   | 'upstream_timeout'
   | 'upstream_error';
 
-/** 上游请求超时：网关挂住时不至于让浏览器一直转圈 */
-const UPSTREAM_TIMEOUT_MS = 60_000;
+/** 等上游「返回响应头」的上限。只包住握手阶段：包住整个流会把长回答拦腰切断（表现为 failed to pipe response） */
+const UPSTREAM_TIMEOUT_MS = 30_000;
+/** 单次回答的输出上限。⚠️ 必须把「思考 token」算进去：glm-5.3 的思考不可关闭（网关锁死 enable_thinking=True），
+ * 总结一篇长正文时光思考就吃 1300+ token，预算给少了正文会被截成 1 个字 */
+const MAX_OUTPUT_TOKENS = 3000;
 /** 单条消息字数上限，超过即截断 */
 const MAX_CONTENT_LEN = 2000;
 /** 发给模型的历史轮数（越少越省钱也越快）；真正的裁剪在 POST 里的 .slice(-CONTEXT_TURNS) */
@@ -132,18 +137,18 @@ function buildSystemPrompt(input: {
     '',
     // 必须用反引号：单引号里的 ${identity.name} 不会被替换，占位符会原样发给模型
     lang === 'zh'
-      ? `【说话风格】这是${identity.name} 最鲜明的特点：把复杂问题讲成人话。具体要求：`
-      : `【Style】The signature trait of ${identity.name} is explaining complicated things in plain language. Concretely:`,
+      ? `【说话风格·字数硬限制】这是${identity.name} 最鲜明的特点：把复杂问题讲成人话。`
+      : `【Style — hard length limit】The signature trait of ${identity.name} is explaining complicated things in plain language.`,
     lang === 'zh'
-      ? '1. 第一句先给结论，别铺垫。\n2. 需要解释机制时，打一个生活里的比方。\n3. 术语第一次出现就用一句话说明白，不堆名词。\n4. 默认回答不超过 250 字，访客里既有面试官也有 AI 零基础的人，遇到专业追问再展开。'
-      : '1. Lead with the conclusion.\n2. Use an everyday analogy when explaining how something works.\n3. Define any jargon in one sentence on first use.\n4. Keep answers under about 120 words; visitors range from interviewers to complete beginners.',
+      ? '1. 默认 2 句以内、60 字以内；一句能说清就只说一句。\n2. 第一句直接给结论，不铺垫、不复述访客的问题、不写「好问题」这类客套。\n3. 访客明确要求「总结 / 梳理 / 归纳」某个项目或笔记时，可以用 3–5 句、200 字以内，只讲主线与关键结论；其余情况不列点、不做总结、不补充「另外」「不过」之类的延伸。\n4. 需要列举清单（如作品）时，每项一句，不解释、不展开。\n5. 回答会按纯文本显示：不要用 # 标题、编号列表、**加粗**、分隔线、表格。\n6. 只有解释机制时才打比方，比方本身不超过一句话。\n7. 术语第一次出现时用半句话说明白，不堆名词。'
+      : '1. Two sentences / 60 words max by default; one sentence when that is enough.\n2. Lead with the conclusion. No preamble, no restating the question, no "great question".\n3. Only when explicitly asked to summarise a project or note: 3–5 sentences, under 200 words, main thread and key conclusions only. Otherwise: no bullet lists, no summary, no "also / that said" tangents.\n4. When listing things (projects), one line each: no explanation, no expansion.\n5. Answers render as plain text: no # headings, numbered lists, **bold**, rules or tables.\n6. Use an everyday analogy only to explain a mechanism, and keep it to one sentence.\n7. Define jargon in half a sentence on first use.',
     lang === 'zh'
       ? '【格式硬要求】聊天界面按纯文本显示，不解析 Markdown。所以不要用 **加粗**、# 标题、反引号、markdown 链接或表格；要分点就用「1. 2. 3.」或换行。'
       : '[Format] The chat renders as plain text, not Markdown. Do not use **bold**, # headings, backticks, markdown links or tables. Use numbered lines or line breaks instead.',
     // 硬编码的站点地图：加页面必须同步改这里。只描述页面结构，具体内容由下方资料给出
     lang === 'zh'
-      ? '【站内指路】本站有三个页面：首页（自我介绍 + 磁贴区：籍贯、最喜欢的工具、技术栈、工具、连接）、项目页（/projects，每张卡链到 GitHub）、笔记页（/notes，中文技术笔记，每篇地址形如 /notes/加一个英文短名）。要指路就指这三处的中文名；不要提不存在的路径，也不要声称某一页里有它实际没有的内容。'
-      : '[Site map] The site has three pages: home (intro + tiles: hometown, favourite tools, tech stack, tools, connect), the projects page /projects (each card links to GitHub), and the notes page /notes (Chinese technical notes, each at /notes/<slug>). Only point to those; never mention paths that do not exist, and never claim a page contains something it does not.',
+      ? '【站内指路】本站的页面：首页（自我介绍 + 磁贴区：籍贯、最喜欢的工具、技术栈、工具、连接）、项目页（/projects，卡片链到项目详情页或 GitHub）、项目详情页（/projects/加一个英文短名，只有写了正文的项目才有）、笔记页（/notes，中文技术笔记）、笔记详情页（/notes/加一个英文短名）。要指路就用「中文名 + 括号内路径」的形式；不要提不存在的路径，也不要声称某一页里有它实际没有的内容。'
+      : '[Site map] The site has these pages: home (intro + tiles: hometown, favourite tools, tech stack, tools, connect), the projects page /projects (cards link to a project detail page or GitHub), project detail pages /projects/<slug> (only for projects that have a body), the notes page /notes (Chinese technical notes), and note detail pages /notes/<slug>. Only point to those; never mention paths that do not exist, and never claim a page contains something it does not.',
     '',
     lang === 'zh' ? '【关于他的事实】' : '[Facts about him]',
     `${lang === 'zh' ? '称呼' : 'Name'}: ${identity.name}`,
@@ -193,11 +198,11 @@ function buildSystemPrompt(input: {
     lines.push(
       '',
       lang === 'zh'
-        ? '【当前访客正在阅读的笔记】访客此刻正打开着下面这篇笔记（来自本站笔记页）。'
-        : '[The note the visitor currently has open] The visitor is reading the note below right now.',
+        ? '【当前访客正在阅读的页面】访客此刻正打开着下面这一页（可能是一篇笔记，也可能是某个项目的详情页）。'
+        : '[The page the visitor currently has open] The visitor is reading the page below right now (either a note or a project detail page).',
       lang === 'zh'
-        ? '三条硬要求：① 访客说「这篇笔记」「当前页面」「我打开的笔记」「这个」时，**指的就是下面这一篇**，必须直接基于它回答，**绝对不要说「不在我能回答的范围内」，也不要说「我没找到相关笔记」**；② 归纳要点时按原文的说法讲，不要补充原文没写的结论；③ 可以顺带给出它的完整地址，让访客去看原文。'
-        : 'Three hard rules: (1) when the visitor says "this note", "the current page", or "the note I have open", they mean the one below — answer from it directly and NEVER say it is out of scope or that you found nothing; (2) summarise using the original wording, adding no conclusions the text does not make; (3) you may give its full path so they can read the original.',
+        ? '三条硬要求：① 访客说「这篇笔记」「这个项目」「当前页面」「我打开的这个」「这个」时，**指的就是下面这一页**，必须直接基于它回答，**绝对不要说「不在我能回答的范围内」，也不要说「我没找到相关内容」**；② 归纳要点时按原文的说法讲，不要补充原文没写的结论；③ 可以顺带给出它的完整地址，让访客去看原文。'
+        : 'Three hard rules: (1) when the visitor says "this note", "this project", "the current page", "the one I have open" or "this", they mean the page below — answer from it directly and NEVER say it is out of scope or that you found nothing; (2) summarise using the original wording, adding no conclusions the text does not make; (3) you may give its full path so they can read the original.',
       '',
       page,
     );
@@ -244,6 +249,16 @@ function buildSystemPrompt(input: {
       lang === 'zh'
         ? '【关于「最新动态」类问题·你目前没有联网能力】访客这次问的是需要实时信息的问题，但**本站在服务端没有配置联网检索，你拿不到训练数据之后的信息**。所以：① 明确告诉访客「我拿不到实时信息，我的知识有截止时间」，**不要用「最新」「最近」的口吻去讲旧闻**；② **绝对不要凭记忆编造「最新进展」**（比如编出某个模型的新版本、某个日期发生的事）；③ 可以改为介绍他本人正在关注的方向（见【关于他的事实】），并建议访客自行搜索权威来源。'
         : '[About "latest developments" — you have no web access] The visitor asked something that needs live information, but this site has no web search configured on the server, so you cannot see anything after your training cut-off. Therefore: (1) tell the visitor plainly that you cannot fetch live information; (2) NEVER invent "the latest" from memory; (3) instead, describe the directions he is currently following and suggest the visitor search an authoritative source.',
+    );
+  }
+
+  /* 没有当前页时最容易出的错：把项目目录里的第一个当成「他打开的那个」。必须明说只能问、不许猜。 */
+  if (!page) {
+    lines.push(
+      '',
+      lang === 'zh'
+        ? '【本次没有「当前页」】这次请求没有带上访客正在阅读的页面（他可能在首页、列表页，或从外部链接进来）。因此：① 若访客说「这个项目」「这篇笔记」「我打开的」「当前这个」，**一律不许猜**，也不许把项目目录或笔记目录里的某一个当成他正在看的东西；② 直接告诉他你看不到他打开的是哪一页，可以列出站内可选项，让他报个名字；③ 只有他明确说出名字时，才按那个名字回答。'
+        : '[No current page this time] This request did not include the page the visitor is reading (he may be on the home page, a list page, or arriving from an external link). Therefore: (1) if he says "this project", "this note", "the one I have open" or "this one", NEVER guess, and never treat an item from the project or note index as the thing he is looking at; (2) tell him plainly that you cannot see which page is open, optionally list the available items and ask him to name one; (3) answer about a specific item only after he names it.',
     );
   }
 
@@ -335,21 +350,45 @@ export async function POST(req: Request): Promise<Response> {
     return errorResponse('env_missing', 500);
   }
 
-  if (!allowRequest(clientIp(req))) {
+  const ip = clientIp(req);
+  if (!allowRequest(ip)) {
     return errorResponse('rate_limited', 429);
   }
 
-  // 当前页笔记：命中 /notes/<slug> 就按 slug 取整篇（检索层不知道访客在看哪一页）
+  // 每日配额：访客 1 次、登录用户 3 次、管理员不限（lib/assistant-quota.ts）。
+  // 位置必须在固定答案之后：拒答与固定答案不消耗访客当天那一次。
+  const quota = await takeQuota(ip);
+  if (!quota.allowed) {
+    return Response.json(
+      {
+        error: 'quota_exhausted' satisfies AssistantErrorCode,
+        limit: quota.limit,
+        used: quota.used,
+        kind: quota.kind,
+      },
+      { status: 429 },
+    );
+  }
+
+  // 联网检索：只在「确实需要实时信息」且「配了搜索」时才打。
+  // 先发起、后 await，让它在下面几步同步检索期间并行跑，不白等最多 12 秒
+  const wantsFresh = needsFreshInfo(question);
+  const webConfigured = isWebSearchConfigured();
+  const webPending: Promise<WebSearchHit[]> =
+    wantsFresh && webConfigured && question ? webSearch(question) : Promise.resolve([]);
+
+  // 当前页：笔记与项目详情页各有一条「取整篇」的路（检索层不知道访客在看哪一页）
   // 读库失败要降级 —— 不该让整次回答挂掉
   let page = '';
-  const noteMatch = /^\/notes\/([a-z0-9][a-z0-9-]*)\/?$/.exec(pagePath);
-  if (noteMatch) {
+  const pageMatch = /^\/(notes|projects)\/([a-z0-9][a-z0-9-]*)\/?$/.exec(pagePath);
+  if (pageMatch) {
+    const [, kind, slug] = pageMatch;
     try {
-      page = noteChunks(noteMatch[1])
+      page = (kind === 'notes' ? noteChunks(slug) : projectChunks(slug))
         .map((c) => c.text)
         .join('\n\n');
     } catch (err) {
-      console.warn('[assistant] 读取当前页笔记失败，降级为无当前页：', (err as Error)?.message ?? 'unknown');
+      console.warn('[assistant] 读取当前页失败，降级为无当前页：', (err as Error)?.message ?? 'unknown');
     }
   }
 
@@ -361,14 +400,8 @@ export async function POST(req: Request): Promise<Response> {
     console.warn('[assistant] 检索站内资料失败，降级为无资料：', (err as Error)?.message ?? 'unknown');
   }
 
-  // 联网检索：只在「确实需要实时信息」且「配了搜索」时才打。
-  // 没配时提示词会告诉模型「你没有联网能力、不许编」
-  const wantsFresh = needsFreshInfo(question);
-  const webConfigured = isWebSearchConfigured();
-  let web = '';
-  if (wantsFresh && webConfigured && question) {
-    web = formatWebResults(await webSearch(question));
-  }
+  // 没配联网时提示词会告诉模型「你没有联网能力、不许编」
+  const web = formatWebResults(await webPending);
 
   const messages = [
     { role: 'system', content: buildSystemPrompt({ lang, page, context, web, wantsFresh, webConfigured }) },
@@ -376,6 +409,9 @@ export async function POST(req: Request): Promise<Response> {
   ];
 
   let upstream: Response;
+  // 只给「握手」计时：拿到响应头后立刻清掉定时器，响应体可以慢慢流
+  const gate = new AbortController();
+  const gateTimer = setTimeout(() => gate.abort(), UPSTREAM_TIMEOUT_MS);
   try {
     upstream = await fetch(`${baseUrl.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
@@ -383,16 +419,23 @@ export async function POST(req: Request): Promise<Response> {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({ model: modelId, messages, stream: true }),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      body: JSON.stringify({
+        model: modelId,
+        messages,
+        stream: true,
+        max_tokens: MAX_OUTPUT_TOKENS,
+      }),
+      signal: gate.signal,
       // Next 默认会给 fetch 加缓存语义，这里显式声明不需要
       cache: 'no-store',
     });
   } catch (err) {
-    // AbortSignal.timeout 触发时抛 TimeoutError；其余是 DNS/TLS 之类网关问题
+    // gate.abort() 抛 AbortError；其余是 DNS/TLS 之类网关问题
     const name = (err as Error)?.name ?? '';
     console.error('[assistant] upstream fetch failed:', name || 'unknown');
-    return errorResponse(name === 'TimeoutError' ? 'upstream_timeout' : 'upstream_error', 502);
+    return errorResponse(name === 'AbortError' || name === 'TimeoutError' ? 'upstream_timeout' : 'upstream_error', 502);
+  } finally {
+    clearTimeout(gateTimer);
   }
 
   if (!upstream.ok) {

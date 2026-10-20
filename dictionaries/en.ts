@@ -127,6 +127,7 @@ const en: Dict = {
       bad_request: 'The request was malformed',
       too_long: 'That message was too long',
       rate_limited: 'Slow down a bit and try again in a few minutes',
+      quota_exhausted: 'Today’s allowance is used up: 1 question a day for visitors, 3 once you sign in',
       upstream_auth: 'The API key is invalid or expired',
       upstream_rate_limit: 'The model provider is rate-limiting',
       upstream_timeout: 'The model took too long to respond',

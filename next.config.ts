@@ -38,6 +38,12 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  /**
+   * 构建目录。默认 `.next`；设了 NEXT_DIST_DIR 就换到别处。
+   * 用途：让 dev 缓存（如 `NEXT_DIST_DIR=temp/next-dev`）与生产的 `.next` 互不覆盖 ——
+   * dev 启动时会清理自己目录里的旧产物，混用会把 build 产物删掉，`next start` 就跑不起来。
+   */
+  distDir: process.env.NEXT_DIST_DIR?.trim() || ".next",
   typescript: {
     ignoreBuildErrors: true,
   },

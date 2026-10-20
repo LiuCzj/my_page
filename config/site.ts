@@ -418,7 +418,7 @@ export const site: SiteConfig = {
       { zh: '怎么联系你？', en: 'How can I contact you?' },
     ],
     maxHistory: 20,
-    contextTurns: 10,
+    contextTurns: 6,
   },
 };
 

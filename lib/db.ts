@@ -131,6 +131,16 @@ function migrate(d: Database.Database): void {
       created_at INTEGER NOT NULL,
       PRIMARY KEY (email, purpose)
     );
+
+    /* ── 数字分身每日用量 ──────────────────────────
+     * subject 形如 u:12（登录用户）/ g:<访客标识> / ip:1.2.3.4（访客兜底）
+     * day 是北京时间的 YYYY-MM-DD，见 lib/assistant-quota.ts */
+    CREATE TABLE IF NOT EXISTS assistant_usage (
+      day     TEXT    NOT NULL,
+      subject TEXT    NOT NULL,
+      used    INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (day, subject)
+    );
   `);
 
   // 首次启动（两张表都还空着）时，把仓库里现有的静态内容灌进去，保证一篇不丢。

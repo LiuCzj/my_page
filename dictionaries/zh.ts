@@ -137,6 +137,7 @@ const zh = {
       bad_request: '请求内容有问题',
       too_long: '这条太长了',
       rate_limited: '问得太快了，休息几分钟再来',
+      quota_exhausted: '今天的次数用完了：访客每天 1 次，登录后每天 3 次',
       upstream_auth: '密钥无效或已过期',
       upstream_rate_limit: '模型那边限流了',
       upstream_timeout: '模型响应超时',

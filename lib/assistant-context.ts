@@ -1,6 +1,6 @@
 /** 数字分身的站内知识检索层。 */
 
-import { listNoteMetas, listProjects, listSkillGroups, getNoteRecord } from '@/lib/content';
+import { listNoteMetas, listProjects, listSkillGroups, getNoteRecord, getProject } from '@/lib/content';
 import type { LocalizedText } from '@/config/site';
 
 /** 一段可被检索的站内内容片段（按「段」切，粒度才和问题对得上） */
@@ -97,6 +97,29 @@ function extractKeywords(query: string): string[] {
   return [...new Set(out)];
 }
 
+/**
+ * 把正文按空行切成可检索片段。
+ * @param source 归属名称
+ * @param body   Markdown 正文
+ * @param href   站内路径
+ * @returns 片段数组：短段落丢弃，长段落按 600 字硬切
+ */
+function bodyChunks(source: string, body: string, href: string): Chunk[] {
+  const out: Chunk[] = [];
+  for (const para of body.split(/\n\s*\n/)) {
+    const text = para.trim();
+    if (text.length < 10) continue;
+    if (text.length <= 600) {
+      out.push({ source, text, href });
+    } else {
+      for (let i = 0; i < text.length; i += 600) {
+        out.push({ source, text: text.slice(i, i + 600), href });
+      }
+    }
+  }
+  return out;
+}
+
 /** 构造全站的可检索片段。 */
 function buildChunks(): Chunk[] {
   const chunks: Chunk[] = [];
@@ -136,26 +159,20 @@ function buildChunks(): Chunk[] {
     });
 
     // 正文按空行分段：太短的多半是小标题，跳过；太长的硬切一刀，免得一段吃掉全部预算
-    for (const para of record.body.split(/\n\s*\n/)) {
-      const text = para.trim();
-      if (text.length < 10) continue;
-      if (text.length <= 600) {
-        chunks.push({ source: meta.title, text, href });
-      } else {
-        for (let i = 0; i < text.length; i += 600) {
-          chunks.push({ source: meta.title, text: text.slice(i, i + 600), href });
-        }
-      }
-    }
+    chunks.push(...bodyChunks(meta.title, record.body, href));
   }
 
   for (const project of projects) {
     const title = pickLang(project.title);
+    const href = `/projects/${project.slug}`;
     chunks.push({
       source: title,
-      text: `项目「${title}」：${pickLang(project.summary)}｜技术栈：${project.stack.join('、') || '未标注'}${project.date ? `｜${project.date}` : ''}｜仓库：${project.url}`,
-      href: '/projects',
+      text: `项目「${title}」：${pickLang(project.summary)}｜技术栈：${project.stack.join('、') || '未标注'}${project.date ? `｜${project.date}` : ''}｜仓库：${project.url}${project.body ? `｜详情页 ${href}` : ''}`,
+      // 没有正文的项目只有卡片，指路只能指到列表页
+      href: project.body ? href : '/projects',
     });
+    // 项目正文同样进检索，否则「感知机是什么」这类问题只能命中摘要
+    if (project.body) chunks.push(...bodyChunks(title, project.body, href));
   }
 
   for (const group of listSkillGroups()) {
@@ -267,6 +284,32 @@ export function noteChunks(slug: string, maxChars = 4000): Chunk[] {
 
   const body = record.body.slice(0, maxChars).trim();
   if (body) chunks.push({ source: record.title, text: body, href });
+
+  return chunks;
+}
+
+/**
+ * 取一个项目的整篇内容，供「当前页」优先注入。
+ * @param slug     项目短名（内部过 SLUG_RE，非法值取不到记录）
+ * @param maxChars 正文注入上限，避免挤掉其他资料
+ * @returns 简介一条 + 正文一条；项目不存在或没有正文时返回空数组
+ */
+export function projectChunks(slug: string, maxChars = 4000): Chunk[] {
+  const record = getProject(slug);
+  if (!record) return [];
+
+  const href = `/projects/${slug}`;
+  const title = pickLang(record.title);
+  const chunks: Chunk[] = [
+    {
+      source: title,
+      text: `项目《${title}》｜简介：${pickLang(record.summary)}｜技术栈：${record.stack.join('、') || '未标注'}${record.date ? `｜${record.date}` : ''}｜仓库：${record.url || '无'}｜完整地址 ${href}`,
+      href,
+    },
+  ];
+
+  const body = record.body.slice(0, maxChars).trim();
+  if (body) chunks.push({ source: title, text: body, href });
 
   return chunks;
 }
