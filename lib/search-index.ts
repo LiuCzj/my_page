@@ -180,7 +180,7 @@ export function buildSearchIndex({
             bothLanguages(group.title),
             bothLanguages(section.label),
           ),
-          href: '/',
+          href: '/#skills',
           external: false,
         });
       });
@@ -195,7 +195,7 @@ export function buildSearchIndex({
       group: 'tools',
       title: display(tool.label, lang),
       haystack: buildHaystack(bothLanguages(tool.label)),
-      href: '/',
+      href: '/#tools',
       external: false,
     });
   });
@@ -205,7 +205,7 @@ export function buildSearchIndex({
       group: 'tools',
       title: display(tool.label, lang),
       haystack: buildHaystack(bothLanguages(tool.label)),
-      href: '/',
+      href: '/#favorite-tools',
       external: false,
     });
   });

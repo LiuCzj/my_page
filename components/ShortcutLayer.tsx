@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { Keyboard } from 'lucide-react';
 import { useHotkeys } from '@/lib/use-hotkeys';
 import { useI18n } from '@/lib/i18n';
+import { useSearch } from '@/lib/search-context';
 import ShortcutHelp from './ShortcutHelp';
 import SiteSearch, { type SearchNote, type SearchProject, type SearchSkillGroup } from './SiteSearch';
 
@@ -28,13 +29,10 @@ interface ShortcutLayerProps {
 export default function ShortcutLayer({ notes, projects, skills }: ShortcutLayerProps) {
   const { d } = useI18n();
 
-  /** 搜索面板的开合。唯一的真实来源在这里，键盘与（将来的）顶栏按钮都改它 */
-  const [searchOpen, setSearchOpen] = useState(false);
+  /** 搜索面板的开合。真实来源在 SearchProvider：顶栏图标与 Cmd/Ctrl+K 改的都是它 */
+  const { open: searchOpen, openSearch, closeSearch } = useSearch();
   /** 快捷键说明面板的开合。入口有两个：`?` 键（面板自己监听）和下面那颗常驻按钮 */
   const [helpOpen, setHelpOpen] = useState(false);
-
-  /** 打开搜索。 */
-  const openSearch = useCallback(() => setSearchOpen(true), []);
 
   /** 常驻按钮的点击入口，同上 */
   const openHelp = useCallback(() => setHelpOpen(true), []);
@@ -59,10 +57,10 @@ export default function ShortcutLayer({ notes, projects, skills }: ShortcutLayer
         <kbd className="font-mono">?</kbd>
       </button>
 
-      {/* 站内搜索：受控，由上面的 searchOpen 决定 */}
+      {/* 站内搜索：受控，开合来自 SearchProvider */}
       <SiteSearch
         open={searchOpen}
-        onOpenChange={setSearchOpen}
+        onOpenChange={(next) => (next ? openSearch() : closeSearch())}
         notes={notes}
         projects={projects}
         skills={skills}

@@ -9,6 +9,7 @@ import { I18nProvider } from '@/lib/i18n'
 import { TwinChatProvider } from '@/lib/twin-chat-context'
 import { MusicProvider } from '@/lib/music-context'
 import { AuthProvider } from '@/lib/auth-context'
+import { SearchProvider } from '@/lib/search-context'
 import Navbar from '@/components/Navbar'
 import CustomCursor from '@/components/CustomCursor'
 import CursorFx from '@/components/CursorFx'
@@ -117,6 +118,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <AuthProvider initialUser={me}>
           {/* I18nProvider 在 Navbar 之外，顶栏的语言按钮和导航文案才能同时读到字典 */}
           <I18nProvider>
+            {/* 搜索面板的开合：顶栏图标与 Cmd/Ctrl+K 共用，所以要盖住 Navbar 和 ShortcutLayer */}
+            <SearchProvider>
             {/* 内容保护：非管理员时拦截复制，剪贴板只留出处。要读字典，所以在 I18nProvider 内 */}
             <ContentGuard enabled={!canEdit} />
             {/* TwinChatProvider 必须放在这一层而不是 page.tsx。 */}
@@ -152,6 +155,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {/* 上方那枚系统箭头换成对应表情（地球块是 ✈️）。它自己会判断设备，触屏上整个组件不生效。 */}
               <CustomCursor />
             </TwinChatProvider>
+            </SearchProvider>
           </I18nProvider>
           </AuthProvider>
         </ThemeProvider>

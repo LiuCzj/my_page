@@ -5,7 +5,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ThemeToggle from './theme-toggle';
 import LanguageToggle from './LanguageToggle';
@@ -16,8 +16,31 @@ import MobileNavDrawer from './MobileNavDrawer';
 import AuthMenu from './AuthMenu';
 import { useI18n } from '@/lib/i18n';
 import { useTwinChat } from '@/lib/twin-chat-context';
+import { useSearch } from '@/lib/search-context';
 import { TOPBAR_CONTROL, TOPBAR_ICON_SIZE, TOPBAR_SOCIAL_ICON_SIZE } from '@/lib/topbar';
 import { site } from '@/config/site';
+
+/**
+ * 站内搜索入口。桌面放在社交图标那一簇，手机放在账号左边 —— 两处只显示一处，
+ * 断点由调用方给的 className 决定。
+ * @param props.className 控制显示断点的类名
+ */
+function SearchButton({ className = '' }: { className?: string }) {
+  const { d } = useI18n();
+  const { openSearch } = useSearch();
+
+  return (
+    <button
+      type="button"
+      onClick={openSearch}
+      aria-label={d.search.open}
+      aria-haspopup="dialog"
+      className={`${TOPBAR_CONTROL} ${className}`}
+    >
+      <Search size={TOPBAR_ICON_SIZE} aria-hidden="true" />
+    </button>
+  );
+}
 
 export default function Navbar() {
   const { d } = useI18n();
@@ -101,8 +124,9 @@ export default function Navbar() {
             </ul>
 
             <div className="flex items-center gap-1.5">
-              {/* 桌面端联系方式排在语言/主题之前，符合「依次排开」的顺序。 */}
+              {/* 桌面端联系方式排在语言/主题之前，符合「依次排开」的顺序。搜索跟它们同一簇，放在最左 */}
               <div className="hidden items-center gap-1 lg:flex">
+                <SearchButton />
                 <SocialLinks
                   size={TOPBAR_SOCIAL_ICON_SIZE}
                   itemClassName="-mx-[2px] size-10"
@@ -112,6 +136,9 @@ export default function Navbar() {
               </div>
               {/* 竖分隔线：把「联系方式」和「工具控件」两簇分开。 */}
               <span className="mx-1 hidden h-7 w-px bg-border lg:block" aria-hidden="true" />
+
+              {/* 手机 / 平板：社交簇整块不渲染，搜索图标改挂在账号左边 */}
+              <SearchButton className="lg:hidden" />
 
               {/* 背景音乐。桌面端和 ≥640px 的宽屏上直接摆在顶栏； */}
               <div className="hidden sm:block">

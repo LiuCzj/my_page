@@ -45,6 +45,7 @@ function Tile({
   span,
   icon,
   title,
+  id,
   cursorEmoji,
   delay,
   tint = 'sky',
@@ -56,6 +57,8 @@ function Tile({
   /** 标题左侧那枚小图标。 */
   icon?: React.ReactNode;
   title: string;
+  /** 锚点 id。站内搜索直接跳到这里，滚动时按顶栏高度留出余量 */
+  id?: string;
   cursorEmoji: string;
   delay: number;
   /** 装饰色相，见上面的 TileTint 说明 */
@@ -133,6 +136,7 @@ function Tile({
   return (
     <motion.li
       ref={focusRef}
+      id={id}
       {...reveal(delay)}
       data-cursor-emoji={cursorEmoji}
       onPointerMove={onMove}
@@ -144,7 +148,7 @@ function Tile({
       }}
       className={`card ${
         hero ? 'card-hero p-5 sm:p-6' : 'p-4 sm:p-5 hover:border-accent/70'
-      } group/tile relative flex list-none flex-col overflow-hidden transition-[border-color] duration-200 ease-out ${span}`}
+      } ${id ? 'scroll-mt-[calc(var(--header-h)+1rem)]' : ''} group/tile relative flex list-none flex-col overflow-hidden transition-[border-color] duration-200 ease-out ${span}`}
     >
       {/* 右上角那团晕染：色相跟着 tint 走。透明度压在 0.14，
           再高就会把标题行那串 12px 的灰字压得发闷（原来只有暖色一档时是 0.16）。 */}
@@ -481,7 +485,7 @@ export default function Dashboard({
         </Tile>
 
         {/* ② 最喜欢的工具：右侧上格 */}
-        <Tile span="sm:col-span-1 sm:row-span-1" icon={<Heart size={13} />} title={d.favorite.title} cursorEmoji="❤️" delay={CARD_STAGGER} tint="coral">
+        <Tile id="favorite-tools" span="sm:col-span-1 sm:row-span-1" icon={<Heart size={13} />} title={d.favorite.title} cursorEmoji="❤️" delay={CARD_STAGGER} tint="coral">
           <ul className="space-y-2">
             {favoriteTools.map((t) => (
               <li
@@ -507,6 +511,7 @@ export default function Dashboard({
 
         {/* 滚起来之后完全看不出「SQL」属于哪一组、这一串到哪儿换组 ——图例那行组名和带子里的内容对不上号，等于把六份信息搅成一份。 */}
         <Tile
+          id="skills"
           span="sm:col-span-3 sm:row-span-1"
           icon={<Brain size={13} />}
           title={d.skills.title}
@@ -555,7 +560,7 @@ export default function Dashboard({
         </Tile>
 
         {/* ⑤ 工具：整条铺开。只摆图标，名字等鼠标停上去才出现（实现与取舍见上面 ToolRow） */}
-        <Tile span="sm:col-span-3 sm:row-span-1" icon={<Wrench size={13} />} title={d.tools.title} cursorEmoji="🔧" delay={CARD_STAGGER * 4} tint="amber">
+        <Tile id="tools" span="sm:col-span-3 sm:row-span-1" icon={<Wrench size={13} />} title={d.tools.title} cursorEmoji="🔧" delay={CARD_STAGGER * 4} tint="amber">
           <ToolRow row={tools} duration="52s" pick={pick} />
         </Tile>
       </ul>
